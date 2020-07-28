@@ -1,0 +1,144 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>JSONEditor | By Ysw</title>
+
+    <!-- when using the mode "code", it's important to specify charset utf-8 -->
+    <meta http-equiv="Content-Type" content="text/htmlcharset=utf-8">
+
+    <link href="resources/jsoneditor/jsoneditor.css" rel="stylesheet" type="text/css">
+    <script src="resources/jsoneditor/jsoneditor.js"></script>
+    <script src="resources/jquery-1.8.3.min.js"></script>
+
+    <style type="text/css">
+        html,
+        body {
+            height: 100%;
+            padding: 0px;
+            margin: 0px;
+        }
+        
+        code {
+            background-color: #f5f5f5;
+        }
+        
+        #jsoneditor {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .box-out {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            font: 25px/400px;
+            display: none;
+            background-color: rgba(0, 0, 0, 9.8);
+            z-index: 1000
+        }
+        
+        .box {
+            width: 50%;
+            height: 80%;
+            border: 1px dashed rgb(50, 188, 243);
+            position: absolute;
+            top: 10%;
+            left: 5%;
+            margin: -20px -20px -20px -20px;
+            text-align: center;
+            background-color: whitesmoke;
+            z-index: 1000;
+            border-radius: 5%;
+        }
+        
+        #jsoneditor a {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box-out" id="out">
+        <div class="box" id="box">请将文件拖入此处</div>
+    </div>
+    <div id="jsoneditor"></div>
+    <script>
+        const container = document.getElementById('jsoneditor')
+
+        const options = {
+            mode: 'code',
+            modes: ['code', 'form', 'text', 'tree', 'view', 'preview'], // allowed modes
+            onError: function(err) {
+                alert(err.toString())
+            },
+            onModeChange: function(newMode, oldMode) {
+                console.log('Mode switched from', oldMode, 'to', newMode)
+            }
+        }
+
+        const json = {
+            "array": [1, 2, 3],
+            "boolean": true,
+            "null": null,
+            "number": 123,
+            "object": {
+                "a": "b",
+                "c": "d"
+            },
+            "string": "Hello World"
+        }
+
+        const editor = new JSONEditor(container, options, json)
+        window.onload = function() {
+            var oBox = document.getElementById('box')
+            var out = document.getElementById('out')
+            var timer = null
+            document.ondragover = function() {
+                    clearTimeout(timer)
+                    timer = setTimeout(function() {
+                        oBox.style.display = 'none'
+                        out.style.display = 'none'
+                    }, 200)
+                    oBox.style.display = 'block'
+                    out.style.display = 'block'
+                }
+                //进 入 子 集 的 时 候 会 触 发 ondragover频 繁 触 发 不 给 ondrop机 会
+            oBox.ondragenter = function() {
+                fileNotice = '请 释 放 鼠 标 '
+                $('#box').html(fileNotice)
+                oBox.style.border = '3px dashed rgb(51/ 105, 223)'
+            }
+            oBox.ondragover = function() {
+                return false
+            }
+            oBox.ondragleave = function() {
+                fileNotice = '请 将 文 件 拖 到 此 处 '
+                $('#box').html(fileNotice)
+                oBox.style.border = 'lpx dashed rgb(50/ 188, 243)'
+            }
+            oBox.ondrop = function(ev) {
+                var file = ev.dataTransfer.files[0]
+                console.log(file)
+                var reader = new FileReader()
+                reader.onload = function(e) {
+                    var t = e.target.result
+                    console.log(t)
+                    t = t.replace(/\s(\w+\.?\d*)\s*:/g, ' \"$1\":')
+                    t = t.replace(/\/\/.*/g, '')
+                    t = t.replace(/，/g, ',')
+                    try {
+                        editor.setText(t)
+                        console.log("Loaded : " + file.name)
+                    } catch (error) {
+                        alert("Failed : " + file.name + " , Error : " + error)
+                    }
+                }
+                reader.readAsText(file, "UTF-8")
+                return false
+            }
+        }
+    </script>
+</body>
+
+</html>
