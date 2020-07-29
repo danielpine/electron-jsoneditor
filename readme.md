@@ -7,3 +7,7 @@ JSONEditor v8.6.4
 npm install
 
 npm install electron-packager -g
+
+npm run start
+
+enjoy it!
