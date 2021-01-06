@@ -24,8 +24,8 @@
  * Copyright (c) 2011-2020 Jos de Jong, http://jsoneditoronline.org
  *
  * @author  Jos de Jong, <wjosdejong@gmail.com>
- * @version 8.6.4
- * @date    2020-04-17
+ * @version 9.1.5
+ * @date    2021-01-06
  */
 
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -121,7 +121,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 36);
+/******/ 	return __webpack_require__(__webpack_require__.s = 37);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -131,7 +131,7 @@ return /******/ (function(modules) { // webpackBootstrap
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "parse", function() { return parse; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "repair", function() { return repair; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "trySimpleJsonRepair", function() { return trySimpleJsonRepair; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "escapeUnicodeChars", function() { return escapeUnicodeChars; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "validate", function() { return validate; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "extend", function() { return extend; });
@@ -139,6 +139,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getType", function() { return getType; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isUrl", function() { return isUrl; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isArray", function() { return isArray; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getWindow", function() { return getWindow; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getAbsoluteLeft", function() { return getAbsoluteLeft; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getAbsoluteTop", function() { return getAbsoluteTop; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "addClassName", function() { return addClassName; });
@@ -185,18 +186,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isObject", function() { return isObject; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "contains", function() { return contains; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isValidationErrorChanged", function() { return isValidationErrorChanged; });
-/* harmony import */ var _polyfills__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(24);
+/* harmony import */ var _polyfills__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(25);
 /* harmony import */ var _polyfills__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_polyfills__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var javascript_natural_sort__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(11);
+/* harmony import */ var javascript_natural_sort__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(13);
 /* harmony import */ var javascript_natural_sort__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(javascript_natural_sort__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(22);
-/* harmony import */ var _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var json_source_map__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(33);
-/* harmony import */ var json_source_map__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(json_source_map__WEBPACK_IMPORTED_MODULE_3__);
-/* harmony import */ var _i18n__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(1);
+/* harmony import */ var simple_json_repair__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(8);
+/* harmony import */ var simple_json_repair__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(simple_json_repair__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(23);
+/* harmony import */ var _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var json_source_map__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(34);
+/* harmony import */ var json_source_map__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(json_source_map__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var _i18n__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(1);
 
 
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 
 
 
@@ -223,330 +227,17 @@ function parse(jsonString) {
   }
 }
 /**
- * Repair a JSON-like string containing. For example changes JavaScript
- * notation into JSON notation.
- * This function for example changes a string like "{a: 2, 'b': {c: 'd'}"
- * into '{"a": 2, "b": {"c": "d"}'
- * @param {string} jsString
- * @returns {string} json
+ * Try to fix the JSON string. If not successful, return the original string
+ * @param {string} jsonString
  */
 
-function repair(jsString) {
-  // TODO: refactor this function, it's too large and complicated now
-  // escape all single and double quotes inside strings
-  var chars = [];
-  var i = 0;
-  var indent = 0;
-  var isLineSeparatedJson = false; // If JSON starts with a function (characters/digits/"_-"), remove this function.
-  // This is useful for "stripping" JSONP objects to become JSON
-  // For example: /* some comment */ function_12321321 ( [{"a":"b"}] ); => [{"a":"b"}]
-
-  var match = jsString.match(/^\s*(\/\*(.|[\r\n])*?\*\/)?\s*[\da-zA-Z_$]+\s*\(([\s\S]*)\)\s*;?\s*$/);
-
-  if (match) {
-    jsString = match[3];
+function trySimpleJsonRepair(jsonString) {
+  try {
+    return simple_json_repair__WEBPACK_IMPORTED_MODULE_2___default()(jsonString);
+  } catch (err) {
+    // repair was not successful, return original text
+    return jsonString;
   }
-
-  var controlChars = {
-    '\b': '\\b',
-    '\f': '\\f',
-    '\n': '\\n',
-    '\r': '\\r',
-    '\t': '\\t'
-  };
-  var quote = '\'';
-  var quoteDbl = '"';
-  var quoteLeft = "\u2018";
-  var quoteRight = "\u2019";
-  var quoteDblLeft = "\u201C";
-  var quoteDblRight = "\u201D";
-  var graveAccent = "`";
-  var acuteAccent = "\xB4";
-  var pythonConstants = {
-    None: 'null',
-    True: 'true',
-    False: 'false'
-  }; // helper functions to get the current/prev/next character
-
-  function curr() {
-    return jsString.charAt(i);
-  }
-
-  function next() {
-    return jsString.charAt(i + 1);
-  }
-
-  function prev() {
-    return jsString.charAt(i - 1);
-  }
-
-  function isWhiteSpace(c) {
-    return c === ' ' || c === '\n' || c === '\r' || c === '\t';
-  } // get the last parsed non-whitespace character
-
-
-  function lastNonWhitespace() {
-    var p = chars.length - 1;
-
-    while (p >= 0) {
-      var pp = chars[p];
-
-      if (!isWhiteSpace(pp)) {
-        return pp;
-      }
-
-      p--;
-    }
-
-    return '';
-  } // get at the first next non-white space character
-
-
-  function nextNonWhiteSpace() {
-    var iNext = i + 1;
-
-    while (iNext < jsString.length && isWhiteSpace(jsString[iNext])) {
-      iNext++;
-    }
-
-    return jsString[iNext];
-  } // get at the first non-white space character starting at the current character
-
-
-  function currNonWhiteSpace() {
-    var iNext = i;
-
-    while (iNext < jsString.length && isWhiteSpace(jsString[iNext])) {
-      iNext++;
-    }
-
-    return jsString[iNext];
-  } // skip a block comment '/* ... */'
-
-
-  function skipBlockComment() {
-    if (curr() === '/' && next() === '*') {
-      i += 2;
-
-      while (i < jsString.length && (curr() !== '*' || next() !== '/')) {
-        i++;
-      }
-
-      i += 2;
-
-      if (curr() === '\n') {
-        i++;
-      }
-    }
-  } // skip a comment '// ...'
-
-
-  function skipComment() {
-    if (curr() === '/' && next() === '/') {
-      i += 2;
-
-      while (i < jsString.length && curr() !== '\n') {
-        i++;
-      }
-    }
-  }
-
-  function parseWhiteSpace() {
-    var whitespace = '';
-
-    while (i < jsString.length && isWhiteSpace(curr())) {
-      whitespace += curr();
-      i++;
-    }
-
-    return whitespace;
-  }
-  /**
-   * parse single or double quoted string. Returns the parsed string
-   * @param {string} endQuote
-   * @return {string}
-   */
-
-
-  function parseString(endQuote) {
-    var string = '';
-    string += '"';
-    i++;
-    var c = curr();
-
-    while (i < jsString.length && c !== endQuote) {
-      if (c === '"' && prev() !== '\\') {
-        // unescaped double quote, escape it
-        string += '\\"';
-      } else if (c in controlChars) {
-        // replace unescaped control characters with escaped ones
-        string += controlChars[c];
-      } else if (c === '\\') {
-        // remove the escape character when followed by a single quote ', not needed
-        i++;
-        c = curr();
-
-        if (c !== '\'') {
-          string += '\\';
-        }
-
-        string += c;
-      } else {
-        // regular character
-        string += c;
-      }
-
-      i++;
-      c = curr();
-    }
-
-    if (c === endQuote) {
-      string += '"';
-      i++;
-    }
-
-    return string;
-  } // parse an unquoted key
-
-
-  function parseKey() {
-    var specialValues = ['null', 'true', 'false'];
-    var key = '';
-    var c = curr();
-    var regexp = /[a-zA-Z_$\d]/; // letter, number, underscore, dollar character
-
-    while (regexp.test(c)) {
-      key += c;
-      i++;
-      c = curr();
-    }
-
-    if (key in pythonConstants) {
-      return pythonConstants[key];
-    } else if (specialValues.indexOf(key) === -1) {
-      return '"' + key + '"';
-    } else {
-      return key;
-    }
-  }
-
-  function parseValue() {
-    var c = curr();
-    var value = '';
-
-    while (/\w/.test(c)) {
-      value += c;
-      i++;
-      c = curr();
-    }
-
-    if (value.length > 0 && c === '(') {
-      // This is an MongoDB data type like in {"_id": ObjectId("123")}
-      var innerValue;
-      i++;
-      c = curr();
-
-      if (c === '"') {
-        // a data type containing a string, like ISODate("2012-12-19T06:01:17.171Z")
-        innerValue = parseString(c);
-        c = curr();
-      } else {
-        // a data type containing a value, like 'NumberLong(2)'
-        innerValue = '';
-
-        while (c !== ')' && c !== '') {
-          innerValue += c;
-          i++;
-          c = curr();
-        }
-      }
-
-      if (c === ')') {
-        // skip the closing bracket at the end
-        i++; // return the value (strip the data type object)
-
-        return innerValue;
-      } else {
-        // huh? that's unexpected. don't touch it
-        return value + '(' + innerValue + c;
-      }
-    } else if (typeof pythonConstants[value] === 'string') {
-      // it's a python constant like None
-      return pythonConstants[value];
-    } else {
-      // just leave as is
-      return value;
-    }
-  }
-
-  function isSpecialWhiteSpace(c) {
-    return c === "\xA0" || c >= "\u2000" && c <= "\u200A" || c === "\u202F" || c === "\u205F" || c === "\u3000";
-  }
-
-  while (i < jsString.length) {
-    skipBlockComment();
-    skipComment();
-    var c = curr();
-
-    if (c === '{') {
-      indent++;
-    }
-
-    if (c === '}') {
-      indent--;
-    }
-
-    if (isSpecialWhiteSpace(c)) {
-      // special white spaces (like non breaking space)
-      chars.push(' ');
-      i++;
-    } else if (c === quote) {
-      chars.push(parseString(c));
-    } else if (c === quoteDbl) {
-      chars.push(parseString(quoteDbl));
-    } else if (c === graveAccent) {
-      chars.push(parseString(acuteAccent));
-    } else if (c === quoteLeft) {
-      chars.push(parseString(quoteRight));
-    } else if (c === quoteDblLeft) {
-      chars.push(parseString(quoteDblRight));
-    } else if (c === '}') {
-      // check for missing comma between objects
-      chars.push(c);
-      i++;
-      var whitespaces = parseWhiteSpace();
-      skipBlockComment();
-
-      if (currNonWhiteSpace() === '{') {
-        chars.push(',');
-
-        if (indent === 0) {
-          isLineSeparatedJson = true;
-        }
-      }
-
-      chars.push(whitespaces);
-    } else if (c === ',' && [']', '}'].indexOf(nextNonWhiteSpace()) !== -1) {
-      // skip trailing commas
-      i++;
-    } else if (/[a-zA-Z_$]/.test(c) && ['{', ','].indexOf(lastNonWhitespace()) !== -1) {
-      // an unquoted object key (like a in '{a:2}')
-      // FIXME: array values are also parsed via parseKey, work this out properly
-      chars.push(parseKey());
-    } else if (/\w/.test(c)) {
-      chars.push(parseValue());
-    } else {
-      chars.push(c);
-      i++;
-    }
-  }
-
-  if (isLineSeparatedJson) {
-    chars.unshift('[\n');
-    chars.push('\n]');
-  }
-
-  return chars.join('');
 }
 /**
  * Escape unicode characters.
@@ -573,8 +264,8 @@ text) {
  */
 
 function validate(jsonString) {
-  if (typeof _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_2___default.a !== 'undefined') {
-    _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_2___default.a.parse(jsonString);
+  if (typeof _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_3___default.a !== 'undefined') {
+    _assets_jsonlint_jsonlint__WEBPACK_IMPORTED_MODULE_3___default.a.parse(jsonString);
   } else {
     JSON.parse(jsonString);
   }
@@ -665,6 +356,16 @@ function isUrl(text) {
 
 function isArray(obj) {
   return Object.prototype.toString.call(obj) === '[object Array]';
+}
+/**
+ * Gets a DOM element's Window.  This is normally just the global `window`
+ * variable, but if we opened a child window, it may be different.
+ * @param {HTMLElement} element
+ * @return {Window}
+ */
+
+function getWindow(element) {
+  return element.ownerDocument.defaultView;
 }
 /**
  * Retrieve the absolute left value of a DOM element
@@ -901,21 +602,29 @@ function getInnerText(element, buffer) {
 
   if (first) {
     buffer = {
-      text: '',
+      _text: '',
       flush: function flush() {
-        var text = this.text;
-        this.text = '';
+        var text = this._text;
+        this._text = '';
         return text;
       },
       set: function set(text) {
-        this.text = text;
+        this._text = text;
       }
     };
   } // text node
 
 
   if (element.nodeValue) {
-    return buffer.flush() + element.nodeValue;
+    // remove return characters and the whitespace surrounding return characters
+    var trimmedValue = element.nodeValue.replace(/\s*\n\s*/g, '');
+
+    if (trimmedValue !== '') {
+      return buffer.flush() + trimmedValue;
+    } else {
+      // ignore empty text
+      return '';
+    }
   } // divs or other HTML elements
 
 
@@ -931,7 +640,10 @@ function getInnerText(element, buffer) {
         var prevName = prevChild ? prevChild.nodeName : undefined;
 
         if (prevName && prevName !== 'DIV' && prevName !== 'P' && prevName !== 'BR') {
-          innerText += '\n';
+          if (innerText !== '') {
+            innerText += '\n';
+          }
+
           buffer.flush();
         }
 
@@ -946,15 +658,6 @@ function getInnerText(element, buffer) {
     }
 
     return innerText;
-  } else {
-    if (element.nodeName === 'P' && getInternetExplorerVersion() !== -1) {
-      // On Internet Explorer, a <p> with hasChildNodes()==false is
-      // rendered with a new line. Note that a <p> with
-      // hasChildNodes()==true is rendered without a new line
-      // Other browsers always ensure there is a <br> inside the <p>,
-      // and if not, the <p> does not render a new line
-      return buffer.flush();
-    }
   } // br or unknown
 
 
@@ -993,7 +696,7 @@ function getInternetExplorerVersion() {
 
     if (typeof navigator !== 'undefined' && navigator.appName === 'Microsoft Internet Explorer') {
       var ua = navigator.userAgent;
-      var re = new RegExp('MSIE ([0-9]+[.0-9]+)');
+      var re = /MSIE ([0-9]+[.0-9]+)/;
 
       if (re.exec(ua) != null) {
         rv = parseFloat(RegExp.$1);
@@ -1006,14 +709,6 @@ function getInternetExplorerVersion() {
   return _ieVersion;
 }
 /**
- * Test whether the current browser is Firefox
- * @returns {boolean} isFirefox
- */
-
-function isFirefox() {
-  return typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Firefox') !== -1;
-}
-/**
  * cached internet explorer version
  * @type {Number}
  * @private
@@ -1021,7 +716,16 @@ function isFirefox() {
 
 var _ieVersion = -1;
 /**
- * Add and event listener. Works for all browsers
+ * Test whether the current browser is Firefox
+ * @returns {boolean} isFirefox
+ */
+
+
+function isFirefox() {
+  return typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Firefox') !== -1;
+}
+/**
+ * Add an event listener. Works for all browsers
  * @param {Element}     element    An html element
  * @param {string}      action     The action, for example "click",
  *                                 without the prefix "on"
@@ -1029,7 +733,6 @@ var _ieVersion = -1;
  * @param {boolean}     [useCapture] false by default
  * @return {function}   the created event listener
  */
-
 
 function addEventListener(element, action, listener, useCapture) {
   if (element.addEventListener) {
@@ -1391,7 +1094,7 @@ function getInputSelection(el) {
   }
 }
 /**
- * Returns the index for certaion position in text element
+ * Returns the index for certain position in text element
  * @param {DOMElement} el A dom element of a textarea or input text.
  * @param {Number} row row value, > 0, if exceeds rows number - last row will be returned
  * @param {Number} column column value, > 0, if exceeds column length - end of column will be returned
@@ -1428,7 +1131,7 @@ function getPositionForPath(text, paths) {
   }
 
   try {
-    jsmap = json_source_map__WEBPACK_IMPORTED_MODULE_3___default.a.parse(text);
+    jsmap = json_source_map__WEBPACK_IMPORTED_MODULE_4___default.a.parse(text);
   } catch (err) {
     return result;
   }
@@ -1514,7 +1217,7 @@ function makeFieldTooltip(schema, locale) {
       tooltip += '\n\n';
     }
 
-    tooltip += Object(_i18n__WEBPACK_IMPORTED_MODULE_4__[/* translate */ "c"])('default', undefined, locale) + '\n';
+    tooltip += Object(_i18n__WEBPACK_IMPORTED_MODULE_5__[/* translate */ "c"])('default', undefined, locale) + '\n';
     tooltip += JSON.stringify(schema["default"], null, 2);
   }
 
@@ -1523,7 +1226,7 @@ function makeFieldTooltip(schema, locale) {
       tooltip += '\n\n';
     }
 
-    tooltip += Object(_i18n__WEBPACK_IMPORTED_MODULE_4__[/* translate */ "c"])('examples', undefined, locale) + '\n';
+    tooltip += Object(_i18n__WEBPACK_IMPORTED_MODULE_5__[/* translate */ "c"])('examples', undefined, locale) + '\n';
     schema.examples.forEach(function (example, index) {
       tooltip += JSON.stringify(example, null, 2);
 
@@ -1759,7 +1462,7 @@ function contains(array, item) {
   return array.indexOf(item) !== -1;
 }
 /**
- * Checkes if validation has changed from the previous execution
+ * Checks if validation has changed from the previous execution
  * @param {Array} currErr current validation errors
  * @param {Array} prevErr previous validation errors
  */
@@ -1818,13 +1521,13 @@ function hasOwnProperty(object, key) {
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return setLanguage; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return setLanguages; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return translate; });
-/* harmony import */ var _polyfills__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(24);
+/* harmony import */ var _polyfills__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(25);
 /* harmony import */ var _polyfills__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_polyfills__WEBPACK_IMPORTED_MODULE_0__);
 
 /* eslint-disable no-template-curly-in-string */
 
 
-var _locales = ['en', 'pt-BR', 'zh-CN', 'tr', 'ja', 'fr-FR'];
+var _locales = ['en', 'pt-BR', 'zh-CN', 'tr', 'ja', 'fr-FR', 'de'];
 var _defs = {
   en: {
     array: 'Array',
@@ -1915,7 +1618,9 @@ var _defs = {
     modePreviewText: 'Preview',
     modePreviewTitle: 'Switch to preview mode',
     examples: 'Examples',
-    "default": 'Default'
+    "default": 'Default',
+    containsInvalidProperties: 'Contains invalid properties',
+    containsInvalidItems: 'Contains invalid items'
   },
   'zh-CN': {
     array: '数组',
@@ -2002,7 +1707,9 @@ var _defs = {
     modePreviewText: '预览',
     modePreviewTitle: '切换至预览模式',
     examples: '例子',
-    "default": '缺省'
+    "default": '缺省',
+    containsInvalidProperties: '包含无效的属性',
+    containsInvalidItems: '包含无效项目'
   },
   'pt-BR': {
     array: 'Lista',
@@ -2075,7 +1782,9 @@ var _defs = {
     arrayType: 'Campo do tipo "lista". ' + 'Uma lista contem uma coleção de valores ordenados.',
     stringType: 'Campo do tipo "string". ' + 'Campo do tipo nao é determinado através do seu valor, ' + 'mas sempre retornara um texto.',
     examples: 'Exemplos',
-    "default": 'Revelia'
+    "default": 'Revelia',
+    containsInvalidProperties: 'Contém propriedades inválidas',
+    containsInvalidItems: 'Contém itens inválidos'
   },
   tr: {
     array: 'Dizin',
@@ -2155,7 +1864,9 @@ var _defs = {
     modeViewText: 'Görünüm',
     modeViewTitle: 'Ağaç görünümüne geç',
     examples: 'Örnekler',
-    "default": 'Varsayılan'
+    "default": 'Varsayılan',
+    containsInvalidProperties: 'Geçersiz özellikler içeriyor',
+    containsInvalidItems: 'Geçersiz öğeler içeriyor'
   },
   ja: {
     array: '配列',
@@ -2239,7 +1950,9 @@ var _defs = {
     modePreviewText: 'プレビュー',
     modePreviewTitle: 'プレビューに切り替え',
     examples: '例',
-    "default": 'デフォルト'
+    "default": 'デフォルト',
+    containsInvalidProperties: '無効なプロパティが含まれています',
+    containsInvalidItems: '無効なアイテムが含まれています'
   },
   'fr-FR': {
     array: 'Liste',
@@ -2327,7 +2040,102 @@ var _defs = {
     modePreviewText: 'Prévisualisation',
     modePreviewTitle: 'Activer mode prévisualiser',
     examples: 'Exemples',
-    "default": 'Défaut'
+    "default": 'Défaut',
+    containsInvalidProperties: 'Contient des propriétés non valides',
+    containsInvalidItems: 'Contient des éléments invalides'
+  },
+  de: {
+    array: 'Auflistung',
+    auto: 'Auto',
+    appendText: 'anhängen',
+    appendTitle: 'Fügen Sie nach diesem Feld ein neues Feld mit dem Typ \'auto\' ein (Strg+Umschalt+Ein)',
+    appendSubmenuTitle: 'Wählen Sie den Typ des neuen Feldes',
+    appendTitleAuto: 'Ein neues Feld vom Typ \'auto\' hinzufügen (Strg+Umschalt+Ein)',
+    ascending: 'Aufsteigend',
+    ascendingTitle: 'Sortieren Sie die Elemente dieses ${type} in aufsteigender Reihenfolge',
+    actionsMenu: 'Klicken Sie zum Öffnen des Aktionsmenüs (Strg+M)',
+    cannotParseFieldError: 'Feld kann nicht in JSON geparst werden',
+    cannotParseValueError: 'Wert kann nicht in JSON geparst werden',
+    collapseAll: 'Alle Felder zuklappen',
+    compactTitle: 'JSON-Daten verdichten, alle Leerzeichen entfernen (Strg+Umschalt+\\)',
+    descending: 'Absteigend',
+    descendingTitle: 'Sortieren Sie die Elemente dieses ${type} in absteigender Reihenfolge',
+    drag: 'Ziehen, um dieses Feld zu verschieben (Alt+Umschalt+Pfeile)',
+    duplicateKey: 'Doppelter Schlüssel',
+    duplicateText: 'Duplikat',
+    duplicateTitle: 'Ausgewählte Felder duplizieren (Strg+D)',
+    duplicateField: 'Dieses Feld duplizieren (Strg+D)',
+    duplicateFieldError: 'Doppelter Feldname',
+    empty: 'leer',
+    expandAll: 'Alle Felder anzeigen',
+    expandTitle: 'Klicken Sie, um dieses Feld zu erweitern/zu kollabieren (Strg+E). \nStrg+Klicken Sie, um dieses Feld einschließlich aller Elemente zu erweitern/zu kollabieren.',
+    formatTitle: 'JSON-Daten mit korrekter Einrückung und Zeilenvorschüben formatieren (Strg+\\)',
+    insert: 'einfügen',
+    insertTitle: 'Fügen Sie vor diesem Feld ein neues Feld mit dem Typ \'auto\' ein (Strg+Einfg)',
+    insertSub: 'Wählen Sie den Typ des neuen Feldes',
+    object: 'Objekt',
+    ok: 'Ok',
+    redo: 'Wiederholen (Strg+Umschalt+Z)',
+    removeText: 'entfernen',
+    removeTitle: 'Ausgewählte Felder entfernen (Strg+Entf)',
+    removeField: 'Dieses Feld entfernen (Strg+Entf)',
+    repairTitle: 'JSON reparieren: Anführungszeichen und Escape-Zeichen korrigieren, Kommentare und JSONP-Notation entfernen, JavaScript-Objekte in JSON umwandeln.',
+    searchTitle: 'Suchfelder und Werte',
+    searchNextResultTitle: 'Nächstes Ergebnis (Enter)',
+    searchPreviousResultTitle: 'Vorheriges Ergebnis (Umschalt + Eingabe)',
+    selectNode: 'Wählen Sie einen Knoten aus...',
+    showAll: 'alle anzeigen',
+    showMore: 'mehr anzeigen',
+    showMoreStatus: 'Anzeige von ${visibleChilds} von ${totalChilds}-Elementen.',
+    sort: 'Sortieren',
+    sortTitle: 'Sortieren Sie die Elemente dieses ${type}',
+    sortTitleShort: 'Inhalt sortieren',
+    sortFieldLabel: 'Feld:',
+    sortDirectionLabel: 'Richtung:',
+    sortFieldTitle: 'Wählen Sie das verschachtelte Feld, nach dem das Array oder Objekt sortiert werden soll.',
+    sortAscending: 'Aufsteigend',
+    sortAscendingTitle: 'Sortieren Sie das ausgewählte Feld in aufsteigender Reihenfolge',
+    sortDescending: 'Absteigend',
+    sortDescendingTitle: 'Sortieren Sie das ausgewählte Feld in absteigender Reihenfolge',
+    string: 'Zeichenfolge',
+    transform: 'Verwandeln',
+    transformTitle: 'Die Elemente dieses ${type} filtern, sortieren oder transformieren',
+    transformTitleShort: 'Inhalte filtern, sortieren oder transformieren',
+    extract: 'Auszug',
+    extractTitle: 'Extrahieren Sie diesen ${type}',
+    transformQueryTitle: 'Eine JMESPath-Abfrage eingeben',
+    transformWizardLabel: 'Zauberer',
+    transformWizardFilter: 'Filter',
+    transformWizardSortBy: 'Sortieren nach',
+    transformWizardSelectFields: 'Felder auswählen',
+    transformQueryLabel: 'Anfrage',
+    transformPreviewLabel: 'Vorschau',
+    type: 'Geben Sie  ein.',
+    typeTitle: 'Ändern Sie den Typ dieses Feldes',
+    openUrl: 'Strg+Klicken oder Strg+Eingabe, um die URL in einem neuen Fenster zu öffnen',
+    undo: 'Letzte Aktion rückgängig machen (Strg+Z)',
+    validationCannotMove: 'Kann ein Feld nicht in ein Kind seiner selbst verschieben',
+    autoType: 'Feldtyp "auto". Der Feldtyp wird automatisch aus dem Wert bestimmt und kann ein String, eine Zahl, boolesch oder null sein.',
+    objectType: 'Feldtyp "Objekt". Ein Objekt enthält eine ungeordnete Menge von Schlüssel/Wert-Paaren.',
+    arrayType: 'Feldtyp "Array". Ein Array enthält eine geordnete Sammlung von Werten.',
+    stringType: 'Feldtyp "Zeichenfolge". Der Feldtyp wird nicht aus dem Wert bestimmt, sondern immer als Zeichenfolge zurückgegeben.',
+    modeEditorTitle: 'Editor-Modus umschalten',
+    modeCodeText: 'Code',
+    modeCodeTitle: 'Umschalten auf Code-Highlighter',
+    modeFormText: 'Formular',
+    modeFormTitle: 'Zum Formular-Editor wechseln',
+    modeTextText: 'Text',
+    modeTextTitle: 'Zum Editor für einfachen Text wechseln',
+    modeTreeText: 'Baum',
+    modeTreeTitle: 'Zum Baum-Editor wechseln',
+    modeViewText: 'Siehe',
+    modeViewTitle: 'Zur Baumansicht wechseln',
+    modePreviewText: 'Vorschau',
+    modePreviewTitle: 'In den Vorschau-Modus wechseln',
+    examples: 'Beispiele',
+    "default": 'Standardmäßig',
+    containsInvalidProperties: 'Enthält ungültige Eigenschaften',
+    containsInvalidItems: 'Enthält ungültige Elemente'
   }
 };
 var _defaultLang = 'en';
@@ -2429,8 +2237,10 @@ function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _d
  * @param {Object[]} items    Array containing the menu structure
  *                            TODO: describe structure
  * @param {Object} [options]  Object with options. Available options:
- *                            {function} close    Callback called when the
- *                                                context menu is being closed.
+ *                            {function} close        Callback called when the
+ *                                                    context menu is being closed.
+ *                            {boolean} limitHeight   Whether ContextMenu height should be
+ *                                                    limited or not.
  * @constructor
  */
 
@@ -2446,7 +2256,8 @@ var ContextMenu = /*#__PURE__*/function () {
     this.eventListeners = {};
     this.selection = undefined; // holds the selection before the menu was opened
 
-    this.onClose = options ? options.close : undefined; // create root element
+    this.onClose = options ? options.close : undefined;
+    this.limitHeight = options ? options.limitHeight : false; // create root element
 
     var root = document.createElement('div');
     root.className = 'jsoneditor-contextmenu-root';
@@ -2530,7 +2341,9 @@ var ContextMenu = /*#__PURE__*/function () {
               buttonExpand.type = 'button';
               domItem.buttonExpand = buttonExpand;
               buttonExpand.className = 'jsoneditor-expand';
-              buttonExpand.innerHTML = '<div class="jsoneditor-expand"></div>';
+              var buttonExpandInner = document.createElement('div');
+              buttonExpandInner.className = 'jsoneditor-expand';
+              buttonExpand.appendChild(buttonExpandInner);
 
               _li2.appendChild(buttonExpand);
 
@@ -2569,7 +2382,13 @@ var ContextMenu = /*#__PURE__*/function () {
             createMenuItems(ul, domSubItems, item.submenu);
           } else {
             // no submenu, just a button with clickhandler
-            button.innerHTML = '<div class="jsoneditor-icon"></div>' + '<div class="jsoneditor-text">' + Object(_i18n__WEBPACK_IMPORTED_MODULE_2__[/* translate */ "c"])(item.text) + '</div>';
+            var icon = document.createElement('div');
+            icon.className = 'jsoneditor-icon';
+            button.appendChild(icon);
+            var text = document.createElement('div');
+            text.className = 'jsoneditor-text';
+            text.appendChild(document.createTextNode(Object(_i18n__WEBPACK_IMPORTED_MODULE_2__[/* translate */ "c"])(item.text)));
+            button.appendChild(text);
           }
 
           domItems.push(domItem);
@@ -2661,6 +2480,14 @@ var ContextMenu = /*#__PURE__*/function () {
         this.dom.menu.style.left = '0';
         this.dom.menu.style.top = '';
         this.dom.menu.style.bottom = '0px';
+      }
+
+      if (this.limitHeight) {
+        var margin = 10; // make sure there is a little margin left
+
+        var maxPossibleMenuHeight = showBelow ? frameRect.bottom - anchorRect.bottom - margin : anchorRect.top - frameRect.top - margin;
+        this.dom.list.style.maxHeight = maxPossibleMenuHeight + 'px';
+        this.dom.list.style.overflowY = 'auto';
       } // attach the menu to the temporary, absolute anchor
       // parent.insertBefore(this.dom.root, anchor);
 
@@ -2888,7 +2715,6 @@ var ContextMenu = /*#__PURE__*/function () {
 }(); // currently displayed context menu, a singleton. We may only have one visible context menu
 
 ContextMenu.visibleMenu = undefined;
-/* unused harmony default export */ var _unused_webpack_default_export = (ContextMenu);
 
 /***/ }),
 /* 4 */
@@ -2897,7 +2723,7 @@ ContextMenu.visibleMenu = undefined;
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return createQuery; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return executeQuery; });
-/* harmony import */ var jmespath__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(34);
+/* harmony import */ var jmespath__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(35);
 /* harmony import */ var jmespath__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(jmespath__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _util__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(0);
 
@@ -2972,7 +2798,7 @@ function executeQuery(json, query) {
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "showSortModal", function() { return showSortModal; });
-/* harmony import */ var picomodal__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(14);
+/* harmony import */ var picomodal__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(15);
 /* harmony import */ var picomodal__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(picomodal__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _i18n__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
 /* harmony import */ var _util__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(0);
@@ -3067,11 +2893,11 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__.d(__webpack_exports__, "showTransformModal", function() { return /* binding */ showTransformModal; });
 
 // EXTERNAL MODULE: ./node_modules/picomodal/src/picoModal.js
-var picoModal = __webpack_require__(14);
+var picoModal = __webpack_require__(15);
 var picoModal_default = /*#__PURE__*/__webpack_require__.n(picoModal);
 
 // EXTERNAL MODULE: ./src/js/assets/selectr/selectr.js
-var selectr = __webpack_require__(10);
+var selectr = __webpack_require__(11);
 var selectr_default = /*#__PURE__*/__webpack_require__.n(selectr);
 
 // EXTERNAL MODULE: ./src/js/i18n.js
@@ -3337,7 +3163,7 @@ function showTransformModal(_ref) {
 
     if (!Array.isArray(value)) {
       wizard.style.fontStyle = 'italic';
-      wizard.innerHTML = '(wizard not available for objects, only for arrays)';
+      wizard.textContent = '(wizard not available for objects, only for arrays)';
     }
 
     var sortablePaths = Object(util["getChildPaths"])(json);
@@ -3524,12 +3350,10 @@ module.exports = {
   toHash: toHash,
   getProperty: getProperty,
   escapeQuotes: escapeQuotes,
-  equal: __webpack_require__(18),
-  ucs2length: __webpack_require__(47),
+  equal: __webpack_require__(19),
+  ucs2length: __webpack_require__(51),
   varOccurences: varOccurences,
   varReplace: varReplace,
-  cleanUpCode: cleanUpCode,
-  finalCleanUpCode: finalCleanUpCode,
   schemaHasRules: schemaHasRules,
   schemaHasRulesExcept: schemaHasRulesExcept,
   schemaUnknownRules: schemaUnknownRules,
@@ -3551,7 +3375,7 @@ function copy(o, to) {
 }
 
 
-function checkDataType(dataType, data, negate) {
+function checkDataType(dataType, data, strictNumbers, negate) {
   var EQUAL = negate ? ' !== ' : ' === '
     , AND = negate ? ' || ' : ' && '
     , OK = negate ? '!' : ''
@@ -3564,15 +3388,18 @@ function checkDataType(dataType, data, negate) {
                           NOT + 'Array.isArray(' + data + '))';
     case 'integer': return '(typeof ' + data + EQUAL + '"number"' + AND +
                            NOT + '(' + data + ' % 1)' +
-                           AND + data + EQUAL + data + ')';
+                           AND + data + EQUAL + data +
+                           (strictNumbers ? (AND + OK + 'isFinite(' + data + ')') : '') + ')';
+    case 'number': return '(typeof ' + data + EQUAL + '"' + dataType + '"' +
+                          (strictNumbers ? (AND + OK + 'isFinite(' + data + ')') : '') + ')';
     default: return 'typeof ' + data + EQUAL + '"' + dataType + '"';
   }
 }
 
 
-function checkDataTypes(dataTypes, data) {
+function checkDataTypes(dataTypes, data, strictNumbers) {
   switch (dataTypes.length) {
-    case 1: return checkDataType(dataTypes[0], data, true);
+    case 1: return checkDataType(dataTypes[0], data, strictNumbers, true);
     default:
       var code = '';
       var types = toHash(dataTypes);
@@ -3585,7 +3412,7 @@ function checkDataTypes(dataTypes, data) {
       }
       if (types.number) delete types.integer;
       for (var t in types)
-        code += (code ? ' && ' : '' ) + checkDataType(t, data, true);
+        code += (code ? ' && ' : '' ) + checkDataType(t, data, strictNumbers, true);
 
       return code;
   }
@@ -3648,42 +3475,6 @@ function varReplace(str, dataVar, expr) {
   dataVar += '([^0-9])';
   expr = expr.replace(/\$/g, '$$$$');
   return str.replace(new RegExp(dataVar, 'g'), expr + '$1');
-}
-
-
-var EMPTY_ELSE = /else\s*{\s*}/g
-  , EMPTY_IF_NO_ELSE = /if\s*\([^)]+\)\s*\{\s*\}(?!\s*else)/g
-  , EMPTY_IF_WITH_ELSE = /if\s*\(([^)]+)\)\s*\{\s*\}\s*else(?!\s*if)/g;
-function cleanUpCode(out) {
-  return out.replace(EMPTY_ELSE, '')
-            .replace(EMPTY_IF_NO_ELSE, '')
-            .replace(EMPTY_IF_WITH_ELSE, 'if (!($1))');
-}
-
-
-var ERRORS_REGEXP = /[^v.]errors/g
-  , REMOVE_ERRORS = /var errors = 0;|var vErrors = null;|validate.errors = vErrors;/g
-  , REMOVE_ERRORS_ASYNC = /var errors = 0;|var vErrors = null;/g
-  , RETURN_VALID = 'return errors === 0;'
-  , RETURN_TRUE = 'validate.errors = null; return true;'
-  , RETURN_ASYNC = /if \(errors === 0\) return data;\s*else throw new ValidationError\(vErrors\);/
-  , RETURN_DATA_ASYNC = 'return data;'
-  , ROOTDATA_REGEXP = /[^A-Za-z_$]rootData[^A-Za-z0-9_$]/g
-  , REMOVE_ROOTDATA = /if \(rootData === undefined\) rootData = data;/;
-
-function finalCleanUpCode(out, async) {
-  var matches = out.match(ERRORS_REGEXP);
-  if (matches && matches.length == 2) {
-    out = async
-          ? out.replace(REMOVE_ERRORS_ASYNC, '')
-               .replace(RETURN_ASYNC, RETURN_DATA_ASYNC)
-          : out.replace(REMOVE_ERRORS, '')
-               .replace(RETURN_VALID, RETURN_TRUE);
-  }
-
-  matches = out.match(ROOTDATA_REGEXP);
-  if (!matches || matches.length !== 3) return out;
-  return out.replace(REMOVE_ROOTDATA, '');
 }
 
 
@@ -3765,7 +3556,7 @@ function getData($data, lvl, paths) {
 
 function joinPaths (a, b) {
   if (a == '""') return b;
-  return (a + ' + ' + b).replace(/' \+ '/g, '');
+  return (a + ' + ' + b).replace(/([^\\])' \+ '/g, '$1');
 }
 
 
@@ -3791,153 +3582,10 @@ function unescapeJsonPointer(str) {
 
 /***/ }),
 /* 8 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return ModeSwitcher; });
-/* harmony import */ var _ContextMenu__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _i18n__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
+module.exports = __webpack_require__(43).default
 
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
-
-
-
-/**
- * Create a select box to be used in the editor menu's, which allows to switch mode
- * @param {HTMLElement} container
- * @param {String[]} modes  Available modes: 'code', 'form', 'text', 'tree', 'view', 'preview'
- * @param {String} current  Available modes: 'code', 'form', 'text', 'tree', 'view', 'preview'
- * @param {function(mode: string)} onSwitch  Callback invoked on switch
- * @constructor
- */
-
-var ModeSwitcher = /*#__PURE__*/function () {
-  function ModeSwitcher(container, modes, current, onSwitch) {
-    _classCallCheck(this, ModeSwitcher);
-
-    // available modes
-    var availableModes = {
-      code: {
-        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeCodeText'),
-        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeCodeTitle'),
-        click: function click() {
-          onSwitch('code');
-        }
-      },
-      form: {
-        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeFormText'),
-        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeFormTitle'),
-        click: function click() {
-          onSwitch('form');
-        }
-      },
-      text: {
-        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTextText'),
-        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTextTitle'),
-        click: function click() {
-          onSwitch('text');
-        }
-      },
-      tree: {
-        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTreeText'),
-        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTreeTitle'),
-        click: function click() {
-          onSwitch('tree');
-        }
-      },
-      view: {
-        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeViewText'),
-        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeViewTitle'),
-        click: function click() {
-          onSwitch('view');
-        }
-      },
-      preview: {
-        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modePreviewText'),
-        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modePreviewTitle'),
-        click: function click() {
-          onSwitch('preview');
-        }
-      }
-    }; // list the selected modes
-
-    var items = [];
-
-    for (var i = 0; i < modes.length; i++) {
-      var mode = modes[i];
-      var item = availableModes[mode];
-
-      if (!item) {
-        throw new Error('Unknown mode "' + mode + '"');
-      }
-
-      item.className = 'jsoneditor-type-modes' + (current === mode ? ' jsoneditor-selected' : '');
-      items.push(item);
-    } // retrieve the title of current mode
-
-
-    var currentMode = availableModes[current];
-
-    if (!currentMode) {
-      throw new Error('Unknown mode "' + current + '"');
-    }
-
-    var currentTitle = currentMode.text; // create the html element
-
-    var box = document.createElement('button');
-    box.type = 'button';
-    box.className = 'jsoneditor-modes jsoneditor-separator';
-    box.innerHTML = currentTitle + ' &#x25BE;';
-    box.title = Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeEditorTitle');
-
-    box.onclick = function () {
-      var menu = new _ContextMenu__WEBPACK_IMPORTED_MODULE_0__[/* ContextMenu */ "a"](items);
-      menu.show(box, container);
-    };
-
-    var frame = document.createElement('div');
-    frame.className = 'jsoneditor-modes';
-    frame.style.position = 'relative';
-    frame.appendChild(box);
-    container.appendChild(frame);
-    this.dom = {
-      container: container,
-      box: box,
-      frame: frame
-    };
-  }
-  /**
-   * Set focus to switcher
-   */
-
-
-  _createClass(ModeSwitcher, [{
-    key: "focus",
-    value: function focus() {
-      this.dom.box.focus();
-    }
-    /**
-     * Destroy the ModeSwitcher, remove from DOM
-     */
-
-  }, {
-    key: "destroy",
-    value: function destroy() {
-      if (this.dom && this.dom.frame && this.dom.frame.parentNode) {
-        this.dom.frame.parentNode.removeChild(this.dom.frame);
-      }
-
-      this.dom = null;
-    }
-  }]);
-
-  return ModeSwitcher;
-}();
 
 /***/ }),
 /* 9 */
@@ -4077,6 +3725,156 @@ var FocusTracker = /*#__PURE__*/function () {
 
 /***/ }),
 /* 10 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return ModeSwitcher; });
+/* harmony import */ var _ContextMenu__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+/* harmony import */ var _i18n__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
+
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+/**
+ * Create a select box to be used in the editor menu's, which allows to switch mode
+ * @param {HTMLElement} container
+ * @param {String[]} modes  Available modes: 'code', 'form', 'text', 'tree', 'view', 'preview'
+ * @param {String} current  Available modes: 'code', 'form', 'text', 'tree', 'view', 'preview'
+ * @param {function(mode: string)} onSwitch  Callback invoked on switch
+ * @constructor
+ */
+
+var ModeSwitcher = /*#__PURE__*/function () {
+  function ModeSwitcher(container, modes, current, onSwitch) {
+    _classCallCheck(this, ModeSwitcher);
+
+    // available modes
+    var availableModes = {
+      code: {
+        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeCodeText'),
+        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeCodeTitle'),
+        click: function click() {
+          onSwitch('code');
+        }
+      },
+      form: {
+        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeFormText'),
+        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeFormTitle'),
+        click: function click() {
+          onSwitch('form');
+        }
+      },
+      text: {
+        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTextText'),
+        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTextTitle'),
+        click: function click() {
+          onSwitch('text');
+        }
+      },
+      tree: {
+        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTreeText'),
+        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeTreeTitle'),
+        click: function click() {
+          onSwitch('tree');
+        }
+      },
+      view: {
+        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeViewText'),
+        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeViewTitle'),
+        click: function click() {
+          onSwitch('view');
+        }
+      },
+      preview: {
+        text: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modePreviewText'),
+        title: Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modePreviewTitle'),
+        click: function click() {
+          onSwitch('preview');
+        }
+      }
+    }; // list the selected modes
+
+    var items = [];
+
+    for (var i = 0; i < modes.length; i++) {
+      var mode = modes[i];
+      var item = availableModes[mode];
+
+      if (!item) {
+        throw new Error('Unknown mode "' + mode + '"');
+      }
+
+      item.className = 'jsoneditor-type-modes' + (current === mode ? ' jsoneditor-selected' : '');
+      items.push(item);
+    } // retrieve the title of current mode
+
+
+    var currentMode = availableModes[current];
+
+    if (!currentMode) {
+      throw new Error('Unknown mode "' + current + '"');
+    }
+
+    var currentTitle = currentMode.text; // create the html element
+
+    var box = document.createElement('button');
+    box.type = 'button';
+    box.className = 'jsoneditor-modes jsoneditor-separator';
+    box.textContent = currentTitle + " \u25BE";
+    box.title = Object(_i18n__WEBPACK_IMPORTED_MODULE_1__[/* translate */ "c"])('modeEditorTitle');
+
+    box.onclick = function () {
+      var menu = new _ContextMenu__WEBPACK_IMPORTED_MODULE_0__[/* ContextMenu */ "a"](items);
+      menu.show(box, container);
+    };
+
+    var frame = document.createElement('div');
+    frame.className = 'jsoneditor-modes';
+    frame.style.position = 'relative';
+    frame.appendChild(box);
+    container.appendChild(frame);
+    this.dom = {
+      container: container,
+      box: box,
+      frame: frame
+    };
+  }
+  /**
+   * Set focus to switcher
+   */
+
+
+  _createClass(ModeSwitcher, [{
+    key: "focus",
+    value: function focus() {
+      this.dom.box.focus();
+    }
+    /**
+     * Destroy the ModeSwitcher, remove from DOM
+     */
+
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      if (this.dom && this.dom.frame && this.dom.frame.parentNode) {
+        this.dom.frame.parentNode.removeChild(this.dom.frame);
+      }
+
+      this.dom = null;
+    }
+  }]);
+
+  return ModeSwitcher;
+}();
+
+/***/ }),
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4280,7 +4078,7 @@ var util = {
       var i;
 
       for (i in a) {
-        if (i in el) el[i] = a[i];else if ("html" === i) el.innerHTML = a[i];else if ("text" === i) {
+        if (i in el) el[i] = a[i];else if ("html" === i) el.textContent = a[i];else if ("text" === i) {
           var t = d.createTextNode(a[i]);
           el.appendChild(t);
         } else el.setAttribute(i, a[i]);
@@ -4382,7 +4180,7 @@ function appendItem(item, parent, custom) {
   util.removeClass(item, "excluded");
 
   if (!custom) {
-    item.innerHTML = item.textContent;
+    item.textContent = item.textContent + ''; // clear highlighting
   }
 }
 /**
@@ -4881,7 +4679,7 @@ var addTag = function addTag(item) {
     util.each(tags, function (i, tg) {
       docFrag.appendChild(tg);
     });
-    this.label.innerHTML = "";
+    this.label.textContent = "";
   } else {
     docFrag.appendChild(tag);
   }
@@ -4967,7 +4765,7 @@ var clearSearch = function clearSearch() {
       util.removeClass(item, "excluded"); // Remove the span element for underlining matched items
 
       if (!this.customOption) {
-        item.innerHTML = item.textContent;
+        item.textContent = item.textContent + ''; // clear highlighting
       }
     }, this);
   }
@@ -4975,19 +4773,24 @@ var clearSearch = function clearSearch() {
 /**
  * Query matching for searches
  * @param  {string} query
- * @param  {HTMLOptionElement} option
- * @return {bool}
+ * @param  {string} text
  */
 
 
-var match = function match(query, option) {
-  var result = new RegExp(query, "i").exec(option.textContent);
+var match = function match(query, text) {
+  var result = new RegExp(query, "i").exec(text);
 
   if (result) {
-    return option.textContent.replace(result[0], "<span class='selectr-match'>" + result[0] + "</span>");
+    var start = result.index;
+    var end = result.index + result[0].length;
+    return {
+      before: text.substring(0, start),
+      match: text.substring(start, end),
+      after: text.substring(end)
+    };
   }
 
-  return false;
+  return null;
 }; // Main Lib
 
 
@@ -5399,7 +5202,7 @@ Selectr.prototype.destroy = function () {
   }
 
   if (this.config.data) {
-    this.el.innerHTML = "";
+    this.el.textContent = "";
   } // Remove the className from select element
 
 
@@ -5470,7 +5273,7 @@ Selectr.prototype.select = function (index) {
     addTag.call(this, item);
   } else {
     var data = this.data ? this.data[index] : option;
-    this.label.innerHTML = this.customSelected ? this.config.renderSelection(data) : option.textContent;
+    this.label.textContent = this.customSelected ? this.config.renderSelection(data) : option.textContent;
     this.selectedValue = option.value;
     this.selectedIndex = index;
     util.each(this.options, function (i, o) {
@@ -5525,7 +5328,7 @@ Selectr.prototype.deselect = function (index, force) {
       return false;
     }
 
-    this.label.innerHTML = "";
+    this.label.textContent = "";
     this.selectedValue = null;
     this.el.selectedIndex = this.selectedIndex = -1;
     util.removeClass(this.container, "has-selected");
@@ -5779,7 +5582,17 @@ Selectr.prototype.search = function (string) {
         util.removeClass(item, "excluded"); // Underline the matching results
 
         if (!this.customOption) {
-          item.innerHTML = match(string, option);
+          item.textContent = '';
+          var result = match(string, option.textContent);
+
+          if (result) {
+            item.appendChild(document.createTextNode(result.before));
+            var highlight = document.createElement('span');
+            highlight.className = 'selectr-match';
+            highlight.appendChild(document.createTextNode(result.match));
+            item.appendChild(highlight);
+            item.appendChild(document.createTextNode(result.after));
+          }
         }
       } else {
         util.addClass(item, "excluded");
@@ -6041,7 +5854,7 @@ Selectr.prototype.setPlaceholder = function (placeholder) {
     placeholder = "No options available";
   }
 
-  this.placeEl.innerHTML = placeholder;
+  this.placeEl.textContent = placeholder;
 };
 /**
  * Paginate the option list
@@ -6081,7 +5894,7 @@ Selectr.prototype.setMessage = function (message, close) {
 
 Selectr.prototype.removeMessage = function () {
   util.removeClass(this.container, "notice");
-  this.notice.innerHTML = "";
+  this.notice.textContent = "";
 };
 /**
  * Keep the dropdown within the window
@@ -6136,57 +5949,6 @@ Selectr.prototype.getOptionByValue = function (value) {
 };
 
 module.exports = Selectr;
-
-/***/ }),
-/* 11 */
-/***/ (function(module, exports) {
-
-/*
- * Natural Sort algorithm for Javascript - Version 0.7 - Released under MIT license
- * Author: Jim Palmer (based on chunking idea from Dave Koelle)
- */
-/*jshint unused:false */
-module.exports = function naturalSort (a, b) {
-	"use strict";
-	var re = /(^([+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?)?$|^0x[0-9a-f]+$|\d+)/gi,
-		sre = /(^[ ]*|[ ]*$)/g,
-		dre = /(^([\w ]+,?[\w ]+)?[\w ]+,?[\w ]+\d+:\d+(:\d+)?[\w ]?|^\d{1,4}[\/\-]\d{1,4}[\/\-]\d{1,4}|^\w+, \w+ \d+, \d{4})/,
-		hre = /^0x[0-9a-f]+$/i,
-		ore = /^0/,
-		i = function(s) { return naturalSort.insensitive && ('' + s).toLowerCase() || '' + s; },
-		// convert all to strings strip whitespace
-		x = i(a).replace(sre, '') || '',
-		y = i(b).replace(sre, '') || '',
-		// chunk/tokenize
-		xN = x.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
-		yN = y.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
-		// numeric, hex or date detection
-		xD = parseInt(x.match(hre), 16) || (xN.length !== 1 && x.match(dre) && Date.parse(x)),
-		yD = parseInt(y.match(hre), 16) || xD && y.match(dre) && Date.parse(y) || null,
-		oFxNcL, oFyNcL;
-	// first try and sort Hex codes or Dates
-	if (yD) {
-		if ( xD < yD ) { return -1; }
-		else if ( xD > yD ) { return 1; }
-	}
-	// natural sorting through split numeric strings and default strings
-	for(var cLoc=0, numS=Math.max(xN.length, yN.length); cLoc < numS; cLoc++) {
-		// find floats not starting with '0', string or 0 if not defined (Clint Priest)
-		oFxNcL = !(xN[cLoc] || '').match(ore) && parseFloat(xN[cLoc]) || xN[cLoc] || 0;
-		oFyNcL = !(yN[cLoc] || '').match(ore) && parseFloat(yN[cLoc]) || yN[cLoc] || 0;
-		// handle numeric vs string comparison - number < string - (Kyle Adams)
-		if (isNaN(oFxNcL) !== isNaN(oFyNcL)) { return (isNaN(oFxNcL)) ? 1 : -1; }
-		// rely on string comparison if different types - i.e. '02' < 2 != '02' < '2'
-		else if (typeof oFxNcL !== typeof oFyNcL) {
-			oFxNcL += '';
-			oFyNcL += '';
-		}
-		if (oFxNcL < oFyNcL) { return -1; }
-		if (oFxNcL > oFyNcL) { return 1; }
-	}
-	return 0;
-};
-
 
 /***/ }),
 /* 12 */
@@ -6294,6 +6056,57 @@ function hasOwnProperty(object, key) {
 
 /***/ }),
 /* 13 */
+/***/ (function(module, exports) {
+
+/*
+ * Natural Sort algorithm for Javascript - Version 0.7 - Released under MIT license
+ * Author: Jim Palmer (based on chunking idea from Dave Koelle)
+ */
+/*jshint unused:false */
+module.exports = function naturalSort (a, b) {
+	"use strict";
+	var re = /(^([+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?)?$|^0x[0-9a-f]+$|\d+)/gi,
+		sre = /(^[ ]*|[ ]*$)/g,
+		dre = /(^([\w ]+,?[\w ]+)?[\w ]+,?[\w ]+\d+:\d+(:\d+)?[\w ]?|^\d{1,4}[\/\-]\d{1,4}[\/\-]\d{1,4}|^\w+, \w+ \d+, \d{4})/,
+		hre = /^0x[0-9a-f]+$/i,
+		ore = /^0/,
+		i = function(s) { return naturalSort.insensitive && ('' + s).toLowerCase() || '' + s; },
+		// convert all to strings strip whitespace
+		x = i(a).replace(sre, '') || '',
+		y = i(b).replace(sre, '') || '',
+		// chunk/tokenize
+		xN = x.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
+		yN = y.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
+		// numeric, hex or date detection
+		xD = parseInt(x.match(hre), 16) || (xN.length !== 1 && x.match(dre) && Date.parse(x)),
+		yD = parseInt(y.match(hre), 16) || xD && y.match(dre) && Date.parse(y) || null,
+		oFxNcL, oFyNcL;
+	// first try and sort Hex codes or Dates
+	if (yD) {
+		if ( xD < yD ) { return -1; }
+		else if ( xD > yD ) { return 1; }
+	}
+	// natural sorting through split numeric strings and default strings
+	for(var cLoc=0, numS=Math.max(xN.length, yN.length); cLoc < numS; cLoc++) {
+		// find floats not starting with '0', string or 0 if not defined (Clint Priest)
+		oFxNcL = !(xN[cLoc] || '').match(ore) && parseFloat(xN[cLoc]) || xN[cLoc] || 0;
+		oFyNcL = !(yN[cLoc] || '').match(ore) && parseFloat(yN[cLoc]) || yN[cLoc] || 0;
+		// handle numeric vs string comparison - number < string - (Kyle Adams)
+		if (isNaN(oFxNcL) !== isNaN(oFyNcL)) { return (isNaN(oFxNcL)) ? 1 : -1; }
+		// rely on string comparison if different types - i.e. '02' < 2 != '02' < '2'
+		else if (typeof oFxNcL !== typeof oFyNcL) {
+			oFxNcL += '';
+			oFyNcL += '';
+		}
+		if (oFxNcL < oFyNcL) { return -1; }
+		if (oFxNcL > oFyNcL) { return 1; }
+	}
+	return 0;
+};
+
+
+/***/ }),
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var VanillaPicker;
@@ -6304,7 +6117,7 @@ if (window.Picker) {
 } else {
   try {
     // load color picker
-    VanillaPicker = __webpack_require__(41);
+    VanillaPicker = __webpack_require__(42);
   } catch (err) {// probably running the minimalist bundle
   }
 }
@@ -6312,7 +6125,7 @@ if (window.Picker) {
 module.exports = VanillaPicker;
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/**
@@ -6919,7 +6732,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -6956,7 +6769,7 @@ var ErrorTable = /*#__PURE__*/function () {
     var additionalErrorsIndication = document.createElement('div');
     additionalErrorsIndication.style.display = 'none';
     additionalErrorsIndication.className = 'jsoneditor-additional-errors fadein';
-    additionalErrorsIndication.innerHTML = 'Scroll for more &#9663;';
+    additionalErrorsIndication.textContent = "Scroll for more \u25BF";
     this.dom.additionalErrorsIndication = additionalErrorsIndication;
     validationErrorsContainer.appendChild(additionalErrorsIndication);
     var validationErrorIcon = document.createElement('span');
@@ -7015,17 +6828,12 @@ var ErrorTable = /*#__PURE__*/function () {
       if (this.errorTableVisible && errors.length > 0) {
         var validationErrors = document.createElement('div');
         validationErrors.className = 'jsoneditor-validation-errors';
-        validationErrors.innerHTML = '<table class="jsoneditor-text-errors"><tbody></tbody></table>';
-        var tbody = validationErrors.getElementsByTagName('tbody')[0];
+        var table = document.createElement('table');
+        table.className = 'jsoneditor-text-errors';
+        validationErrors.appendChild(table);
+        var tbody = document.createElement('tbody');
+        table.appendChild(tbody);
         errors.forEach(function (error) {
-          var message;
-
-          if (typeof error === 'string') {
-            message = '<td colspan="2"><pre>' + error + '</pre></td>';
-          } else {
-            message = '<td>' + (error.dataPath || '') + '</td>' + '<td><pre>' + error.message + '</pre></td>';
-          }
-
           var line;
 
           if (!isNaN(error.line)) {
@@ -7049,7 +6857,36 @@ var ErrorTable = /*#__PURE__*/function () {
             trEl.className += ' validation-error';
           }
 
-          trEl.innerHTML = '<td><button class="jsoneditor-schema-error"></button></td><td style="white-space:nowrap;">' + (!isNaN(line) ? 'Ln ' + line : '') + '</td>' + message;
+          var td1 = document.createElement('td');
+          var button = document.createElement('button');
+          button.className = 'jsoneditor-schema-error';
+          td1.appendChild(button);
+          trEl.appendChild(td1);
+          var td2 = document.createElement('td');
+          td2.style = 'white-space: nowrap;';
+          td2.textContent = !isNaN(line) ? 'Ln ' + line : '';
+          trEl.appendChild(td2);
+
+          if (typeof error === 'string') {
+            var td34 = document.createElement('td');
+            td34.colSpan = 2;
+            var pre = document.createElement('pre');
+            pre.appendChild(document.createTextNode(error));
+            td34.appendChild(pre);
+            trEl.appendChild(td34);
+          } else {
+            var td3 = document.createElement('td');
+            td3.appendChild(document.createTextNode(error.dataPath || ''));
+            trEl.appendChild(td3);
+            var td4 = document.createElement('td');
+
+            var _pre = document.createElement('pre');
+
+            _pre.appendChild(document.createTextNode(error.message));
+
+            td4.appendChild(_pre);
+            trEl.appendChild(td4);
+          }
 
           trEl.onclick = function () {
             _this.onFocusLine(line);
@@ -7116,7 +6953,7 @@ var ErrorTable = /*#__PURE__*/function () {
 }();
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, exports) {
 
 module.exports = function(module) {
@@ -7144,17 +6981,17 @@ module.exports = function(module) {
 
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var URI = __webpack_require__(46)
-  , equal = __webpack_require__(18)
+var URI = __webpack_require__(50)
+  , equal = __webpack_require__(19)
   , util = __webpack_require__(7)
-  , SchemaObject = __webpack_require__(25)
-  , traverse = __webpack_require__(48);
+  , SchemaObject = __webpack_require__(26)
+  , traverse = __webpack_require__(52);
 
 module.exports = resolve;
 
@@ -7421,7 +7258,7 @@ function resolveIds(schema) {
 
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -7474,13 +7311,13 @@ module.exports = function equal(a, b) {
 
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var resolve = __webpack_require__(17);
+var resolve = __webpack_require__(18);
 
 module.exports = {
   Validation: errorSubclass(ValidationError),
@@ -7515,7 +7352,7 @@ function errorSubclass(Subclass) {
 
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var ace;
@@ -7526,15 +7363,15 @@ if (window.ace) {
 } else {
   try {
     // load Ace editor
-    ace = __webpack_require__(37); // load required Ace plugins
+    ace = __webpack_require__(38); // load required Ace plugins
 
-    __webpack_require__(38);
+    __webpack_require__(39);
 
-    __webpack_require__(39); // embed Ace json worker
+    __webpack_require__(40); // embed Ace json worker
     // https://github.com/ajaxorg/ace/issues/3913
 
 
-    var jsonWorkerDataUrl = __webpack_require__(40);
+    var jsonWorkerDataUrl = __webpack_require__(41);
 
     ace.config.setModuleUrl('ace/mode/json_worker', jsonWorkerDataUrl);
   } catch (err) {// failed to load Ace (can be minimalist bundle).
@@ -7545,7 +7382,7 @@ if (window.ace) {
 module.exports = ace;
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7555,18 +7392,40 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, "textModeMixins", function() { return /* binding */ textModeMixins; });
 
+// EXTERNAL MODULE: ./node_modules/simple-json-repair/lib/cjs/index-commonjs.js
+var index_commonjs = __webpack_require__(8);
+var index_commonjs_default = /*#__PURE__*/__webpack_require__.n(index_commonjs);
+
 // EXTERNAL MODULE: ./src/js/ace/index.js
-var ace = __webpack_require__(20);
+var ace = __webpack_require__(21);
 var ace_default = /*#__PURE__*/__webpack_require__.n(ace);
+
+// EXTERNAL MODULE: ./src/js/constants.js
+var constants = __webpack_require__(2);
+
+// EXTERNAL MODULE: ./src/js/ErrorTable.js
+var ErrorTable = __webpack_require__(16);
+
+// EXTERNAL MODULE: ./src/js/FocusTracker.js
+var FocusTracker = __webpack_require__(9);
 
 // EXTERNAL MODULE: ./src/js/i18n.js
 var i18n = __webpack_require__(1);
 
-// EXTERNAL MODULE: ./src/js/ModeSwitcher.js
-var ModeSwitcher = __webpack_require__(8);
+// EXTERNAL MODULE: ./src/js/jmespathQuery.js
+var jmespathQuery = __webpack_require__(4);
 
-// EXTERNAL MODULE: ./src/js/ErrorTable.js
-var ErrorTable = __webpack_require__(15);
+// EXTERNAL MODULE: ./src/js/ModeSwitcher.js
+var ModeSwitcher = __webpack_require__(10);
+
+// EXTERNAL MODULE: ./src/js/showSortModal.js
+var showSortModal = __webpack_require__(5);
+
+// EXTERNAL MODULE: ./src/js/showTransformModal.js + 1 modules
+var showTransformModal = __webpack_require__(6);
+
+// EXTERNAL MODULE: ./src/js/tryRequireThemeJsonEditor.js
+var tryRequireThemeJsonEditor = __webpack_require__(36);
 
 // EXTERNAL MODULE: ./src/js/util.js
 var util = __webpack_require__(0);
@@ -7614,28 +7473,11 @@ function validateCustom(json, onValidate) {
     return Promise.reject(err);
   }
 }
-// EXTERNAL MODULE: ./src/js/showSortModal.js
-var showSortModal = __webpack_require__(5);
-
-// EXTERNAL MODULE: ./src/js/showTransformModal.js + 1 modules
-var showTransformModal = __webpack_require__(6);
-
-// EXTERNAL MODULE: ./src/js/FocusTracker.js
-var FocusTracker = __webpack_require__(9);
-
-// EXTERNAL MODULE: ./src/js/constants.js
-var constants = __webpack_require__(2);
-
-// EXTERNAL MODULE: ./src/js/tryRequireThemeJsonEditor.js
-var tryRequireThemeJsonEditor = __webpack_require__(35);
-
-// EXTERNAL MODULE: ./src/js/jmespathQuery.js
-var jmespathQuery = __webpack_require__(4);
-
 // CONCATENATED MODULE: ./src/js/textmode.js
 
 
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 
 
 
@@ -7873,7 +7715,7 @@ textmode.create = function (container) {
     if (this.mode === 'code') {
       var poweredBy = document.createElement('a');
       poweredBy.appendChild(document.createTextNode('powered by ace'));
-      poweredBy.href = 'http://ace.ajax.org';
+      poweredBy.href = 'https://ace.c9.io/';
       poweredBy.target = '_blank';
       poweredBy.className = 'jsoneditor-poweredBy';
 
@@ -7881,10 +7723,26 @@ textmode.create = function (container) {
         // TODO: this anchor falls below the margin of the content,
         // therefore the normal a.href does not work. We use a click event
         // for now, but this should be fixed.
-        window.open(poweredBy.href, poweredBy.target);
+        window.open(poweredBy.href, poweredBy.target, 'noopener');
       };
 
       this.menu.appendChild(poweredBy);
+    } // create custom buttons
+
+
+    if (this.options.buttons) {
+      this.options.buttons.forEach(function (buttonCustomConf) {
+        var buttonCustom = document.createElement('button');
+        buttonCustom.type = 'button';
+        buttonCustom.className = buttonCustomConf.className;
+        buttonCustom.title = buttonCustomConf.title;
+
+        _this.menu.appendChild(buttonCustom);
+
+        buttonCustom.onclick = function () {
+          buttonCustomConf.target(_this);
+        };
+      });
     }
   }
 
@@ -7920,12 +7778,16 @@ textmode.create = function (container) {
 
     aceSession.setAnnotations = function (annotations) {
       originalSetAnnotations.call(this, annotations && annotations.length ? annotations : me.annotations);
-    };
+    }; // disable Ctrl+L quickkey of Ace (is used by the browser to select the address bar)
 
-    aceEditor.commands.bindKey('Ctrl-L', null); // disable Ctrl+L (is used by the browser to select the address bar)
 
-    aceEditor.commands.bindKey('Command-L', null); // disable Ctrl+L (is used by the browser to select the address bar)
+    aceEditor.commands.bindKey('Ctrl-L', null);
+    aceEditor.commands.bindKey('Command-L', null); // disable the quickkeys we want to use for Format and Compact
 
+    aceEditor.commands.bindKey('Ctrl-\\', null);
+    aceEditor.commands.bindKey('Command-\\', null);
+    aceEditor.commands.bindKey('Ctrl-Shift-\\', null);
+    aceEditor.commands.bindKey('Command-Shift-\\', null);
     this.aceEditor = aceEditor; // register onchange event
 
     aceEditor.on('change', this._onChange.bind(this));
@@ -8120,7 +7982,7 @@ textmode._showTransformModal = function () {
       queryDescription = _this$options.queryDescription;
   var json = this.get();
   Object(showTransformModal["showTransformModal"])({
-    anchor: modalAnchor || constants["a" /* DEFAULT_MODAL_ANCHOR */],
+    container: modalAnchor || constants["a" /* DEFAULT_MODAL_ANCHOR */],
     json: json,
     queryDescription: queryDescription,
     // can be undefined
@@ -8361,8 +8223,12 @@ textmode.format = function () {
 
 textmode.repair = function () {
   var text = this.getText();
-  var repairedText = Object(util["repair"])(text);
-  this.updateText(repairedText);
+
+  try {
+    var repairedText = index_commonjs_default()(text);
+    this.updateText(repairedText);
+  } catch (err) {// repair was not successful, do nothing
+  }
 };
 /**
  * Set focus to the formatter
@@ -8759,7 +8625,7 @@ var textModeMixins = [{
 }];
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Jison generated parser */
@@ -9507,7 +9373,7 @@ if (true) {
 }
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports) {
 
 module.exports = function() {
@@ -9516,7 +9382,7 @@ module.exports = function() {
 
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports) {
 
 if (typeof Element !== 'undefined') {
@@ -9556,26 +9422,34 @@ if (typeof Element !== 'undefined') {
 
 if (!Array.prototype.findIndex) {
   // eslint-disable-next-line no-extend-native
-  Array.prototype.findIndex = function (predicate) {
-    for (var i = 0; i < this.length; i++) {
-      var element = this[i];
+  Object.defineProperty(Array.prototype, 'findIndex', {
+    value: function value(predicate) {
+      for (var i = 0; i < this.length; i++) {
+        var element = this[i];
 
-      if (predicate.call(this, element, i, this)) {
-        return i;
+        if (predicate.call(this, element, i, this)) {
+          return i;
+        }
       }
-    }
 
-    return -1;
-  };
+      return -1;
+    },
+    configurable: true,
+    writable: true
+  });
 } // Polyfill for Array.find
 
 
 if (!Array.prototype.find) {
   // eslint-disable-next-line no-extend-native
-  Array.prototype.find = function (predicate) {
-    var i = this.findIndex(predicate);
-    return this[i];
-  };
+  Object.defineProperty(Array.prototype, 'find', {
+    value: function value(predicate) {
+      var i = this.findIndex(predicate);
+      return this[i];
+    },
+    configurable: true,
+    writable: true
+  });
 } // Polyfill for String.trim
 
 
@@ -9587,7 +9461,7 @@ if (!String.prototype.trim) {
 }
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -9603,7 +9477,7 @@ function SchemaObject(obj) {
 
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -9669,7 +9543,7 @@ module.exports = function (data, opts) {
 
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -9766,7 +9640,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
     it.rootId = it.resolve.fullPath(it.self._getId(it.root.schema));
     it.baseId = it.baseId || it.rootId;
     delete it.isTop;
-    it.dataPathArr = [undefined];
+    it.dataPathArr = [""];
     if (it.schema.default !== undefined && it.opts.useDefaults && it.opts.strictDefaults) {
       var $defaultMsg = 'default is ignored in the schema root';
       if (it.opts.strictDefaults === 'log') it.logger.warn($defaultMsg);
@@ -9824,47 +9698,39 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
       var $schemaPath = it.schemaPath + '.type',
         $errSchemaPath = it.errSchemaPath + '/type',
         $method = $typeIsArray ? 'checkDataTypes' : 'checkDataType';
-      out += ' if (' + (it.util[$method]($typeSchema, $data, true)) + ') { ';
+      out += ' if (' + (it.util[$method]($typeSchema, $data, it.opts.strictNumbers, true)) + ') { ';
       if ($coerceToTypes) {
         var $dataType = 'dataType' + $lvl,
           $coerced = 'coerced' + $lvl;
-        out += ' var ' + ($dataType) + ' = typeof ' + ($data) + '; ';
+        out += ' var ' + ($dataType) + ' = typeof ' + ($data) + '; var ' + ($coerced) + ' = undefined; ';
         if (it.opts.coerceTypes == 'array') {
-          out += ' if (' + ($dataType) + ' == \'object\' && Array.isArray(' + ($data) + ')) ' + ($dataType) + ' = \'array\'; ';
+          out += ' if (' + ($dataType) + ' == \'object\' && Array.isArray(' + ($data) + ') && ' + ($data) + '.length == 1) { ' + ($data) + ' = ' + ($data) + '[0]; ' + ($dataType) + ' = typeof ' + ($data) + '; if (' + (it.util.checkDataType(it.schema.type, $data, it.opts.strictNumbers)) + ') ' + ($coerced) + ' = ' + ($data) + '; } ';
         }
-        out += ' var ' + ($coerced) + ' = undefined; ';
-        var $bracesCoercion = '';
+        out += ' if (' + ($coerced) + ' !== undefined) ; ';
         var arr1 = $coerceToTypes;
         if (arr1) {
           var $type, $i = -1,
             l1 = arr1.length - 1;
           while ($i < l1) {
             $type = arr1[$i += 1];
-            if ($i) {
-              out += ' if (' + ($coerced) + ' === undefined) { ';
-              $bracesCoercion += '}';
-            }
-            if (it.opts.coerceTypes == 'array' && $type != 'array') {
-              out += ' if (' + ($dataType) + ' == \'array\' && ' + ($data) + '.length == 1) { ' + ($coerced) + ' = ' + ($data) + ' = ' + ($data) + '[0]; ' + ($dataType) + ' = typeof ' + ($data) + ';  } ';
-            }
             if ($type == 'string') {
-              out += ' if (' + ($dataType) + ' == \'number\' || ' + ($dataType) + ' == \'boolean\') ' + ($coerced) + ' = \'\' + ' + ($data) + '; else if (' + ($data) + ' === null) ' + ($coerced) + ' = \'\'; ';
+              out += ' else if (' + ($dataType) + ' == \'number\' || ' + ($dataType) + ' == \'boolean\') ' + ($coerced) + ' = \'\' + ' + ($data) + '; else if (' + ($data) + ' === null) ' + ($coerced) + ' = \'\'; ';
             } else if ($type == 'number' || $type == 'integer') {
-              out += ' if (' + ($dataType) + ' == \'boolean\' || ' + ($data) + ' === null || (' + ($dataType) + ' == \'string\' && ' + ($data) + ' && ' + ($data) + ' == +' + ($data) + ' ';
+              out += ' else if (' + ($dataType) + ' == \'boolean\' || ' + ($data) + ' === null || (' + ($dataType) + ' == \'string\' && ' + ($data) + ' && ' + ($data) + ' == +' + ($data) + ' ';
               if ($type == 'integer') {
                 out += ' && !(' + ($data) + ' % 1)';
               }
               out += ')) ' + ($coerced) + ' = +' + ($data) + '; ';
             } else if ($type == 'boolean') {
-              out += ' if (' + ($data) + ' === \'false\' || ' + ($data) + ' === 0 || ' + ($data) + ' === null) ' + ($coerced) + ' = false; else if (' + ($data) + ' === \'true\' || ' + ($data) + ' === 1) ' + ($coerced) + ' = true; ';
+              out += ' else if (' + ($data) + ' === \'false\' || ' + ($data) + ' === 0 || ' + ($data) + ' === null) ' + ($coerced) + ' = false; else if (' + ($data) + ' === \'true\' || ' + ($data) + ' === 1) ' + ($coerced) + ' = true; ';
             } else if ($type == 'null') {
-              out += ' if (' + ($data) + ' === \'\' || ' + ($data) + ' === 0 || ' + ($data) + ' === false) ' + ($coerced) + ' = null; ';
+              out += ' else if (' + ($data) + ' === \'\' || ' + ($data) + ' === 0 || ' + ($data) + ' === false) ' + ($coerced) + ' = null; ';
             } else if (it.opts.coerceTypes == 'array' && $type == 'array') {
-              out += ' if (' + ($dataType) + ' == \'string\' || ' + ($dataType) + ' == \'number\' || ' + ($dataType) + ' == \'boolean\' || ' + ($data) + ' == null) ' + ($coerced) + ' = [' + ($data) + ']; ';
+              out += ' else if (' + ($dataType) + ' == \'string\' || ' + ($dataType) + ' == \'number\' || ' + ($dataType) + ' == \'boolean\' || ' + ($data) + ' == null) ' + ($coerced) + ' = [' + ($data) + ']; ';
             }
           }
         }
-        out += ' ' + ($bracesCoercion) + ' if (' + ($coerced) + ' === undefined) {   ';
+        out += ' else {   ';
         var $$outStack = $$outStack || [];
         $$outStack.push(out);
         out = ''; /* istanbul ignore else */
@@ -9904,7 +9770,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
         } else {
           out += ' var err = ' + (__err) + ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
         }
-        out += ' } else {  ';
+        out += ' } if (' + ($coerced) + ' !== undefined) {  ';
         var $parentData = $dataLvl ? 'data' + (($dataLvl - 1) || '') : 'parentData',
           $parentDataProperty = $dataLvl ? it.dataPathArr[$dataLvl] : 'parentDataProperty';
         out += ' ' + ($data) + ' = ' + ($coerced) + '; ';
@@ -9977,7 +9843,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
         $rulesGroup = arr2[i2 += 1];
         if ($shouldUseGroup($rulesGroup)) {
           if ($rulesGroup.type) {
-            out += ' if (' + (it.util.checkDataType($rulesGroup.type, $data)) + ') { ';
+            out += ' if (' + (it.util.checkDataType($rulesGroup.type, $data, it.opts.strictNumbers)) + ') { ';
           }
           if (it.opts.useDefaults) {
             if ($rulesGroup.type == 'object' && it.schema.properties) {
@@ -10145,10 +10011,6 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
   } else {
     out += ' var ' + ($valid) + ' = errors === errs_' + ($lvl) + ';';
   }
-  out = it.util.cleanUpCode(out);
-  if ($top) {
-    out = it.util.finalCleanUpCode(out, $async);
-  }
 
   function $shouldUseGroup($rulesGroup) {
     var rules = $rulesGroup.rules;
@@ -10170,7 +10032,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10200,6 +10062,12 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
     $op = $isMax ? '<' : '>',
     $notOp = $isMax ? '>' : '<',
     $errorKeyword = undefined;
+  if (!($isData || typeof $schema == 'number' || $schema === undefined)) {
+    throw new Error($keyword + ' must be number');
+  }
+  if (!($isDataExcl || $schemaExcl === undefined || typeof $schemaExcl == 'number' || typeof $schemaExcl == 'boolean')) {
+    throw new Error($exclusiveKeyword + ' must be number or boolean');
+  }
   if ($isDataExcl) {
     var $schemaValueExcl = it.util.getData($schemaExcl.$data, $dataLvl, it.dataPathArr),
       $exclusive = 'exclusive' + $lvl,
@@ -10334,7 +10202,7 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10356,6 +10224,9 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
     $schemaValue = 'schema' + $lvl;
   } else {
     $schemaValue = $schema;
+  }
+  if (!($isData || typeof $schema == 'number')) {
+    throw new Error($keyword + ' must be number');
   }
   var $op = $keyword == 'maxItems' ? '>' : '<';
   out += 'if ( ';
@@ -10418,7 +10289,7 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10440,6 +10311,9 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
     $schemaValue = 'schema' + $lvl;
   } else {
     $schemaValue = $schema;
+  }
+  if (!($isData || typeof $schema == 'number')) {
+    throw new Error($keyword + ' must be number');
   }
   var $op = $keyword == 'maxLength' ? '>' : '<';
   out += 'if ( ';
@@ -10507,7 +10381,7 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10529,6 +10403,9 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
     $schemaValue = 'schema' + $lvl;
   } else {
     $schemaValue = $schema;
+  }
+  if (!($isData || typeof $schema == 'number')) {
+    throw new Error($keyword + ' must be number');
   }
   var $op = $keyword == 'maxProperties' ? '>' : '<';
   out += 'if ( ';
@@ -10591,13 +10468,13 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(module) {
 
 module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$id\":\"http://json-schema.org/draft-07/schema#\",\"title\":\"Core schema meta-schema\",\"definitions\":{\"schemaArray\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"$ref\":\"#\"}},\"nonNegativeInteger\":{\"type\":\"integer\",\"minimum\":0},\"nonNegativeIntegerDefault0\":{\"allOf\":[{\"$ref\":\"#/definitions/nonNegativeInteger\"},{\"default\":0}]},\"simpleTypes\":{\"enum\":[\"array\",\"boolean\",\"integer\",\"null\",\"number\",\"object\",\"string\"]},\"stringArray\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"uniqueItems\":true,\"default\":[]}},\"type\":[\"object\",\"boolean\"],\"properties\":{\"$id\":{\"type\":\"string\",\"format\":\"uri-reference\"},\"$schema\":{\"type\":\"string\",\"format\":\"uri\"},\"$ref\":{\"type\":\"string\",\"format\":\"uri-reference\"},\"$comment\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"},\"default\":true,\"readOnly\":{\"type\":\"boolean\",\"default\":false},\"examples\":{\"type\":\"array\",\"items\":true},\"multipleOf\":{\"type\":\"number\",\"exclusiveMinimum\":0},\"maximum\":{\"type\":\"number\"},\"exclusiveMaximum\":{\"type\":\"number\"},\"minimum\":{\"type\":\"number\"},\"exclusiveMinimum\":{\"type\":\"number\"},\"maxLength\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minLength\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"pattern\":{\"type\":\"string\",\"format\":\"regex\"},\"additionalItems\":{\"$ref\":\"#\"},\"items\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/schemaArray\"}],\"default\":true},\"maxItems\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minItems\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"uniqueItems\":{\"type\":\"boolean\",\"default\":false},\"contains\":{\"$ref\":\"#\"},\"maxProperties\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minProperties\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"required\":{\"$ref\":\"#/definitions/stringArray\"},\"additionalProperties\":{\"$ref\":\"#\"},\"definitions\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"properties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"patternProperties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"propertyNames\":{\"format\":\"regex\"},\"default\":{}},\"dependencies\":{\"type\":\"object\",\"additionalProperties\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/stringArray\"}]}},\"propertyNames\":{\"$ref\":\"#\"},\"const\":true,\"enum\":{\"type\":\"array\",\"items\":true,\"minItems\":1,\"uniqueItems\":true},\"type\":{\"anyOf\":[{\"$ref\":\"#/definitions/simpleTypes\"},{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/simpleTypes\"},\"minItems\":1,\"uniqueItems\":true}]},\"format\":{\"type\":\"string\"},\"contentMediaType\":{\"type\":\"string\"},\"contentEncoding\":{\"type\":\"string\"},\"if\":{\"$ref\":\"#\"},\"then\":{\"$ref\":\"#\"},\"else\":{\"$ref\":\"#\"},\"allOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"anyOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"oneOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"not\":{\"$ref\":\"#\"}},\"default\":true}");
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -11069,7 +10946,7 @@ function escapeJsonPointer(str) {
 
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 (function(exports) {
@@ -12742,46 +12619,47 @@ function escapeJsonPointer(str) {
 
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ (function(module, exports, __webpack_require__) {
 
 exports.tryRequireThemeJsonEditor = function () {
   try {
-    __webpack_require__(42);
+    __webpack_require__(46);
   } catch (err) {
     console.error(err);
   }
 };
 
 /***/ }),
-/* 36 */
+/* 37 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var ace = __webpack_require__(20); // may be undefined in case of minimalist bundle
+var ace = __webpack_require__(21); // may be undefined in case of minimalist bundle
 
 
-var VanillaPicker = __webpack_require__(13); // may be undefined in case of minimalist bundle
+var VanillaPicker = __webpack_require__(14); // may be undefined in case of minimalist bundle
 
 
-var _require = __webpack_require__(80),
+var _require = __webpack_require__(84),
     treeModeMixins = _require.treeModeMixins;
 
-var _require2 = __webpack_require__(21),
+var _require2 = __webpack_require__(22),
     textModeMixins = _require2.textModeMixins;
 
-var _require3 = __webpack_require__(81),
+var _require3 = __webpack_require__(85),
     previewModeMixins = _require3.previewModeMixins;
 
 var _require4 = __webpack_require__(0),
     clear = _require4.clear,
     extend = _require4.extend,
+    getInnerText = _require4.getInnerText,
     getInternetExplorerVersion = _require4.getInternetExplorerVersion,
     parse = _require4.parse;
 
-var _require5 = __webpack_require__(43),
+var _require5 = __webpack_require__(47),
     tryRequireAjv = _require5.tryRequireAjv;
 
 var _require6 = __webpack_require__(6),
@@ -12951,10 +12829,10 @@ function JSONEditor(container, options, json) {
  */
 
 
-JSONEditor.modes = {}; // debounce interval for JSON schema vaidation in milliseconds
+JSONEditor.modes = {}; // debounce interval for JSON schema validation in milliseconds
 
 JSONEditor.prototype.DEBOUNCE_INTERVAL = 150;
-JSONEditor.VALID_OPTIONS = ['ajv', 'schema', 'schemaRefs', 'templates', 'ace', 'theme', 'autocomplete', 'onChange', 'onChangeJSON', 'onChangeText', 'onEditable', 'onError', 'onEvent', 'onModeChange', 'onNodeName', 'onValidate', 'onCreateMenu', 'onSelectionChange', 'onTextSelectionChange', 'onClassName', 'onFocus', 'onBlur', 'colorPicker', 'onColorPicker', 'timestampTag', 'timestampFormat', 'escapeUnicode', 'history', 'search', 'mode', 'modes', 'name', 'indentation', 'sortObjectKeys', 'navigationBar', 'statusBar', 'mainMenuBar', 'languages', 'language', 'enableSort', 'enableTransform', 'maxVisibleChilds', 'onValidationError', 'modalAnchor', 'popupAnchor', 'createQuery', 'executeQuery', 'queryDescription'];
+JSONEditor.VALID_OPTIONS = ['ajv', 'schema', 'schemaRefs', 'templates', 'ace', 'theme', 'autocomplete', 'onChange', 'onChangeJSON', 'onChangeText', 'onEditable', 'onError', 'onEvent', 'onModeChange', 'onNodeName', 'onValidate', 'onCreateMenu', 'onSelectionChange', 'onTextSelectionChange', 'onClassName', 'onFocus', 'onBlur', 'colorPicker', 'onColorPicker', 'timestampTag', 'timestampFormat', 'escapeUnicode', 'history', 'search', 'mode', 'modes', 'name', 'indentation', 'sortObjectKeys', 'navigationBar', 'statusBar', 'mainMenuBar', 'languages', 'language', 'enableSort', 'enableTransform', 'limitDragging', 'maxVisibleChilds', 'onValidationError', 'modalAnchor', 'popupAnchor', 'createQuery', 'executeQuery', 'queryDescription', 'buttons'];
 /**
  * Create the JSONEditor
  * @param {Element} container    Container element
@@ -13141,8 +13019,8 @@ JSONEditor.prototype.setSchema = function (schema, schemaRefs) {
           $data: true
         }); // support both draft-04 and draft-06 alongside the latest draft-07
 
-        ajv.addMetaSchema(__webpack_require__(78));
-        ajv.addMetaSchema(__webpack_require__(79));
+        ajv.addMetaSchema(__webpack_require__(82));
+        ajv.addMetaSchema(__webpack_require__(83));
       }
     } catch (err) {
       console.warn('Failed to create an instance of Ajv, JSON Schema validation is not available. Please use a JSONEditor bundle including Ajv, or pass an instance of Ajv as via the configuration option `ajv`.');
@@ -13186,15 +13064,15 @@ JSONEditor.prototype.setSchema = function (schema, schemaRefs) {
  */
 
 
-JSONEditor.prototype.validate = function () {} // must be implemented by treemode and textmode
-
+JSONEditor.prototype.validate = function () {// must be implemented by treemode and textmode
+};
 /**
  * Refresh the rendered contents
  */
-;
 
-JSONEditor.prototype.refresh = function () {} // can be implemented by treemode and textmode
 
+JSONEditor.prototype.refresh = function () {// can be implemented by treemode and textmode
+};
 /**
  * Register a plugin with one ore multiple modes for the JSON Editor.
  *
@@ -13214,7 +13092,7 @@ JSONEditor.prototype.refresh = function () {} // can be implemented by treemode 
  *
  * @param {Object | Array} mode  A mode object or an array with multiple mode objects.
  */
-;
+
 
 JSONEditor.registerMode = function (mode) {
   var i, prop;
@@ -13264,13 +13142,14 @@ JSONEditor.Ajv = Ajv;
 JSONEditor.VanillaPicker = VanillaPicker; // expose some utils (this is undocumented, unofficial)
 
 JSONEditor.showTransformModal = showTransformModal;
-JSONEditor.showSortModal = showSortModal; // default export for TypeScript ES6 projects
+JSONEditor.showSortModal = showSortModal;
+JSONEditor.getInnerText = getInnerText; // default export for TypeScript ES6 projects
 
 JSONEditor["default"] = JSONEditor;
 module.exports = JSONEditor;
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module) {/* ***** BEGIN LICENSE BLOCK *****
@@ -13448,781 +13327,8 @@ exportAce(ACE_NAMESPACE);
 
 })();
 
-ace.define("ace/lib/regexp",["require","exports","module"], function(require, exports, module) {
+ace.define("ace/lib/fixoldbrowsers",["require","exports","module"], function(require, exports, module) {
 "use strict";
-
-    var real = {
-            exec: RegExp.prototype.exec,
-            test: RegExp.prototype.test,
-            match: String.prototype.match,
-            replace: String.prototype.replace,
-            split: String.prototype.split
-        },
-        compliantExecNpcg = real.exec.call(/()??/, "")[1] === undefined, // check `exec` handling of nonparticipating capturing groups
-        compliantLastIndexIncrement = function () {
-            var x = /^/g;
-            real.test.call(x, "");
-            return !x.lastIndex;
-        }();
-
-    if (compliantLastIndexIncrement && compliantExecNpcg)
-        return;
-    RegExp.prototype.exec = function (str) {
-        var match = real.exec.apply(this, arguments),
-            name, r2;
-        if ( typeof(str) == 'string' && match) {
-            if (!compliantExecNpcg && match.length > 1 && indexOf(match, "") > -1) {
-                r2 = RegExp(this.source, real.replace.call(getNativeFlags(this), "g", ""));
-                real.replace.call(str.slice(match.index), r2, function () {
-                    for (var i = 1; i < arguments.length - 2; i++) {
-                        if (arguments[i] === undefined)
-                            match[i] = undefined;
-                    }
-                });
-            }
-            if (this._xregexp && this._xregexp.captureNames) {
-                for (var i = 1; i < match.length; i++) {
-                    name = this._xregexp.captureNames[i - 1];
-                    if (name)
-                       match[name] = match[i];
-                }
-            }
-            if (!compliantLastIndexIncrement && this.global && !match[0].length && (this.lastIndex > match.index))
-                this.lastIndex--;
-        }
-        return match;
-    };
-    if (!compliantLastIndexIncrement) {
-        RegExp.prototype.test = function (str) {
-            var match = real.exec.call(this, str);
-            if (match && this.global && !match[0].length && (this.lastIndex > match.index))
-                this.lastIndex--;
-            return !!match;
-        };
-    }
-
-    function getNativeFlags (regex) {
-        return (regex.global     ? "g" : "") +
-               (regex.ignoreCase ? "i" : "") +
-               (regex.multiline  ? "m" : "") +
-               (regex.extended   ? "x" : "") + // Proposed for ES4; included in AS3
-               (regex.sticky     ? "y" : "");
-    }
-
-    function indexOf (array, item, from) {
-        if (Array.prototype.indexOf) // Use the native array method if available
-            return array.indexOf(item, from);
-        for (var i = from || 0; i < array.length; i++) {
-            if (array[i] === item)
-                return i;
-        }
-        return -1;
-    }
-
-});
-
-ace.define("ace/lib/es5-shim",["require","exports","module"], function(require, exports, module) {
-
-function Empty() {}
-
-if (!Function.prototype.bind) {
-    Function.prototype.bind = function bind(that) { // .length is 1
-        var target = this;
-        if (typeof target != "function") {
-            throw new TypeError("Function.prototype.bind called on incompatible " + target);
-        }
-        var args = slice.call(arguments, 1); // for normal call
-        var bound = function () {
-
-            if (this instanceof bound) {
-
-                var result = target.apply(
-                    this,
-                    args.concat(slice.call(arguments))
-                );
-                if (Object(result) === result) {
-                    return result;
-                }
-                return this;
-
-            } else {
-                return target.apply(
-                    that,
-                    args.concat(slice.call(arguments))
-                );
-
-            }
-
-        };
-        if(target.prototype) {
-            Empty.prototype = target.prototype;
-            bound.prototype = new Empty();
-            Empty.prototype = null;
-        }
-        return bound;
-    };
-}
-var call = Function.prototype.call;
-var prototypeOfArray = Array.prototype;
-var prototypeOfObject = Object.prototype;
-var slice = prototypeOfArray.slice;
-var _toString = call.bind(prototypeOfObject.toString);
-var owns = call.bind(prototypeOfObject.hasOwnProperty);
-var defineGetter;
-var defineSetter;
-var lookupGetter;
-var lookupSetter;
-var supportsAccessors;
-if ((supportsAccessors = owns(prototypeOfObject, "__defineGetter__"))) {
-    defineGetter = call.bind(prototypeOfObject.__defineGetter__);
-    defineSetter = call.bind(prototypeOfObject.__defineSetter__);
-    lookupGetter = call.bind(prototypeOfObject.__lookupGetter__);
-    lookupSetter = call.bind(prototypeOfObject.__lookupSetter__);
-}
-if ([1,2].splice(0).length != 2) {
-    if(function() { // test IE < 9 to splice bug - see issue #138
-        function makeArray(l) {
-            var a = new Array(l+2);
-            a[0] = a[1] = 0;
-            return a;
-        }
-        var array = [], lengthBefore;
-        
-        array.splice.apply(array, makeArray(20));
-        array.splice.apply(array, makeArray(26));
-
-        lengthBefore = array.length; //46
-        array.splice(5, 0, "XXX"); // add one element
-
-        lengthBefore + 1 == array.length
-
-        if (lengthBefore + 1 == array.length) {
-            return true;// has right splice implementation without bugs
-        }
-    }()) {//IE 6/7
-        var array_splice = Array.prototype.splice;
-        Array.prototype.splice = function(start, deleteCount) {
-            if (!arguments.length) {
-                return [];
-            } else {
-                return array_splice.apply(this, [
-                    start === void 0 ? 0 : start,
-                    deleteCount === void 0 ? (this.length - start) : deleteCount
-                ].concat(slice.call(arguments, 2)))
-            }
-        };
-    } else {//IE8
-        Array.prototype.splice = function(pos, removeCount){
-            var length = this.length;
-            if (pos > 0) {
-                if (pos > length)
-                    pos = length;
-            } else if (pos == void 0) {
-                pos = 0;
-            } else if (pos < 0) {
-                pos = Math.max(length + pos, 0);
-            }
-
-            if (!(pos+removeCount < length))
-                removeCount = length - pos;
-
-            var removed = this.slice(pos, pos+removeCount);
-            var insert = slice.call(arguments, 2);
-            var add = insert.length;            
-            if (pos === length) {
-                if (add) {
-                    this.push.apply(this, insert);
-                }
-            } else {
-                var remove = Math.min(removeCount, length - pos);
-                var tailOldPos = pos + remove;
-                var tailNewPos = tailOldPos + add - remove;
-                var tailCount = length - tailOldPos;
-                var lengthAfterRemove = length - remove;
-
-                if (tailNewPos < tailOldPos) { // case A
-                    for (var i = 0; i < tailCount; ++i) {
-                        this[tailNewPos+i] = this[tailOldPos+i];
-                    }
-                } else if (tailNewPos > tailOldPos) { // case B
-                    for (i = tailCount; i--; ) {
-                        this[tailNewPos+i] = this[tailOldPos+i];
-                    }
-                } // else, add == remove (nothing to do)
-
-                if (add && pos === lengthAfterRemove) {
-                    this.length = lengthAfterRemove; // truncate array
-                    this.push.apply(this, insert);
-                } else {
-                    this.length = lengthAfterRemove + add; // reserves space
-                    for (i = 0; i < add; ++i) {
-                        this[pos+i] = insert[i];
-                    }
-                }
-            }
-            return removed;
-        };
-    }
-}
-if (!Array.isArray) {
-    Array.isArray = function isArray(obj) {
-        return _toString(obj) == "[object Array]";
-    };
-}
-var boxedString = Object("a"),
-    splitString = boxedString[0] != "a" || !(0 in boxedString);
-
-if (!Array.prototype.forEach) {
-    Array.prototype.forEach = function forEach(fun /*, thisp*/) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                object,
-            thisp = arguments[1],
-            i = -1,
-            length = self.length >>> 0;
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(); // TODO message
-        }
-
-        while (++i < length) {
-            if (i in self) {
-                fun.call(thisp, self[i], i, object);
-            }
-        }
-    };
-}
-if (!Array.prototype.map) {
-    Array.prototype.map = function map(fun /*, thisp*/) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                object,
-            length = self.length >>> 0,
-            result = Array(length),
-            thisp = arguments[1];
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(fun + " is not a function");
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self)
-                result[i] = fun.call(thisp, self[i], i, object);
-        }
-        return result;
-    };
-}
-if (!Array.prototype.filter) {
-    Array.prototype.filter = function filter(fun /*, thisp */) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                    object,
-            length = self.length >>> 0,
-            result = [],
-            value,
-            thisp = arguments[1];
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(fun + " is not a function");
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self) {
-                value = self[i];
-                if (fun.call(thisp, value, i, object)) {
-                    result.push(value);
-                }
-            }
-        }
-        return result;
-    };
-}
-if (!Array.prototype.every) {
-    Array.prototype.every = function every(fun /*, thisp */) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                object,
-            length = self.length >>> 0,
-            thisp = arguments[1];
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(fun + " is not a function");
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self && !fun.call(thisp, self[i], i, object)) {
-                return false;
-            }
-        }
-        return true;
-    };
-}
-if (!Array.prototype.some) {
-    Array.prototype.some = function some(fun /*, thisp */) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                object,
-            length = self.length >>> 0,
-            thisp = arguments[1];
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(fun + " is not a function");
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self && fun.call(thisp, self[i], i, object)) {
-                return true;
-            }
-        }
-        return false;
-    };
-}
-if (!Array.prototype.reduce) {
-    Array.prototype.reduce = function reduce(fun /*, initial*/) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                object,
-            length = self.length >>> 0;
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(fun + " is not a function");
-        }
-        if (!length && arguments.length == 1) {
-            throw new TypeError("reduce of empty array with no initial value");
-        }
-
-        var i = 0;
-        var result;
-        if (arguments.length >= 2) {
-            result = arguments[1];
-        } else {
-            do {
-                if (i in self) {
-                    result = self[i++];
-                    break;
-                }
-                if (++i >= length) {
-                    throw new TypeError("reduce of empty array with no initial value");
-                }
-            } while (true);
-        }
-
-        for (; i < length; i++) {
-            if (i in self) {
-                result = fun.call(void 0, result, self[i], i, object);
-            }
-        }
-
-        return result;
-    };
-}
-if (!Array.prototype.reduceRight) {
-    Array.prototype.reduceRight = function reduceRight(fun /*, initial*/) {
-        var object = toObject(this),
-            self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                object,
-            length = self.length >>> 0;
-        if (_toString(fun) != "[object Function]") {
-            throw new TypeError(fun + " is not a function");
-        }
-        if (!length && arguments.length == 1) {
-            throw new TypeError("reduceRight of empty array with no initial value");
-        }
-
-        var result, i = length - 1;
-        if (arguments.length >= 2) {
-            result = arguments[1];
-        } else {
-            do {
-                if (i in self) {
-                    result = self[i--];
-                    break;
-                }
-                if (--i < 0) {
-                    throw new TypeError("reduceRight of empty array with no initial value");
-                }
-            } while (true);
-        }
-
-        do {
-            if (i in this) {
-                result = fun.call(void 0, result, self[i], i, object);
-            }
-        } while (i--);
-
-        return result;
-    };
-}
-if (!Array.prototype.indexOf || ([0, 1].indexOf(1, 2) != -1)) {
-    Array.prototype.indexOf = function indexOf(sought /*, fromIndex */ ) {
-        var self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                toObject(this),
-            length = self.length >>> 0;
-
-        if (!length) {
-            return -1;
-        }
-
-        var i = 0;
-        if (arguments.length > 1) {
-            i = toInteger(arguments[1]);
-        }
-        i = i >= 0 ? i : Math.max(0, length + i);
-        for (; i < length; i++) {
-            if (i in self && self[i] === sought) {
-                return i;
-            }
-        }
-        return -1;
-    };
-}
-if (!Array.prototype.lastIndexOf || ([0, 1].lastIndexOf(0, -3) != -1)) {
-    Array.prototype.lastIndexOf = function lastIndexOf(sought /*, fromIndex */) {
-        var self = splitString && _toString(this) == "[object String]" ?
-                this.split("") :
-                toObject(this),
-            length = self.length >>> 0;
-
-        if (!length) {
-            return -1;
-        }
-        var i = length - 1;
-        if (arguments.length > 1) {
-            i = Math.min(i, toInteger(arguments[1]));
-        }
-        i = i >= 0 ? i : length - Math.abs(i);
-        for (; i >= 0; i--) {
-            if (i in self && sought === self[i]) {
-                return i;
-            }
-        }
-        return -1;
-    };
-}
-if (!Object.getPrototypeOf) {
-    Object.getPrototypeOf = function getPrototypeOf(object) {
-        return object.__proto__ || (
-            object.constructor ?
-            object.constructor.prototype :
-            prototypeOfObject
-        );
-    };
-}
-if (!Object.getOwnPropertyDescriptor) {
-    var ERR_NON_OBJECT = "Object.getOwnPropertyDescriptor called on a " +
-                         "non-object: ";
-    Object.getOwnPropertyDescriptor = function getOwnPropertyDescriptor(object, property) {
-        if ((typeof object != "object" && typeof object != "function") || object === null)
-            throw new TypeError(ERR_NON_OBJECT + object);
-        if (!owns(object, property))
-            return;
-
-        var descriptor, getter, setter;
-        descriptor =  { enumerable: true, configurable: true };
-        if (supportsAccessors) {
-            var prototype = object.__proto__;
-            object.__proto__ = prototypeOfObject;
-
-            var getter = lookupGetter(object, property);
-            var setter = lookupSetter(object, property);
-            object.__proto__ = prototype;
-
-            if (getter || setter) {
-                if (getter) descriptor.get = getter;
-                if (setter) descriptor.set = setter;
-                return descriptor;
-            }
-        }
-        descriptor.value = object[property];
-        return descriptor;
-    };
-}
-if (!Object.getOwnPropertyNames) {
-    Object.getOwnPropertyNames = function getOwnPropertyNames(object) {
-        return Object.keys(object);
-    };
-}
-if (!Object.create) {
-    var createEmpty;
-    if (Object.prototype.__proto__ === null) {
-        createEmpty = function () {
-            return { "__proto__": null };
-        };
-    } else {
-        createEmpty = function () {
-            var empty = {};
-            for (var i in empty)
-                empty[i] = null;
-            empty.constructor =
-            empty.hasOwnProperty =
-            empty.propertyIsEnumerable =
-            empty.isPrototypeOf =
-            empty.toLocaleString =
-            empty.toString =
-            empty.valueOf =
-            empty.__proto__ = null;
-            return empty;
-        }
-    }
-
-    Object.create = function create(prototype, properties) {
-        var object;
-        if (prototype === null) {
-            object = createEmpty();
-        } else {
-            if (typeof prototype != "object")
-                throw new TypeError("typeof prototype["+(typeof prototype)+"] != 'object'");
-            var Type = function () {};
-            Type.prototype = prototype;
-            object = new Type();
-            object.__proto__ = prototype;
-        }
-        if (properties !== void 0)
-            Object.defineProperties(object, properties);
-        return object;
-    };
-}
-
-function doesDefinePropertyWork(object) {
-    try {
-        Object.defineProperty(object, "sentinel", {});
-        return "sentinel" in object;
-    } catch (exception) {
-    }
-}
-if (Object.defineProperty) {
-    var definePropertyWorksOnObject = doesDefinePropertyWork({});
-    var definePropertyWorksOnDom = typeof document == "undefined" ||
-        doesDefinePropertyWork(document.createElement("div"));
-    if (!definePropertyWorksOnObject || !definePropertyWorksOnDom) {
-        var definePropertyFallback = Object.defineProperty;
-    }
-}
-
-if (!Object.defineProperty || definePropertyFallback) {
-    var ERR_NON_OBJECT_DESCRIPTOR = "Property description must be an object: ";
-    var ERR_NON_OBJECT_TARGET = "Object.defineProperty called on non-object: "
-    var ERR_ACCESSORS_NOT_SUPPORTED = "getters & setters can not be defined " +
-                                      "on this javascript engine";
-
-    Object.defineProperty = function defineProperty(object, property, descriptor) {
-        if ((typeof object != "object" && typeof object != "function") || object === null)
-            throw new TypeError(ERR_NON_OBJECT_TARGET + object);
-        if ((typeof descriptor != "object" && typeof descriptor != "function") || descriptor === null)
-            throw new TypeError(ERR_NON_OBJECT_DESCRIPTOR + descriptor);
-        if (definePropertyFallback) {
-            try {
-                return definePropertyFallback.call(Object, object, property, descriptor);
-            } catch (exception) {
-            }
-        }
-        if (owns(descriptor, "value")) {
-
-            if (supportsAccessors && (lookupGetter(object, property) ||
-                                      lookupSetter(object, property)))
-            {
-                var prototype = object.__proto__;
-                object.__proto__ = prototypeOfObject;
-                delete object[property];
-                object[property] = descriptor.value;
-                object.__proto__ = prototype;
-            } else {
-                object[property] = descriptor.value;
-            }
-        } else {
-            if (!supportsAccessors)
-                throw new TypeError(ERR_ACCESSORS_NOT_SUPPORTED);
-            if (owns(descriptor, "get"))
-                defineGetter(object, property, descriptor.get);
-            if (owns(descriptor, "set"))
-                defineSetter(object, property, descriptor.set);
-        }
-
-        return object;
-    };
-}
-if (!Object.defineProperties) {
-    Object.defineProperties = function defineProperties(object, properties) {
-        for (var property in properties) {
-            if (owns(properties, property))
-                Object.defineProperty(object, property, properties[property]);
-        }
-        return object;
-    };
-}
-if (!Object.seal) {
-    Object.seal = function seal(object) {
-        return object;
-    };
-}
-if (!Object.freeze) {
-    Object.freeze = function freeze(object) {
-        return object;
-    };
-}
-try {
-    Object.freeze(function () {});
-} catch (exception) {
-    Object.freeze = (function freeze(freezeObject) {
-        return function freeze(object) {
-            if (typeof object == "function") {
-                return object;
-            } else {
-                return freezeObject(object);
-            }
-        };
-    })(Object.freeze);
-}
-if (!Object.preventExtensions) {
-    Object.preventExtensions = function preventExtensions(object) {
-        return object;
-    };
-}
-if (!Object.isSealed) {
-    Object.isSealed = function isSealed(object) {
-        return false;
-    };
-}
-if (!Object.isFrozen) {
-    Object.isFrozen = function isFrozen(object) {
-        return false;
-    };
-}
-if (!Object.isExtensible) {
-    Object.isExtensible = function isExtensible(object) {
-        if (Object(object) === object) {
-            throw new TypeError(); // TODO message
-        }
-        var name = '';
-        while (owns(object, name)) {
-            name += '?';
-        }
-        object[name] = true;
-        var returnValue = owns(object, name);
-        delete object[name];
-        return returnValue;
-    };
-}
-if (!Object.keys) {
-    var hasDontEnumBug = true,
-        dontEnums = [
-            "toString",
-            "toLocaleString",
-            "valueOf",
-            "hasOwnProperty",
-            "isPrototypeOf",
-            "propertyIsEnumerable",
-            "constructor"
-        ],
-        dontEnumsLength = dontEnums.length;
-
-    for (var key in {"toString": null}) {
-        hasDontEnumBug = false;
-    }
-
-    Object.keys = function keys(object) {
-
-        if (
-            (typeof object != "object" && typeof object != "function") ||
-            object === null
-        ) {
-            throw new TypeError("Object.keys called on a non-object");
-        }
-
-        var keys = [];
-        for (var name in object) {
-            if (owns(object, name)) {
-                keys.push(name);
-            }
-        }
-
-        if (hasDontEnumBug) {
-            for (var i = 0, ii = dontEnumsLength; i < ii; i++) {
-                var dontEnum = dontEnums[i];
-                if (owns(object, dontEnum)) {
-                    keys.push(dontEnum);
-                }
-            }
-        }
-        return keys;
-    };
-
-}
-if (!Date.now) {
-    Date.now = function now() {
-        return new Date().getTime();
-    };
-}
-var ws = "\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u2000\u2001\u2002\u2003" +
-    "\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028" +
-    "\u2029\uFEFF";
-if (!String.prototype.trim) {
-    ws = "[" + ws + "]";
-    var trimBeginRegexp = new RegExp("^" + ws + ws + "*"),
-        trimEndRegexp = new RegExp(ws + ws + "*$");
-    String.prototype.trim = function trim() {
-        return String(this).replace(trimBeginRegexp, "").replace(trimEndRegexp, "");
-    };
-}
-
-function toInteger(n) {
-    n = +n;
-    if (n !== n) { // isNaN
-        n = 0;
-    } else if (n !== 0 && n !== (1/0) && n !== -(1/0)) {
-        n = (n > 0 || -1) * Math.floor(Math.abs(n));
-    }
-    return n;
-}
-
-function isPrimitive(input) {
-    var type = typeof input;
-    return (
-        input === null ||
-        type === "undefined" ||
-        type === "boolean" ||
-        type === "number" ||
-        type === "string"
-    );
-}
-
-function toPrimitive(input) {
-    var val, valueOf, toString;
-    if (isPrimitive(input)) {
-        return input;
-    }
-    valueOf = input.valueOf;
-    if (typeof valueOf === "function") {
-        val = valueOf.call(input);
-        if (isPrimitive(val)) {
-            return val;
-        }
-    }
-    toString = input.toString;
-    if (typeof toString === "function") {
-        val = toString.call(input);
-        if (isPrimitive(val)) {
-            return val;
-        }
-    }
-    throw new TypeError();
-}
-var toObject = function (o) {
-    if (o == null) { // this matches both null and undefined
-        throw new TypeError("can't convert "+o+" to object");
-    }
-    return Object(o);
-};
-
-});
-
-ace.define("ace/lib/fixoldbrowsers",["require","exports","module","ace/lib/regexp","ace/lib/es5-shim"], function(require, exports, module) {
-"use strict";
-
-require("./regexp");
-require("./es5-shim");
 if (typeof Element != "undefined" && !Element.prototype.remove) {
     Object.defineProperty(Element.prototype, "remove", {
         enumerable: false,
@@ -14301,8 +13407,11 @@ exports.buildDom = function buildDom(arr, parent, refs) {
         return txt;
     }
     
-    if (!Array.isArray(arr))
+    if (!Array.isArray(arr)) {
+        if (arr && arr.appendChild && parent)
+            parent.appendChild(arr);
         return arr;
+    }
     if (typeof arr[0] != "string" || !arr[0]) {
         var els = [];
         for (var i = 0; i < arr.length; i++) {
@@ -14324,7 +13433,7 @@ exports.buildDom = function buildDom(arr, parent, refs) {
             var val = options[n];
             if (n === "class") {
                 el.className = Array.isArray(val) ? val.join(" ") : val;
-            } else if (typeof val == "function" || n == "value") {
+            } else if (typeof val == "function" || n == "value" || n[0] == "$") {
                 el[n] = val;
             } else if (n === "ref") {
                 if (refs) refs[val] = el;
@@ -14569,7 +13678,8 @@ var Keys = (function() {
 
         KEY_MODS: {
             "ctrl": 1, "alt": 2, "option" : 2, "shift": 4,
-            "super": 8, "meta": 8, "command": 8, "cmd": 8
+            "super": 8, "meta": 8, "command": 8, "cmd": 8, 
+            "control": 1
         },
 
         FUNCTION_KEYS : {
@@ -14697,12 +13807,24 @@ function getListenerOptions() {
     return activeListenerOptions;
 }
 
-exports.addListener = function(elem, type, callback) {
-    return elem.addEventListener(type, callback, getListenerOptions());
+function EventListener(elem, type, callback) {
+    this.elem = elem;
+    this.type = type;
+    this.callback = callback;
+}
+EventListener.prototype.destroy = function() {
+    removeListener(this.elem, this.type, this.callback);
+    this.elem = this.type = this.callback = undefined;
 };
 
-exports.removeListener = function(elem, type, callback) {
-    return elem.removeEventListener(type, callback, getListenerOptions());
+var addListener = exports.addListener = function(elem, type, callback, destroyer) {
+    elem.addEventListener(type, callback, getListenerOptions());
+    if (destroyer)
+        destroyer.$toDestroy.push(new EventListener(elem, type, callback));
+};
+
+var removeListener = exports.removeListener = function(elem, type, callback) {
+    elem.removeEventListener(type, callback, getListenerOptions());
 };
 exports.stopEvent = function(e) {
     exports.stopPropagation(e);
@@ -14728,25 +13850,26 @@ exports.getButton = function(e) {
 };
 
 exports.capture = function(el, eventHandler, releaseCaptureHandler) {
+    var ownerDocument = el && el.ownerDocument || document;
     function onMouseUp(e) {
         eventHandler && eventHandler(e);
         releaseCaptureHandler && releaseCaptureHandler(e);
 
-        exports.removeListener(document, "mousemove", eventHandler, true);
-        exports.removeListener(document, "mouseup", onMouseUp, true);
-        exports.removeListener(document, "dragstart", onMouseUp, true);
+        removeListener(ownerDocument, "mousemove", eventHandler);
+        removeListener(ownerDocument, "mouseup", onMouseUp);
+        removeListener(ownerDocument, "dragstart", onMouseUp);
     }
 
-    exports.addListener(document, "mousemove", eventHandler, true);
-    exports.addListener(document, "mouseup", onMouseUp, true);
-    exports.addListener(document, "dragstart", onMouseUp, true);
+    addListener(ownerDocument, "mousemove", eventHandler);
+    addListener(ownerDocument, "mouseup", onMouseUp);
+    addListener(ownerDocument, "dragstart", onMouseUp);
     
     return onMouseUp;
 };
 
-exports.addMouseWheelListener = function(el, callback) {
+exports.addMouseWheelListener = function(el, callback, destroyer) {
     if ("onmousewheel" in el) {
-        exports.addListener(el, "mousewheel", function(e) {
+        addListener(el, "mousewheel", function(e) {
             var factor = 8;
             if (e.wheelDeltaX !== undefined) {
                 e.wheelX = -e.wheelDeltaX / factor;
@@ -14756,9 +13879,9 @@ exports.addMouseWheelListener = function(el, callback) {
                 e.wheelY = -e.wheelDelta / factor;
             }
             callback(e);
-        });
+        }, destroyer);
     } else if ("onwheel" in el) {
-        exports.addListener(el, "wheel",  function(e) {
+        addListener(el, "wheel",  function(e) {
             var factor = 0.35;
             switch (e.deltaMode) {
                 case e.DOM_DELTA_PIXEL:
@@ -14773,9 +13896,9 @@ exports.addMouseWheelListener = function(el, callback) {
             }
             
             callback(e);
-        });
+        }, destroyer);
     } else {
-        exports.addListener(el, "DOMMouseScroll", function(e) {
+        addListener(el, "DOMMouseScroll", function(e) {
             if (e.axis && e.axis == e.HORIZONTAL_AXIS) {
                 e.wheelX = (e.detail || 0) * 5;
                 e.wheelY = 0;
@@ -14784,11 +13907,11 @@ exports.addMouseWheelListener = function(el, callback) {
                 e.wheelY = (e.detail || 0) * 5;
             }
             callback(e);
-        });
+        }, destroyer);
     }
 };
 
-exports.addMultiMouseDownListener = function(elements, timeouts, eventHandler, callbackName) {
+exports.addMultiMouseDownListener = function(elements, timeouts, eventHandler, callbackName, destroyer) {
     var clicks = 0;
     var startX, startY, timer; 
     var eventNames = {
@@ -14833,7 +13956,7 @@ exports.addMultiMouseDownListener = function(elements, timeouts, eventHandler, c
     if (!Array.isArray(elements))
         elements = [elements];
     elements.forEach(function(el) {
-        exports.addListener(el, "mousedown", onMousedown);
+        addListener(el, "mousedown", onMousedown, destroyer);
     });
 };
 
@@ -14898,16 +14021,15 @@ function normalizeCommandKeys(callback, e, keyCode) {
 }
 
 
-exports.addCommandKeyListener = function(el, callback) {
-    var addListener = exports.addListener;
+exports.addCommandKeyListener = function(el, callback, destroyer) {
     if (useragent.isOldGecko || (useragent.isOpera && !("KeyboardEvent" in window))) {
         var lastKeyDownKeyCode = null;
         addListener(el, "keydown", function(e) {
             lastKeyDownKeyCode = e.keyCode;
-        });
+        }, destroyer);
         addListener(el, "keypress", function(e) {
             return normalizeCommandKeys(callback, e, lastKeyDownKeyCode);
-        });
+        }, destroyer);
     } else {
         var lastDefaultPrevented = null;
 
@@ -14916,18 +14038,18 @@ exports.addCommandKeyListener = function(el, callback) {
             var result = normalizeCommandKeys(callback, e, e.keyCode);
             lastDefaultPrevented = e.defaultPrevented;
             return result;
-        });
+        }, destroyer);
 
         addListener(el, "keypress", function(e) {
             if (lastDefaultPrevented && (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey)) {
                 exports.stopEvent(e);
                 lastDefaultPrevented = null;
             }
-        });
+        }, destroyer);
 
         addListener(el, "keyup", function(e) {
             pressedKeys[e.keyCode] = null;
-        });
+        }, destroyer);
 
         if (!pressedKeys) {
             resetPressedKeys();
@@ -14948,12 +14070,12 @@ if (typeof window == "object" && window.postMessage && !useragent.isOldIE) {
         var listener = function(e) {
             if (e.data == messageName) {
                 exports.stopPropagation(e);
-                exports.removeListener(win, "message", listener);
+                removeListener(win, "message", listener);
                 callback();
             }
         };
         
-        exports.addListener(win, "message", listener);
+        addListener(win, "message", listener);
         win.postMessage(messageName, "*");
     };
 }
@@ -15456,6 +14578,7 @@ var KEYS = require("../lib/keys");
 var MODS = KEYS.KEY_MODS;
 var isIOS = useragent.isIOS;
 var valueResetRegex = isIOS ? /\s/ : /\n/;
+var isMobile = useragent.isMobile;
 
 var TextInput = function(parentNode, host) {
     var text = dom.createElement("textarea");
@@ -15475,7 +14598,7 @@ var TextInput = function(parentNode, host) {
     var sendingText = false;
     var tempStyle = '';
     
-    if (!useragent.isMobile)
+    if (!isMobile)
         text.style.fontSize = "1px";
 
     var commandMode = false;
@@ -15491,7 +14614,7 @@ var TextInput = function(parentNode, host) {
         if (ignoreFocusEvents) return;
         host.onBlur(e);
         isFocused = false;
-    });
+    }, host);
     event.addListener(text, "focus", function(e) {
         if (ignoreFocusEvents) return;
         isFocused = true;
@@ -15506,7 +14629,7 @@ var TextInput = function(parentNode, host) {
             setTimeout(resetSelection);
         else
             resetSelection();
-    });
+    }, host);
     this.$focusScroll = false;
     this.focus = function() {
         if (tempStyle || HAS_FOCUS_ARGS || this.$focusScroll == "browser")
@@ -15552,9 +14675,12 @@ var TextInput = function(parentNode, host) {
     };
     
     host.on("beforeEndOperation", function() {
-        if (host.curOp && host.curOp.command.name == "insertstring")
+        var curOp = host.curOp;
+        var commandName = curOp && curOp.command && curOp.command.name;
+        if (commandName == "insertstring")
             return;
-        if (inComposition) {
+        var isUserAction = commandName && (curOp.docChanged || curOp.selectionChanged);
+        if (inComposition && isUserAction) {
             lastValue = text.value = "";
             onCompositionEnd();
         }
@@ -15586,33 +14712,49 @@ var TextInput = function(parentNode, host) {
             return;
         inComposition = true;
         
-        var selection = host.selection;
-        var range = selection.getRange();
-        var row = selection.cursor.row;
-        var selectionStart = range.start.column;
-        var selectionEnd = range.end.column;
-        var line = host.session.getLine(row);
+        var selectionStart = 0;
+        var selectionEnd = 0;
+        var line = "";
 
-        if (range.start.row != row) {
-            var prevLine = host.session.getLine(row - 1);
-            selectionStart = range.start.row < row - 1 ? 0 : selectionStart;
-            selectionEnd += prevLine.length + 1;
-            line = prevLine + "\n" + line;
-        }
-        else if (range.end.row != row) {
-            var nextLine = host.session.getLine(row + 1);
-            selectionEnd = range.end.row > row  + 1 ? nextLine.length : selectionEnd;
-            selectionEnd += line.length + 1;
-            line = line + "\n" + nextLine;
-        }
+        if (host.session) {
+            var selection = host.selection;
+            var range = selection.getRange();
+            var row = selection.cursor.row;
+            selectionStart = range.start.column;
+            selectionEnd = range.end.column;
+            line = host.session.getLine(row);
 
-        if (line.length > MAX_LINE_LENGTH) {
-            if (selectionStart < MAX_LINE_LENGTH && selectionEnd < MAX_LINE_LENGTH) {
-                line = line.slice(0, MAX_LINE_LENGTH);
-            } else {
-                line = "\n";
-                selectionStart = 0;
-                selectionEnd = 1;
+            if (range.start.row != row) {
+                var prevLine = host.session.getLine(row - 1);
+                selectionStart = range.start.row < row - 1 ? 0 : selectionStart;
+                selectionEnd += prevLine.length + 1;
+                line = prevLine + "\n" + line;
+            }
+            else if (range.end.row != row) {
+                var nextLine = host.session.getLine(row + 1);
+                selectionEnd = range.end.row > row  + 1 ? nextLine.length : selectionEnd;
+                selectionEnd += line.length + 1;
+                line = line + "\n" + nextLine;
+            }
+            else if (isMobile && row > 0) {
+                line = "\n" + line;
+                selectionEnd += 1;
+                selectionStart += 1;
+            }
+
+            if (line.length > MAX_LINE_LENGTH) {
+                if (selectionStart < MAX_LINE_LENGTH && selectionEnd < MAX_LINE_LENGTH) {
+                    line = line.slice(0, MAX_LINE_LENGTH);
+                } else {
+                    line = "\n";
+                    if (selectionStart == selectionEnd) {
+                        selectionStart = selectionEnd = 0;
+                    }
+                    else {
+                        selectionStart = 0;
+                        selectionEnd = 1;
+                    }
+                }
             }
         }
 
@@ -15638,6 +14780,7 @@ var TextInput = function(parentNode, host) {
         }
         inComposition = false;
     };
+    this.resetSelection = resetSelection;
 
     if (isFocused)
         host.onFocus();
@@ -15656,6 +14799,8 @@ var TextInput = function(parentNode, host) {
             copied = false;
         } else if (isAllSelected(text)) {
             host.selectAll();
+            resetSelection();
+        } else if (isMobile && text.selectionStart != lastSelectionStart) {
             resetSelection();
         }
     };
@@ -15707,6 +14852,12 @@ var TextInput = function(parentNode, host) {
             if (!fromInput && !inserted && !restoreStart && !extendLeft && !extendRight && !restoreEnd)
                 return "";
             sendingText = true;
+            var shouldReset = false;
+            if (useragent.isAndroid && inserted == ". ") {
+                inserted = "  ";
+                shouldReset = true;
+            }
+            
             if (inserted && !extendLeft && !extendRight && !restoreStart && !restoreEnd || commandMode) {
                 host.onTextInput(inserted);
             } else {
@@ -15723,7 +14874,7 @@ var TextInput = function(parentNode, host) {
             lastSelectionStart = selectionStart;
             lastSelectionEnd = selectionEnd;
             lastRestoreEnd = restoreEnd;
-            return inserted;
+            return shouldReset ? "\n" : inserted;
         }
     };
     var onInput = function(e) {
@@ -15735,8 +14886,13 @@ var TextInput = function(parentNode, host) {
         }
         var data = text.value;
         var inserted = sendText(data, true);
-        if (data.length > MAX_LINE_LENGTH + 100 || valueResetRegex.test(inserted))
+        if (
+            data.length > MAX_LINE_LENGTH + 100 
+            || valueResetRegex.test(inserted)
+            || isMobile && lastSelectionStart < 1 && lastSelectionStart == lastSelectionEnd
+        ) {
             resetSelection();
+        }
     };
     
     var handleClipboardData = function(e, data, forceIEMime) {
@@ -15808,14 +14964,14 @@ var TextInput = function(parentNode, host) {
         }
     };
 
-    event.addCommandKeyListener(text, host.onCommandKey.bind(host));
+    event.addCommandKeyListener(text, host.onCommandKey.bind(host), host);
 
-    event.addListener(text, "select", onSelect);
-    event.addListener(text, "input", onInput);
+    event.addListener(text, "select", onSelect, host);
+    event.addListener(text, "input", onInput, host);
 
-    event.addListener(text, "cut", onCut);
-    event.addListener(text, "copy", onCopy);
-    event.addListener(text, "paste", onPaste);
+    event.addListener(text, "cut", onCut, host);
+    event.addListener(text, "copy", onCopy, host);
+    event.addListener(text, "paste", onPaste, host);
     if (!('oncut' in text) || !('oncopy' in text) || !('onpaste' in text)) {
         event.addListener(parentNode, "keydown", function(e) {
             if ((useragent.isMac && !e.metaKey) || !e.ctrlKey)
@@ -15832,7 +14988,7 @@ var TextInput = function(parentNode, host) {
                     onCut(e);
                     break;
             }
-        });
+        }, host);
     }
     var onCompositionStart = function(e) {
         if (inComposition || !host.onCompositionStart || host.$readOnly) 
@@ -15843,7 +14999,11 @@ var TextInput = function(parentNode, host) {
         if (commandMode)
             return;
         
+        if (e.data)
+            inComposition.useTextareaForIME = false;
+        
         setTimeout(onCompositionUpdate, 0);
+        host._signal("compositionStart");
         host.on("mousedown", cancelComposition);
         
         var range = host.getSelectionRange();
@@ -15854,8 +15014,7 @@ var TextInput = function(parentNode, host) {
         host.onCompositionStart(inComposition);
         
         if (inComposition.useTextareaForIME) {
-            text.value = "";
-            lastValue = "";
+            lastValue = text.value = "";
             lastSelectionStart = 0;
             lastSelectionEnd = 0;
         }
@@ -15918,11 +15077,11 @@ var TextInput = function(parentNode, host) {
         syncComposition();
     }
 
-    event.addListener(text, "compositionstart", onCompositionStart);
-    event.addListener(text, "compositionupdate", onCompositionUpdate);
-    event.addListener(text, "keyup", onKeyup);
-    event.addListener(text, "keydown", syncComposition);
-    event.addListener(text, "compositionend", onCompositionEnd);
+    event.addListener(text, "compositionstart", onCompositionStart, host);
+    event.addListener(text, "compositionupdate", onCompositionUpdate, host);
+    event.addListener(text, "keyup", onKeyup, host);
+    event.addListener(text, "keydown", syncComposition, host);
+    event.addListener(text, "compositionend", onCompositionEnd, host);
 
     this.getElement = function() {
         return text;
@@ -15993,13 +15152,13 @@ var TextInput = function(parentNode, host) {
         host.textInput.onContextMenu(e);
         onContextMenuClose();
     };
-    event.addListener(text, "mouseup", onContextMenu);
+    event.addListener(text, "mouseup", onContextMenu, host);
     event.addListener(text, "mousedown", function(e) {
         e.preventDefault();
         onContextMenuClose();
-    });
-    event.addListener(host.renderer.scroller, "contextmenu", onContextMenu);
-    event.addListener(text, "contextmenu", onContextMenu);
+    }, host);
+    event.addListener(host.renderer.scroller, "contextmenu", onContextMenu, host);
+    event.addListener(text, "contextmenu", onContextMenu, host);
     
     if (isIOS)
         addIosSelectionHandler(parentNode, host, text);
@@ -16085,10 +15244,13 @@ var TextInput = function(parentNode, host) {
             document.removeEventListener("selectionchange", detectArrowKeys);
         });
     }
-
 };
 
 exports.TextInput = TextInput;
+exports.$setUserAgentForTests = function(_isMobile, _isIOS) {
+    isMobile = _isMobile;
+    isIOS = _isIOS;
+};
 });
 
 ace.define("ace/mouse/default_handlers",["require","exports","module","ace/lib/useragent"], function(require, exports, module) {
@@ -16518,7 +15680,7 @@ function GutterHandler(mouseHandler) {
             tooltip.hide();
             tooltipAnnotation = null;
             editor._signal("hideGutterTooltip", tooltip);
-            editor.removeEventListener("mousewheel", hideTooltip);
+            editor.off("mousewheel", hideTooltip);
         }
     }
 
@@ -16555,7 +15717,7 @@ function GutterHandler(mouseHandler) {
             tooltipTimeout = null;
             hideTooltip();
         }, 50);
-    });
+    }, editor);
     
     editor.on("changeSession", hideTooltip);
 }
@@ -16690,7 +15852,7 @@ function DragdropHandler(mouseHandler) {
      exports.forEach(function(x) {
          mouseHandler[x] = this[x];
     }, this);
-    editor.addEventListener("mousedown", this.onMouseDown.bind(mouseHandler));
+    editor.on("mousedown", this.onMouseDown.bind(mouseHandler));
 
 
     var mouseTarget = editor.container;
@@ -16815,12 +15977,12 @@ function DragdropHandler(mouseHandler) {
         return event.preventDefault(e);
     };
 
-    event.addListener(mouseTarget, "dragstart", this.onDragStart.bind(mouseHandler));
-    event.addListener(mouseTarget, "dragend", this.onDragEnd.bind(mouseHandler));
-    event.addListener(mouseTarget, "dragenter", this.onDragEnter.bind(mouseHandler));
-    event.addListener(mouseTarget, "dragover", this.onDragOver.bind(mouseHandler));
-    event.addListener(mouseTarget, "dragleave", this.onDragLeave.bind(mouseHandler));
-    event.addListener(mouseTarget, "drop", this.onDrop.bind(mouseHandler));
+    event.addListener(mouseTarget, "dragstart", this.onDragStart.bind(mouseHandler), editor);
+    event.addListener(mouseTarget, "dragend", this.onDragEnd.bind(mouseHandler), editor);
+    event.addListener(mouseTarget, "dragenter", this.onDragEnter.bind(mouseHandler), editor);
+    event.addListener(mouseTarget, "dragover", this.onDragOver.bind(mouseHandler), editor);
+    event.addListener(mouseTarget, "dragleave", this.onDragLeave.bind(mouseHandler), editor);
+    event.addListener(mouseTarget, "drop", this.onDrop.bind(mouseHandler), editor);
 
     function scrollCursorIntoView(cursor, prevCursor) {
         var now = Date.now();
@@ -17135,9 +16297,17 @@ exports.addTouchListeners = function(el, editor) {
         if (!contextMenu) createContextMenu();
         var cursor = editor.selection.cursor;
         var pagePos = editor.renderer.textToScreenCoordinates(cursor.row, cursor.column);
+        var leftOffset = editor.renderer.textToScreenCoordinates(0, 0).pageX;
+        var scrollLeft = editor.renderer.scrollLeft;
         var rect = editor.container.getBoundingClientRect();
         contextMenu.style.top = pagePos.pageY - rect.top - 3 + "px";
-        contextMenu.style.right = "10px";
+        if (pagePos.pageX - rect.left < rect.width - 70) {
+            contextMenu.style.left = "";
+            contextMenu.style.right = "10px";
+        } else {
+            contextMenu.style.right = "";
+            contextMenu.style.left = leftOffset + scrollLeft - rect.left + "px";
+        }
         contextMenu.style.display = "";
         contextMenu.firstChild.style.display = "none";
         editor.on("input", hideContextMenu);
@@ -17178,7 +16348,7 @@ exports.addTouchListeners = function(el, editor) {
         if (!pressed) return;
         var textarea = editor.textInput.getElement();
         textarea.focus();
-    });
+    }, editor);
     event.addListener(el, "touchstart", function (e) {
         var touches = e.touches;
         if (longTouchTimer || touches.length > 1) {
@@ -17220,6 +16390,8 @@ exports.addTouchListeners = function(el, editor) {
             var cursorPos = editor.renderer.$cursorLayer.getPixelPosition(cursor, true);
             var anchorPos = editor.renderer.$cursorLayer.getPixelPosition(anchor, true);
             var rect = editor.renderer.scroller.getBoundingClientRect();
+            var offsetTop = editor.renderer.layerConfig.offset;
+            var offsetLeft = editor.renderer.scrollLeft;
             var weightedDistance = function(x, y) {
                 x = x / w;
                 y = y / h - 0.75;
@@ -17232,12 +16404,12 @@ exports.addTouchListeners = function(el, editor) {
             }
             
             var diff1 = weightedDistance(
-                e.clientX - rect.left - cursorPos.left,
-                e.clientY - rect.top - cursorPos.top
+                e.clientX - rect.left - cursorPos.left + offsetLeft,
+                e.clientY - rect.top - cursorPos.top + offsetTop
             );
             var diff2 = weightedDistance(
-                e.clientX - rect.left - anchorPos.left,
-                e.clientY - rect.top - anchorPos.top
+                e.clientX - rect.left - anchorPos.left + offsetLeft,
+                e.clientY - rect.top - anchorPos.top + offsetTop
             );
             if (diff1 < 3.5 && diff2 < 3.5)
                 mode = diff1 > diff2 ? "cursor" : "anchor";
@@ -17251,7 +16423,7 @@ exports.addTouchListeners = function(el, editor) {
             longTouchTimer = setTimeout(handleLongTap, 450);
         }
         touchStartT = t;
-    });
+    }, editor);
 
     event.addListener(el, "touchend", function (e) {
         pressed = editor.$mouseHandler.isMousePressed = false;
@@ -17265,14 +16437,13 @@ exports.addTouchListeners = function(el, editor) {
             showContextMenu();
         } else if (mode == "scroll") {
             animate();
-            e.preventDefault();
             hideContextMenu();
         } else {
             showContextMenu();
         }
         clearTimeout(longTouchTimer);
         longTouchTimer = null;
-    });
+    }, editor);
     event.addListener(el, "touchmove", function (e) {
         if (longTouchTimer) {
             clearTimeout(longTouchTimer);
@@ -17328,7 +16499,7 @@ exports.addTouchListeners = function(el, editor) {
             editor.renderer.scrollCursorIntoView(pos);
             e.preventDefault();
         }
-    });
+    }, editor);
 
     function animate() {
         animationSteps += 60;
@@ -17439,8 +16610,8 @@ EventEmitter._signal = function(eventName, e) {
 
 EventEmitter.once = function(eventName, callback) {
     var _self = this;
-    this.addEventListener(eventName, function newCallback() {
-        _self.removeEventListener(eventName, newCallback);
+    this.on(eventName, function newCallback() {
+        _self.off(eventName, newCallback);
         callback.apply(null, arguments);
     });
     if (!callback) {
@@ -17512,7 +16683,9 @@ EventEmitter.removeEventListener = function(eventName, callback) {
 };
 
 EventEmitter.removeAllListeners = function(eventName) {
-    if (this._eventRegistry) this._eventRegistry[eventName] = [];
+    if (!eventName) this._eventRegistry = this._defaultHandlers = undefined;
+    if (this._eventRegistry) this._eventRegistry[eventName] = undefined;
+    if (this._defaultHandlers) this._defaultHandlers[eventName] = undefined;
 };
 
 exports.EventEmitter = EventEmitter;
@@ -17785,7 +16958,7 @@ init(true);function init(packaged) {
     if (!global || !global.document)
         return;
     
-    options.packaged = packaged || require.packaged || module.packaged || (global.define && __webpack_require__(23).packaged);
+    options.packaged = packaged || require.packaged || module.packaged || (global.define && __webpack_require__(24).packaged);
 
     var scriptOptions = {};
     var scriptUrl = "";
@@ -17835,7 +17008,7 @@ function deHyphenate(str) {
     return str.replace(/-(.)/g, function(m, m1) { return m1.toUpperCase(); });
 }
 
-exports.version = "1.4.8";
+exports.version = "1.4.12";
 
 });
 
@@ -17868,28 +17041,28 @@ var MouseHandler = function(editor) {
     };
 
     var mouseTarget = editor.renderer.getMouseEventTarget();
-    event.addListener(mouseTarget, "click", this.onMouseEvent.bind(this, "click"));
-    event.addListener(mouseTarget, "mousemove", this.onMouseMove.bind(this, "mousemove"));
+    event.addListener(mouseTarget, "click", this.onMouseEvent.bind(this, "click"), editor);
+    event.addListener(mouseTarget, "mousemove", this.onMouseMove.bind(this, "mousemove"), editor);
     event.addMultiMouseDownListener([
         mouseTarget,
         editor.renderer.scrollBarV && editor.renderer.scrollBarV.inner,
         editor.renderer.scrollBarH && editor.renderer.scrollBarH.inner,
         editor.textInput && editor.textInput.getElement()
-    ].filter(Boolean), [400, 300, 250], this, "onMouseEvent");
-    event.addMouseWheelListener(editor.container, this.onMouseWheel.bind(this, "mousewheel"));
+    ].filter(Boolean), [400, 300, 250], this, "onMouseEvent", editor);
+    event.addMouseWheelListener(editor.container, this.onMouseWheel.bind(this, "mousewheel"), editor);
     addTouchListeners(editor.container, editor);
 
     var gutterEl = editor.renderer.$gutter;
-    event.addListener(gutterEl, "mousedown", this.onMouseEvent.bind(this, "guttermousedown"));
-    event.addListener(gutterEl, "click", this.onMouseEvent.bind(this, "gutterclick"));
-    event.addListener(gutterEl, "dblclick", this.onMouseEvent.bind(this, "gutterdblclick"));
-    event.addListener(gutterEl, "mousemove", this.onMouseEvent.bind(this, "guttermousemove"));
+    event.addListener(gutterEl, "mousedown", this.onMouseEvent.bind(this, "guttermousedown"), editor);
+    event.addListener(gutterEl, "click", this.onMouseEvent.bind(this, "gutterclick"), editor);
+    event.addListener(gutterEl, "dblclick", this.onMouseEvent.bind(this, "gutterdblclick"), editor);
+    event.addListener(gutterEl, "mousemove", this.onMouseEvent.bind(this, "guttermousemove"), editor);
 
-    event.addListener(mouseTarget, "mousedown", focusEditor);
-    event.addListener(gutterEl, "mousedown", focusEditor);
+    event.addListener(mouseTarget, "mousedown", focusEditor, editor);
+    event.addListener(gutterEl, "mousedown", focusEditor, editor);
     if (useragent.isIE && editor.renderer.scrollBarV) {
-        event.addListener(editor.renderer.scrollBarV.element, "mousedown", focusEditor);
-        event.addListener(editor.renderer.scrollBarH.element, "mousedown", focusEditor);
+        event.addListener(editor.renderer.scrollBarV.element, "mousedown", focusEditor, editor);
+        event.addListener(editor.renderer.scrollBarH.element, "mousedown", focusEditor, editor);
     }
 
     editor.on("mousemove", function(e){
@@ -17905,7 +17078,7 @@ var MouseHandler = function(editor) {
         } else {
             renderer.setCursorStyle("");
         }
-    });
+    }, editor);
 };
 
 (function() {
@@ -18006,6 +17179,9 @@ var MouseHandler = function(editor) {
         }.bind(this);
         setTimeout(stop, 10);
         this.editor.on("nativecontextmenu", stop);
+    };
+    this.destroy = function() {
+        if (this.releaseMouse) this.releaseMouse();
     };
 }).call(MouseHandler.prototype);
 
@@ -19952,18 +19128,18 @@ var TextHighlightRules = function() {
 
     this.createKeywordMapper = function(map, defaultToken, ignoreCase, splitChar) {
         var keywords = Object.create(null);
+        this.$keywordList = [];
         Object.keys(map).forEach(function(className) {
             var a = map[className];
-            if (ignoreCase)
-                a = a.toLowerCase();
             var list = a.split(splitChar || "|");
-            for (var i = list.length; i--; )
-                keywords[list[i]] = className;
-        });
-        if (Object.getPrototypeOf(keywords)) {
-            keywords.__proto__ = null;
-        }
-        this.$keywordList = Object.keys(keywords);
+            for (var i = list.length; i--; ) {
+                var word = list[i];
+                this.$keywordList.push(word);
+                if (ignoreCase)
+                    word = word.toLowerCase(); 
+                keywords[word] = className;
+            }
+        }, this);
         map = null;
         return ignoreCase
             ? function(value) {return keywords[value.toLowerCase()] || defaultToken; }
@@ -21026,7 +20202,7 @@ var Anchor = exports.Anchor = function(doc, row, column) {
         });
     };
     this.detach = function() {
-        this.document.removeEventListener("change", this.$onChange);
+        this.document.off("change", this.$onChange);
     };
     this.attach = function(doc) {
         this.document = doc || this.document;
@@ -21358,6 +20534,16 @@ var Document = function(textOrLines) {
         }
     };
     
+    this.$safeApplyDelta = function(delta) {
+        var docLength = this.$lines.length;
+        if (
+            delta.action == "remove" && delta.start.row < docLength && delta.end.row < docLength
+            || delta.action == "insert" && delta.start.row <= docLength
+        ) {
+            this.applyDelta(delta);
+        }
+    };
+    
     this.$splitAndapplyLargeDelta = function(delta, MAX) {
         var lines = delta.lines;
         var l = lines.length - MAX + 1;
@@ -21380,7 +20566,7 @@ var Document = function(textOrLines) {
         this.applyDelta(delta, true);
     };
     this.revertDelta = function(delta) {
-        this.applyDelta({
+        this.$safeApplyDelta({
             start: this.clonePos(delta.start),
             end: this.clonePos(delta.end),
             action: (delta.action == "insert" ? "remove" : "insert"),
@@ -22417,9 +21603,11 @@ function Folding() {
         var folds = this.getFoldsInRange(fold.range);
         if (folds.length > 0) {
             this.removeFolds(folds);
-            folds.forEach(function(subFold) {
-                fold.addSubFold(subFold);
-            });
+            if (!fold.collapseChildren) {
+                folds.forEach(function(subFold) {
+                    fold.addSubFold(subFold);
+                });
+            }
         }
 
         for (var i = 0; i < foldData.length; i++) {
@@ -22538,7 +21726,7 @@ function Folding() {
         var range, folds;
         if (location == null) {
             range = new Range(0, 0, this.getLength(), 0);
-            expandInner = true;
+            if (expandInner == null) expandInner = true;
         } else if (typeof location == "number")
             range = new Range(location, 0, location, this.getLine(location).length);
         else if ("row" in location)
@@ -22547,14 +21735,10 @@ function Folding() {
             range = location;
         
         folds = this.getFoldsInRangeList(range);
-        if (expandInner) {
+        if (expandInner != false) {
             this.removeFolds(folds);
         } else {
-            var subFolds = folds;
-            while (subFolds.length) {
-                this.expandFolds(subFolds);
-                subFolds = this.getFoldsInRangeList(range);
-            }
+            this.expandFolds(folds);
         }
         if (folds.length)
             return folds;
@@ -22691,7 +21875,7 @@ function Folding() {
     this.getCommentFoldRange = function(row, column, dir) {
         var iterator = new TokenIterator(this, row, column);
         var token = iterator.getCurrentToken();
-        var type = token.type;
+        var type = token && token.type;
         if (token && /^comment|string/.test(type)) {
             type = type.match(/comment|string/)[0];
             if (type == "comment")
@@ -22732,7 +21916,7 @@ function Folding() {
         }
     };
 
-    this.foldAll = function(startRow, endRow, depth) {
+    this.foldAll = function(startRow, endRow, depth, test) {
         if (depth == undefined)
             depth = 100000; // JSON.stringify doesn't hanle Infinity
         var foldWidgets = this.foldWidgets;
@@ -22745,6 +21929,8 @@ function Folding() {
                 foldWidgets[row] = this.getFoldWidget(row);
             if (foldWidgets[row] != "start")
                 continue;
+            
+            if (test && !test(row)) continue;
 
             var range = this.getFoldWidgetRange(row);
             if (range && range.isMultiLine()
@@ -22752,13 +21938,31 @@ function Folding() {
                 && range.start.row >= startRow
             ) {
                 row = range.end.row;
-                try {
-                    var fold = this.addFold("...", range);
-                    if (fold)
-                        fold.collapseChildren = depth;
-                } catch(e) {}
+                range.collapseChildren = depth;
+                this.addFold("...", range);
             }
         }
+    };
+    
+    this.foldToLevel = function(level) {
+        this.foldAll();
+        while (level-- > 0)
+            this.unfold(null, false);
+    };
+    
+    this.foldAllComments = function() {
+        var session = this;
+        this.foldAll(null, null, null, function(row) {
+            var tokens = session.getTokens(row);
+            for (var i = 0; i < tokens.length; i++) {
+                var token = tokens[i];
+                if (token.type == "text" && /^\s+$/.test(token.value))
+                    continue;
+                if (/comment/.test(token.type))
+                    return true;
+                return false;
+            }
+        });
     };
     this.$foldStyles = {
         "manual": 1,
@@ -23631,7 +22835,8 @@ EditSession.$uid = 0;
             this.$modeId = mode.$id;
         if (this.$mode === mode) 
             return;
-
+            
+        var oldMode = this.$mode;
         this.$mode = mode;
 
         this.$stopWorker();
@@ -23641,15 +22846,15 @@ EditSession.$uid = 0;
 
         var tokenizer = mode.getTokenizer();
 
-        if(tokenizer.addEventListener !== undefined) {
+        if(tokenizer.on !== undefined) {
             var onReloadTokenizer = this.onReloadTokenizer.bind(this);
-            tokenizer.addEventListener("update", onReloadTokenizer);
+            tokenizer.on("update", onReloadTokenizer);
         }
 
         if (!this.bgTokenizer) {
             this.bgTokenizer = new BackgroundTokenizer(tokenizer);
             var _self = this;
-            this.bgTokenizer.addEventListener("update", function(e) {
+            this.bgTokenizer.on("update", function(e) {
                 _self._signal("tokenizerUpdate", e);
             });
         } else {
@@ -23668,7 +22873,7 @@ EditSession.$uid = 0;
             this.$options.wrapMethod.set.call(this, this.$wrapMethod);
             this.$setFolding(mode.foldingRules);
             this.bgTokenizer.start(0);
-            this._emit("changeMode");
+            this._emit("changeMode", {oldMode: oldMode, mode: mode});
         }
     };
 
@@ -23814,7 +23019,7 @@ EditSession.$uid = 0;
         for (var i = 0; i < deltas.length; i++) {
             var delta = deltas[i];
             if (delta.action == "insert" || delta.action == "remove") {
-                this.doc.applyDelta(delta);
+                this.doc.$safeApplyDelta(delta);
             }
         }
 
@@ -23836,7 +23041,6 @@ EditSession.$uid = 0;
         }
 
         var range, point;
-        var lastDeltaIsInsert;
 
         for (var i = 0; i < deltas.length; i++) {
             var delta = deltas[i];
@@ -23844,10 +23048,8 @@ EditSession.$uid = 0;
             if (!range) {
                 if (isInsert(delta)) {
                     range = Range.fromPoints(delta.start, delta.end);
-                    lastDeltaIsInsert = true;
                 } else {
                     range = Range.fromPoints(delta.start, delta.start);
-                    lastDeltaIsInsert = false;
                 }
                 continue;
             }
@@ -23861,13 +23063,11 @@ EditSession.$uid = 0;
                 if (range.compare(point.row, point.column) == 1) {
                     range.setEnd(point);
                 }
-                lastDeltaIsInsert = true;
             } else {
                 point = delta.start;
                 if (range.compare(point.row, point.column) == -1) {
                     range = Range.fromPoints(delta.start, delta.start);
                 }
-                lastDeltaIsInsert = false;
             }
         }
         return range;
@@ -24733,6 +23933,8 @@ EditSession.$uid = 0;
             this.bgTokenizer = null;
         }
         this.$stopWorker();
+        this.removeAllListeners();
+        this.selection.detach();
     };
 
     this.isFullWidth = isFullWidth;
@@ -25474,7 +24676,7 @@ oop.inherits(CommandManager, MultiHashHandler);
         editor && editor._emit("changeStatus");
         if (this.recording) {
             this.macro.pop();
-            this.removeEventListener("exec", this.$addCommandToMacro);
+            this.off("exec", this.$addCommandToMacro);
 
             if (!this.macro.length)
                 this.macro = this.oldMacro;
@@ -25624,6 +24826,13 @@ exports.commands = [{
     description: "Fold all",
     bindKey: bindKey(null, "Ctrl-Command-Option-0"),
     exec: function(editor) { editor.session.foldAll(); },
+    scrollIntoView: "center",
+    readOnly: true
+}, {
+    name: "foldAllComments",
+    description: "Fold all comments",
+    bindKey: bindKey(null, "Ctrl-Command-Option-0"),
+    exec: function(editor) { editor.session.foldAllComments(); },
     scrollIntoView: "center",
     readOnly: true
 }, {
@@ -26235,6 +25444,13 @@ exports.commands = [{
     multiSelectAction: "forEach",
     scrollIntoView: "cursor"
 }, {
+    name: "autoindent",
+    description: "Auto Indent",
+    bindKey: bindKey(null, null),
+    exec: function(editor) { editor.autoIndent(); },
+    multiSelectAction: "forEachLine",
+    scrollIntoView: "animate"
+}, {
     name: "expandtoline",
     description: "Expand to line",
     bindKey: bindKey("Ctrl-Shift-L", "Command-Shift-L"),
@@ -26362,6 +25578,17 @@ exports.commands = [{
     readOnly: true
 }];
 
+for (var i = 1; i < 9; i++) {
+    exports.commands.push({
+        name: "foldToLevel" + i,
+        description: "Fold To Level " + i,
+        level: i,
+        exec: function(editor) { editor.session.foldToLevel(this.level); },
+        scrollIntoView: "center",
+        readOnly: true
+    });
+}
+
 });
 
 ace.define("ace/editor",["require","exports","module","ace/lib/fixoldbrowsers","ace/lib/oop","ace/lib/dom","ace/lib/lang","ace/lib/useragent","ace/keyboard/textinput","ace/mouse/mouse_handler","ace/mouse/fold_handler","ace/keyboard/keybinding","ace/edit_session","ace/search","ace/range","ace/lib/event_emitter","ace/commands/command_manager","ace/commands/default_commands","ace/config","ace/token_iterator","ace/clipboard"], function(require, exports, module) {
@@ -26388,6 +25615,7 @@ var TokenIterator = require("./token_iterator").TokenIterator;
 
 var clipboard = require("./clipboard");
 var Editor = function(renderer, session, options) {
+    this.$toDestroy = [];
     var container = renderer.getContainerElement();
     this.container = container;
     this.renderer = renderer;
@@ -26480,8 +25708,8 @@ Editor.$uid = 0;
     };
 
     this.endOperation = function(e) {
-        if (this.curOp) {
-            if (e && e.returnValue === false)
+        if (this.curOp && this.session) {
+            if (e && e.returnValue === false || !this.session)
                 return (this.curOp = null);
             if (e == true && this.curOp.command && this.curOp.command.name == "mouse")
                 return;
@@ -26792,25 +26020,33 @@ Editor.$uid = 0;
                 return;
             }
             
-            if (token.type.indexOf("tag-open") != -1) {
+            if (token.type.indexOf("tag-open") !== -1) {
                 token = iterator.stepForward();
                 if (!token)
                     return;
             }
             
             var tag = token.value;
+            var currentTag = token.value;
             var depth = 0;
             var prevToken = iterator.stepBackward();
             
-            if (prevToken.value == '<'){
+            if (prevToken.value === '<'){
                 do {
                     prevToken = token;
                     token = iterator.stepForward();
-                    
-                    if (token && token.value === tag && token.type.indexOf('tag-name') !== -1) {
-                        if (prevToken.value === '<'){
-                            depth++;
-                        } else if (prevToken.value === '</'){
+
+                    if (token) {
+                        if (token.type.indexOf('tag-name') !== -1) {
+                            currentTag = token.value;
+                            if (tag === currentTag) {
+                                if (prevToken.value === '<') {
+                                    depth++;
+                                } else if (prevToken.value === '</') {
+                                    depth--;
+                                }
+                            }
+                        } else if (tag === currentTag && token.value === '/>') { // self closing tag
                             depth--;
                         }
                     }
@@ -26820,12 +26056,32 @@ Editor.$uid = 0;
                 do {
                     token = prevToken;
                     prevToken = iterator.stepBackward();
-                    
-                    if (token && token.value === tag && token.type.indexOf('tag-name') !== -1) {
-                        if (prevToken.value === '<') {
-                            depth++;
-                        } else if (prevToken.value === '</') {
-                            depth--;
+
+                    if (token) {
+                        if (token.type.indexOf('tag-name') !== -1) {
+                            if (tag === token.value) {
+                                if (prevToken.value === '<') {
+                                    depth++;
+                                } else if (prevToken.value === '</') {
+                                    depth--;
+                                }
+                            }
+                        } else if (token.value === '/>') { // self closing tag
+                            var stepCount = 0;
+                            var tmpToken = prevToken;
+                            while (tmpToken) {
+                                if (tmpToken.type.indexOf('tag-name') !== -1 && tmpToken.value === tag) {
+                                    depth--;
+                                    break;
+                                } else if (tmpToken.value === '<') {
+                                    break;
+                                }
+                                tmpToken = iterator.stepBackward();
+                                stepCount++;
+                            }
+                            for (var i = 0; i < stepCount; i++) {
+                                iterator.stepForward();
+                            }
                         }
                     }
                 } while (prevToken && depth <= 0);
@@ -26884,6 +26140,9 @@ Editor.$uid = 0;
 
     this.$cursorChange = function() {
         this.renderer.updateCursor();
+        this.$highlightBrackets();
+        this.$highlightTags();
+        this.$updateHighlightActiveLine();
     };
     this.onDocumentChange = function(delta) {
         var wrap = this.session.$useWrapMode;
@@ -26892,7 +26151,6 @@ Editor.$uid = 0;
 
         this._signal("change", delta);
         this.$cursorChange();
-        this.$updateHighlightActiveLine();
     };
 
     this.onTokenizerUpdate = function(e) {
@@ -26910,10 +26168,6 @@ Editor.$uid = 0;
     };
     this.onCursorChange = function() {
         this.$cursorChange();
-
-        this.$highlightBrackets();
-        this.$highlightTags();
-        this.$updateHighlightActiveLine();
         this._signal("changeSelection");
     };
 
@@ -27164,15 +26418,61 @@ Editor.$uid = 0;
                               transform.selection[3]));
             }
         }
+        if (this.$enableAutoIndent) {
+            if (session.getDocument().isNewLine(text)) {
+                var lineIndent = mode.getNextLineIndent(lineState, line.slice(0, cursor.column), session.getTabString());
 
-        if (session.getDocument().isNewLine(text)) {
-            var lineIndent = mode.getNextLineIndent(lineState, line.slice(0, cursor.column), session.getTabString());
-
-            session.insert({row: cursor.row+1, column: 0}, lineIndent);
+                session.insert({row: cursor.row+1, column: 0}, lineIndent);
+            }
+            if (shouldOutdent)
+                mode.autoOutdent(lineState, session, cursor.row);
         }
-        if (shouldOutdent)
-            mode.autoOutdent(lineState, session, cursor.row);
     };
+
+    this.autoIndent = function () {
+        var session = this.session;
+        var mode = session.getMode();
+
+        var startRow, endRow;
+        if (this.selection.isEmpty()) {
+            startRow = 0;
+            endRow = session.doc.getLength() - 1;
+        } else {
+            var selectedRange = this.getSelectionRange();
+
+            startRow = selectedRange.start.row;
+            endRow = selectedRange.end.row;
+        }
+
+        var prevLineState = "";
+        var prevLine = "";
+        var lineIndent = "";
+        var line, currIndent, range;
+        var tab = session.getTabString();
+
+        for (var row = startRow; row <= endRow; row++) {
+            if (row > 0) {
+                prevLineState = session.getState(row - 1);
+                prevLine = session.getLine(row - 1);
+                lineIndent = mode.getNextLineIndent(prevLineState, prevLine, tab);
+            }
+
+            line = session.getLine(row);
+            currIndent = mode.$getIndent(line);
+            if (lineIndent !== currIndent) {
+                if (currIndent.length > 0) {
+                    range = new Range(row, 0, row, currIndent.length);
+                    session.remove(range);
+                }
+                if (lineIndent.length > 0) {
+                    session.insert({row: row, column: 0}, lineIndent);
+                }
+            }
+
+            mode.autoOutdent(prevLineState, session, row);
+        }
+    };
+
 
     this.onTextInput = function(text, composition) {
         if (!composition)
@@ -27192,6 +26492,10 @@ Editor.$uid = 0;
             var r = this.selection.getRange();
             r.start.column -= composition.extendLeft;
             r.end.column += composition.extendRight;
+            if (r.start.column < 0) {
+                r.start.row--;
+                r.start.column += this.session.getLine(r.start.row).length + 1;
+            }
             this.selection.setRange(r);
             if (!text && !r.isEmpty())
                 this.remove();
@@ -28197,13 +27501,21 @@ Editor.$uid = 0;
         this.renderer.scrollCursorIntoView(null, 0.5);
     };
     this.destroy = function() {
+        if (this.$toDestroy) {
+            this.$toDestroy.forEach(function(el) {
+                el.destroy();
+            });
+            this.$toDestroy = null;
+        }
+        if (this.$mouseHandler)
+            this.$mouseHandler.destroy();
         this.renderer.destroy();
         this._signal("destroy", this);
         if (this.session)
             this.session.destroy();
         if (this._$emitInputEvent)
             this._$emitInputEvent.cancel();
-        this.session = null;
+        this.removeAllListeners();
     };
     this.setAutoScrollEditorIntoView = function(enable) {
         if (!enable)
@@ -28319,6 +27631,7 @@ config.defineOptions(Editor.prototype, "editor", {
     },
     behavioursEnabled: {initialValue: true},
     wrapBehavioursEnabled: {initialValue: true},
+    enableAutoIndent: {initialValue: true},
     autoScrollEditorIntoView: {
         set: function(val) {this.setAutoScrollEditorIntoView(val);}
     },
@@ -28363,7 +27676,7 @@ config.defineOptions(Editor.prototype, "editor", {
         set: function(message) {
             if (!this.$updatePlaceholder) {
                 this.$updatePlaceholder = function() {
-                    var value = this.renderer.$composition || this.getValue();
+                    var value = this.session && (this.renderer.$composition || this.getValue());
                     if (value && this.renderer.placeholderNode) {
                         this.renderer.off("afterRender", this.$updatePlaceholder);
                         dom.removeCssClass(this.container, "ace_hasPlaceholder");
@@ -28377,6 +27690,8 @@ config.defineOptions(Editor.prototype, "editor", {
                         el.textContent = this.$placeholder || "";
                         this.renderer.placeholderNode = el;
                         this.renderer.content.appendChild(this.renderer.placeholderNode);
+                    } else if (!value && this.renderer.placeholderNode) {
+                        this.renderer.placeholderNode.textContent = this.$placeholder || "";
                     }
                 }.bind(this);
                 this.on("input", this.$updatePlaceholder);
@@ -28551,25 +27866,6 @@ var UndoManager = function() {
         if (to == null) to = this.$rev + 1;
         
     };
-
-    this.validateDeltaBoundaries = function(deltaSet, docLength, invertAction) {
-        if (!deltaSet) {
-            return false;
-        }
-        return deltaSet.every(function(delta) {
-            var action = delta.action;
-            if (invertAction && delta.action === "insert") action = "remove";
-            if (invertAction && delta.action === "remove") action = "insert";
-            switch(action) {
-                case "insert":
-                    return delta.start.row <= docLength;
-                case "remove":
-                    return delta.start.row < docLength && delta.end.row < docLength;
-                default:
-                    return true;
-            }
-        });
-    };
     this.undo = function(session, dontSelect) {
         this.lastDeltas = null;
         var stack = this.$undoStack;
@@ -28587,7 +27883,7 @@ var UndoManager = function() {
         
         var deltaSet = stack.pop();
         var undoSelectionRange = null;
-        if (this.validateDeltaBoundaries(deltaSet, session.getLength(), true)) {
+        if (deltaSet) {
             undoSelectionRange = session.undoChanges(deltaSet, dontSelect);
             this.$redoStack.push(deltaSet);
             this.$syncRev();
@@ -28615,7 +27911,7 @@ var UndoManager = function() {
         var deltaSet = this.$redoStack.pop();
         var redoSelectionRange = null;
         
-        if (this.validateDeltaBoundaries(deltaSet, session.getLength(), false)) {
+        if (deltaSet) {
             redoSelectionRange = session.redoChanges(deltaSet, dontSelect);
             this.$undoStack.push(deltaSet);
             this.$syncRev();
@@ -29115,7 +28411,7 @@ var Gutter = function(parentEl) {
 
     this.setSession = function(session) {
         if (this.session)
-            this.session.removeEventListener("change", this.$updateAnnotations);
+            this.session.off("change", this.$updateAnnotations);
         this.session = session;
         if (session)
             session.on("change", this.$updateAnnotations);
@@ -29804,11 +29100,21 @@ var Text = function(parentEl) {
     };
 
     this.showInvisibles = false;
+    this.showSpaces = false;
+    this.showTabs = false;
+    this.showEOL = false;
     this.setShowInvisibles = function(showInvisibles) {
         if (this.showInvisibles == showInvisibles)
             return false;
 
         this.showInvisibles = showInvisibles;
+        if (typeof showInvisibles == "string") {
+            this.showSpaces = /tab/i.test(showInvisibles);
+            this.showTabs = /space/i.test(showInvisibles);
+            this.showEOL = /eol/i.test(showInvisibles);
+        } else {
+            this.showSpaces = this.showTabs = this.showEOL = showInvisibles;
+        }
         this.$computeTabString();
         return true;
     };
@@ -29830,7 +29136,7 @@ var Text = function(parentEl) {
         this.tabSize = tabSize;
         var tabStr = this.$tabStrings = [0];
         for (var i = 1; i < tabSize + 1; i++) {
-            if (this.showInvisibles) {
+            if (this.showTabs) {
                 var span = this.dom.createElement("span");
                 span.className = "ace_invisible ace_invisible_tab";
                 span.textContent = lang.stringRepeat(this.TAB_CHAR, i);
@@ -29842,18 +29148,15 @@ var Text = function(parentEl) {
         if (this.displayIndentGuides) {
             this.$indentGuideRe =  /\s\S| \t|\t |\s$/;
             var className = "ace_indent-guide";
-            var spaceClass = "";
-            var tabClass = "";
-            if (this.showInvisibles) {
-                className += " ace_invisible";
-                spaceClass = " ace_invisible_space";
-                tabClass = " ace_invisible_tab";
-                var spaceContent = lang.stringRepeat(this.SPACE_CHAR, this.tabSize);
-                var tabContent = lang.stringRepeat(this.TAB_CHAR, this.tabSize);
-            } else {
-                var spaceContent = lang.stringRepeat(" ", this.tabSize);
-                var tabContent = spaceContent;
-            }
+            var spaceClass = this.showSpaces ? " ace_invisible ace_invisible_space" : "";
+            var spaceContent = this.showSpaces
+                ? lang.stringRepeat(this.SPACE_CHAR, this.tabSize)
+                : lang.stringRepeat(" ", this.tabSize);
+
+            var tabClass = this.showTabs ? " ace_invisible ace_invisible_tab" : "";
+            var tabContent = this.showTabs 
+                ? lang.stringRepeat(this.TAB_CHAR, this.tabSize)
+                : spaceContent;
 
             var span = this.dom.createElement("span");
             span.className = className + spaceClass;
@@ -30046,7 +29349,7 @@ var Text = function(parentEl) {
             var cjkSpace = m[4];
             var cjk = m[5];
             
-            if (!self.showInvisibles && simpleSpace)
+            if (!self.showSpaces && simpleSpace)
                 continue;
 
             var before = i != m.index ? value.slice(i, m.index) : "";
@@ -30062,7 +29365,7 @@ var Text = function(parentEl) {
                 valueFragment.appendChild(self.$tabStrings[tabSize].cloneNode(true));
                 screenColumn += tabSize - 1;
             } else if (simpleSpace) {
-                if (self.showInvisibles) {
+                if (self.showSpaces) {
                     var span = this.dom.createElement("span");
                     span.className = "ace_invisible ace_invisible_space";
                     span.textContent = lang.stringRepeat(self.SPACE_CHAR, simpleSpace.length);
@@ -30080,8 +29383,8 @@ var Text = function(parentEl) {
                 
                 var span = this.dom.createElement("span");
                 span.style.width = (self.config.characterWidth * 2) + "px";
-                span.className = self.showInvisibles ? "ace_cjk ace_invisible ace_invisible_space" : "ace_cjk";
-                span.textContent = self.showInvisibles ? self.SPACE_CHAR : cjkSpace;
+                span.className = self.showSpaces ? "ace_cjk ace_invisible ace_invisible_space" : "ace_cjk";
+                span.textContent = self.showSpaces ? self.SPACE_CHAR : cjkSpace;
                 valueFragment.appendChild(span);
             } else if (cjk) {
                 screenColumn += 1;
@@ -30250,7 +29553,7 @@ var Text = function(parentEl) {
             parent.appendChild(lastLineEl);
         }
 
-        if (this.showInvisibles && lastLineEl) {
+        if (this.showEOL && lastLineEl) {
             if (foldLine)
                 row = foldLine.end.row;
 
@@ -30781,7 +30084,7 @@ var FontMetrics = exports.FontMetrics = function(parentEl) {
     this.el.appendChild(this.$measureNode);
     parentEl.appendChild(this.el);
     
-    this.$measureNode.innerHTML = lang.stringRepeat("X", CHAR_COUNT);
+    this.$measureNode.textContent = lang.stringRepeat("X", CHAR_COUNT);
     
     this.$characterSize = {width: 0, height: 0};
     
@@ -30830,11 +30133,7 @@ var FontMetrics = exports.FontMetrics = function(parentEl) {
     this.$addObserver = function() {
         var self = this;
         this.$observer = new window.ResizeObserver(function(e) {
-            var rect = e[0].contentRect;
-            self.checkForSizeChanges({
-                height: rect.height,
-                width: rect.width / CHAR_COUNT
-            });
+            self.checkForSizeChanges();
         });
         this.$observer.observe(this.$measureNode);
     };
@@ -30870,7 +30169,7 @@ var FontMetrics = exports.FontMetrics = function(parentEl) {
     };
 
     this.$measureCharWidth = function(ch) {
-        this.$main.innerHTML = lang.stringRepeat(ch, CHAR_COUNT);
+        this.$main.textContent = lang.stringRepeat(ch, CHAR_COUNT);
         var rect = this.$main.getBoundingClientRect();
         return rect.width / CHAR_COUNT;
     };
@@ -30893,7 +30192,7 @@ var FontMetrics = exports.FontMetrics = function(parentEl) {
 
     
     this.$getZoom = function getZoom(element) {
-        if (!element) return 1;
+        if (!element || !element.parentElement) return 1;
         return (window.getComputedStyle(element).zoom || 1) * getZoom(element.parentElement);
     };
     this.$initTransformMeasureNodes = function() {
@@ -30987,6 +30286,7 @@ var editorCss = "\
 .ace_editor {\
 position: relative;\
 overflow: hidden;\
+padding: 0;\
 font: 12px/normal 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;\
 direction: ltr;\
 text-align: left;\
@@ -31502,11 +30802,11 @@ var VirtualRenderer = function(container, theme) {
     this.scrollBar = 
     this.scrollBarV = new VScrollBar(this.container, this);
     this.scrollBarH = new HScrollBar(this.container, this);
-    this.scrollBarV.addEventListener("scroll", function(e) {
+    this.scrollBarV.on("scroll", function(e) {
         if (!_self.$scrollAnimation)
             _self.session.setScrollTop(e.data - _self.scrollMargin.top);
     });
-    this.scrollBarH.addEventListener("scroll", function(e) {
+    this.scrollBarH.on("scroll", function(e) {
         if (!_self.$scrollAnimation)
             _self.session.setScrollLeft(e.data - _self.scrollMargin.left);
     });
@@ -31521,7 +30821,7 @@ var VirtualRenderer = function(container, theme) {
 
     this.$fontMetrics = new FontMetrics(this.container);
     this.$textLayer.$setFontMetrics(this.$fontMetrics);
-    this.$textLayer.addEventListener("changeCharacterSize", function(e) {
+    this.$textLayer.on("changeCharacterSize", function(e) {
         _self.updateCharacterSize();
         _self.onResize(true, _self.gutterWidth, _self.$size.width, _self.$size.height);
         _self._signal("changeCharacterSize", e);
@@ -32458,6 +31758,8 @@ var VirtualRenderer = function(container, theme) {
         _self.session.setScrollTop(steps.shift());
         _self.session.$scrollTop = toValue;
         this.$timer = setInterval(function() {
+            if (!_self.session) 
+                return clearInterval(_self.$timer);
             if (steps.length) {
                 _self.session.setScrollTop(steps.shift());
                 _self.session.$scrollTop = toValue;
@@ -32568,7 +31870,8 @@ var VirtualRenderer = function(container, theme) {
         if (!composition.cssText) {
             composition.cssText = this.textarea.style.cssText;
         }
-        composition.useTextareaForIME = this.$useTextareaForIME;
+        if (composition.useTextareaForIME == undefined)
+            composition.useTextareaForIME = this.$useTextareaForIME;
         
         if (this.$useTextareaForIME) {
             dom.addCssClass(this.textarea, "ace_composition");
@@ -32594,6 +31897,8 @@ var VirtualRenderer = function(container, theme) {
 
         dom.removeCssClass(this.textarea, "ace_composition");
         this.textarea.style.cssText = this.$composition.cssText;
+        var cursor = this.session.selection.cursor;
+        this.removeExtraToken(cursor.row, cursor.column);
         this.$composition = null;
         this.$cursorLayer.element.style.display = "";
     };
@@ -32620,6 +31925,10 @@ var VirtualRenderer = function(container, theme) {
                 }
             }
         }
+        this.updateLines(row, row);
+    };
+
+    this.removeExtraToken = function(row, column) {
         this.updateLines(row, row);
     };
     this.setTheme = function(theme, cb) {
@@ -32692,6 +32001,8 @@ var VirtualRenderer = function(container, theme) {
         this.freeze();
         this.$fontMetrics.destroy();
         this.$cursorLayer.destroy();
+        this.removeAllListeners();
+        this.container.textContent = "";
     };
 
 }).call(VirtualRenderer.prototype);
@@ -33218,8 +32529,8 @@ var PlaceHolder = function(session, length, pos, others, mainClass, othersClass)
     this.detach = function() {
         this.session.removeMarker(this.pos && this.pos.markerId);
         this.hideOtherMarkers();
-        this.doc.removeEventListener("change", this.$onUpdate);
-        this.session.selection.removeEventListener("changeCursor", this.$onCursorChange);
+        this.doc.off("change", this.$onUpdate);
+        this.session.selection.off("changeCursor", this.$onCursorChange);
         this.session.setUndoSelect(true);
         this.session = null;
     };
@@ -34273,10 +33584,10 @@ function addAltCursorListeners(editor){
         } else if (altCursor) {
             reset();
         }
-    });
+    }, editor);
 
-    event.addListener(el, "keyup", reset);
-    event.addListener(el, "blur", reset);
+    event.addListener(el, "keyup", reset, editor);
+    event.addListener(el, "blur", reset, editor);
     function reset(e) {
         if (altCursor) {
             editor.renderer.setMouseCursor("");
@@ -35110,7 +34421,7 @@ exports.config = require("./config");
 exports.require = require;
 
 if (true)
-    exports.define = __webpack_require__(23);
+    exports.define = __webpack_require__(24);
 exports.edit = function(el, options) {
     if (typeof el == "string") {
         var _id = el;
@@ -35179,10 +34490,10 @@ exports.version = exports.config.version;
                 });
             })();
         
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(16)(module)))
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(17)(module)))
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module) {ace.define("ace/mode/json_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(require, exports, module) {
@@ -35462,6 +34773,9 @@ oop.inherits(Mode, TextMode);
 
 (function() {
 
+    this.lineCommentStart = "//";
+    this.blockComment = {start: "/*", end: "*/"};
+    
     this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
 
@@ -35511,10 +34825,10 @@ exports.Mode = Mode;
                     });
                 })();
             
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(16)(module)))
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(17)(module)))
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module) {ace.define("ace/ext/searchbox",["require","exports","module","ace/lib/dom","ace/lib/lang","ace/lib/event","ace/keyboard/hash_handler","ace/lib/keys"], function(require, exports, module) {
@@ -36031,23 +35345,23 @@ exports.Search = function(editor, isReplace) {
                     });
                 })();
             
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(16)(module)))
-
-/***/ }),
-/* 40 */
-/***/ (function(module, exports) {
-
-module.exports = 'data:application/javascript;base64,Im5vIHVzZSBzdHJpY3QiOwohKGZ1bmN0aW9uKHdpbmRvdykgewppZiAodHlwZW9mIHdpbmRvdy53aW5kb3cgIT0gInVuZGVmaW5lZCIgJiYgd2luZG93LmRvY3VtZW50KQogICAgcmV0dXJuOwppZiAod2luZG93LnJlcXVpcmUgJiYgd2luZG93LmRlZmluZSkKICAgIHJldHVybjsKCmlmICghd2luZG93LmNvbnNvbGUpIHsKICAgIHdpbmRvdy5jb25zb2xlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdmFyIG1zZ3MgPSBBcnJheS5wcm90b3R5cGUuc2xpY2UuY2FsbChhcmd1bWVudHMsIDApOwogICAgICAgIHBvc3RNZXNzYWdlKHt0eXBlOiAibG9nIiwgZGF0YTogbXNnc30pOwogICAgfTsKICAgIHdpbmRvdy5jb25zb2xlLmVycm9yID0KICAgIHdpbmRvdy5jb25zb2xlLndhcm4gPSAKICAgIHdpbmRvdy5jb25zb2xlLmxvZyA9CiAgICB3aW5kb3cuY29uc29sZS50cmFjZSA9IHdpbmRvdy5jb25zb2xlOwp9CndpbmRvdy53aW5kb3cgPSB3aW5kb3c7CndpbmRvdy5hY2UgPSB3aW5kb3c7Cgp3aW5kb3cub25lcnJvciA9IGZ1bmN0aW9uKG1lc3NhZ2UsIGZpbGUsIGxpbmUsIGNvbCwgZXJyKSB7CiAgICBwb3N0TWVzc2FnZSh7dHlwZTogImVycm9yIiwgZGF0YTogewogICAgICAgIG1lc3NhZ2U6IG1lc3NhZ2UsCiAgICAgICAgZGF0YTogZXJyLmRhdGEsCiAgICAgICAgZmlsZTogZmlsZSwKICAgICAgICBsaW5lOiBsaW5lLCAKICAgICAgICBjb2w6IGNvbCwKICAgICAgICBzdGFjazogZXJyLnN0YWNrCiAgICB9fSk7Cn07Cgp3aW5kb3cubm9ybWFsaXplTW9kdWxlID0gZnVuY3Rpb24ocGFyZW50SWQsIG1vZHVsZU5hbWUpIHsKICAgIC8vIG5vcm1hbGl6ZSBwbHVnaW4gcmVxdWlyZXMKICAgIGlmIChtb2R1bGVOYW1lLmluZGV4T2YoIiEiKSAhPT0gLTEpIHsKICAgICAgICB2YXIgY2h1bmtzID0gbW9kdWxlTmFtZS5zcGxpdCgiISIpOwogICAgICAgIHJldHVybiB3aW5kb3cubm9ybWFsaXplTW9kdWxlKHBhcmVudElkLCBjaHVua3NbMF0pICsgIiEiICsgd2luZG93Lm5vcm1hbGl6ZU1vZHVsZShwYXJlbnRJZCwgY2h1bmtzWzFdKTsKICAgIH0KICAgIC8vIG5vcm1hbGl6ZSByZWxhdGl2ZSByZXF1aXJlcwogICAgaWYgKG1vZHVsZU5hbWUuY2hhckF0KDApID09ICIuIikgewogICAgICAgIHZhciBiYXNlID0gcGFyZW50SWQuc3BsaXQoIi8iKS5zbGljZSgwLCAtMSkuam9pbigiLyIpOwogICAgICAgIG1vZHVsZU5hbWUgPSAoYmFzZSA/IGJhc2UgKyAiLyIgOiAiIikgKyBtb2R1bGVOYW1lOwogICAgICAgIAogICAgICAgIHdoaWxlIChtb2R1bGVOYW1lLmluZGV4T2YoIi4iKSAhPT0gLTEgJiYgcHJldmlvdXMgIT0gbW9kdWxlTmFtZSkgewogICAgICAgICAgICB2YXIgcHJldmlvdXMgPSBtb2R1bGVOYW1lOwogICAgICAgICAgICBtb2R1bGVOYW1lID0gbW9kdWxlTmFtZS5yZXBsYWNlKC9eXC5cLy8sICIiKS5yZXBsYWNlKC9cL1wuXC8vLCAiLyIpLnJlcGxhY2UoL1teXC9dK1wvXC5cLlwvLywgIiIpOwogICAgICAgIH0KICAgIH0KICAgIAogICAgcmV0dXJuIG1vZHVsZU5hbWU7Cn07Cgp3aW5kb3cucmVxdWlyZSA9IGZ1bmN0aW9uIHJlcXVpcmUocGFyZW50SWQsIGlkKSB7CiAgICBpZiAoIWlkKSB7CiAgICAgICAgaWQgPSBwYXJlbnRJZDsKICAgICAgICBwYXJlbnRJZCA9IG51bGw7CiAgICB9CiAgICBpZiAoIWlkLmNoYXJBdCkKICAgICAgICB0aHJvdyBuZXcgRXJyb3IoIndvcmtlci5qcyByZXF1aXJlKCkgYWNjZXB0cyBvbmx5IChwYXJlbnRJZCwgaWQpIGFzIGFyZ3VtZW50cyIpOwoKICAgIGlkID0gd2luZG93Lm5vcm1hbGl6ZU1vZHVsZShwYXJlbnRJZCwgaWQpOwoKICAgIHZhciBtb2R1bGUgPSB3aW5kb3cucmVxdWlyZS5tb2R1bGVzW2lkXTsKICAgIGlmIChtb2R1bGUpIHsKICAgICAgICBpZiAoIW1vZHVsZS5pbml0aWFsaXplZCkgewogICAgICAgICAgICBtb2R1bGUuaW5pdGlhbGl6ZWQgPSB0cnVlOwogICAgICAgICAgICBtb2R1bGUuZXhwb3J0cyA9IG1vZHVsZS5mYWN0b3J5KCkuZXhwb3J0czsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIG1vZHVsZS5leHBvcnRzOwogICAgfQogICAKICAgIGlmICghd2luZG93LnJlcXVpcmUudGxucykKICAgICAgICByZXR1cm4gY29uc29sZS5sb2coInVuYWJsZSB0byBsb2FkICIgKyBpZCk7CiAgICAKICAgIHZhciBwYXRoID0gcmVzb2x2ZU1vZHVsZUlkKGlkLCB3aW5kb3cucmVxdWlyZS50bG5zKTsKICAgIGlmIChwYXRoLnNsaWNlKC0zKSAhPSAiLmpzIikgcGF0aCArPSAiLmpzIjsKICAgIAogICAgd2luZG93LnJlcXVpcmUuaWQgPSBpZDsKICAgIHdpbmRvdy5yZXF1aXJlLm1vZHVsZXNbaWRdID0ge307IC8vIHByZXZlbnQgaW5maW5pdGUgbG9vcCBvbiBicm9rZW4gbW9kdWxlcwogICAgaW1wb3J0U2NyaXB0cyhwYXRoKTsKICAgIHJldHVybiB3aW5kb3cucmVxdWlyZShwYXJlbnRJZCwgaWQpOwp9OwpmdW5jdGlvbiByZXNvbHZlTW9kdWxlSWQoaWQsIHBhdGhzKSB7CiAgICB2YXIgdGVzdFBhdGggPSBpZCwgdGFpbCA9ICIiOwogICAgd2hpbGUgKHRlc3RQYXRoKSB7CiAgICAgICAgdmFyIGFsaWFzID0gcGF0aHNbdGVzdFBhdGhdOwogICAgICAgIGlmICh0eXBlb2YgYWxpYXMgPT0gInN0cmluZyIpIHsKICAgICAgICAgICAgcmV0dXJuIGFsaWFzICsgdGFpbDsKICAgICAgICB9IGVsc2UgaWYgKGFsaWFzKSB7CiAgICAgICAgICAgIHJldHVybiAgYWxpYXMubG9jYXRpb24ucmVwbGFjZSgvXC8qJC8sICIvIikgKyAodGFpbCB8fCBhbGlhcy5tYWluIHx8IGFsaWFzLm5hbWUpOwogICAgICAgIH0gZWxzZSBpZiAoYWxpYXMgPT09IGZhbHNlKSB7CiAgICAgICAgICAgIHJldHVybiAiIjsKICAgICAgICB9CiAgICAgICAgdmFyIGkgPSB0ZXN0UGF0aC5sYXN0SW5kZXhPZigiLyIpOwogICAgICAgIGlmIChpID09PSAtMSkgYnJlYWs7CiAgICAgICAgdGFpbCA9IHRlc3RQYXRoLnN1YnN0cihpKSArIHRhaWw7CiAgICAgICAgdGVzdFBhdGggPSB0ZXN0UGF0aC5zbGljZSgwLCBpKTsKICAgIH0KICAgIHJldHVybiBpZDsKfQp3aW5kb3cucmVxdWlyZS5tb2R1bGVzID0ge307CndpbmRvdy5yZXF1aXJlLnRsbnMgPSB7fTsKCndpbmRvdy5kZWZpbmUgPSBmdW5jdGlvbihpZCwgZGVwcywgZmFjdG9yeSkgewogICAgaWYgKGFyZ3VtZW50cy5sZW5ndGggPT0gMikgewogICAgICAgIGZhY3RvcnkgPSBkZXBzOwogICAgICAgIGlmICh0eXBlb2YgaWQgIT0gInN0cmluZyIpIHsKICAgICAgICAgICAgZGVwcyA9IGlkOwogICAgICAgICAgICBpZCA9IHdpbmRvdy5yZXF1aXJlLmlkOwogICAgICAgIH0KICAgIH0gZWxzZSBpZiAoYXJndW1lbnRzLmxlbmd0aCA9PSAxKSB7CiAgICAgICAgZmFjdG9yeSA9IGlkOwogICAgICAgIGRlcHMgPSBbXTsKICAgICAgICBpZCA9IHdpbmRvdy5yZXF1aXJlLmlkOwogICAgfQogICAgCiAgICBpZiAodHlwZW9mIGZhY3RvcnkgIT0gImZ1bmN0aW9uIikgewogICAgICAgIHdpbmRvdy5yZXF1aXJlLm1vZHVsZXNbaWRdID0gewogICAgICAgICAgICBleHBvcnRzOiBmYWN0b3J5LAogICAgICAgICAgICBpbml0aWFsaXplZDogdHJ1ZQogICAgICAgIH07CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGlmICghZGVwcy5sZW5ndGgpCiAgICAgICAgLy8gSWYgdGhlcmUgaXMgbm8gZGVwZW5kZW5jaWVzLCB3ZSBpbmplY3QgInJlcXVpcmUiLCAiZXhwb3J0cyIgYW5kCiAgICAgICAgLy8gIm1vZHVsZSIgYXMgZGVwZW5kZW5jaWVzLCB0byBwcm92aWRlIENvbW1vbkpTIGNvbXBhdGliaWxpdHkuCiAgICAgICAgZGVwcyA9IFsicmVxdWlyZSIsICJleHBvcnRzIiwgIm1vZHVsZSJdOwoKICAgIHZhciByZXEgPSBmdW5jdGlvbihjaGlsZElkKSB7CiAgICAgICAgcmV0dXJuIHdpbmRvdy5yZXF1aXJlKGlkLCBjaGlsZElkKTsKICAgIH07CgogICAgd2luZG93LnJlcXVpcmUubW9kdWxlc1tpZF0gPSB7CiAgICAgICAgZXhwb3J0czoge30sCiAgICAgICAgZmFjdG9yeTogZnVuY3Rpb24oKSB7CiAgICAgICAgICAgIHZhciBtb2R1bGUgPSB0aGlzOwogICAgICAgICAgICB2YXIgcmV0dXJuRXhwb3J0cyA9IGZhY3RvcnkuYXBwbHkodGhpcywgZGVwcy5zbGljZSgwLCBmYWN0b3J5Lmxlbmd0aCkubWFwKGZ1bmN0aW9uKGRlcCkgewogICAgICAgICAgICAgICAgc3dpdGNoIChkZXApIHsKICAgICAgICAgICAgICAgICAgICAvLyBCZWNhdXNlICJyZXF1aXJlIiwgImV4cG9ydHMiIGFuZCAibW9kdWxlIiBhcmVuJ3QgYWN0dWFsCiAgICAgICAgICAgICAgICAgICAgLy8gZGVwZW5kZW5jaWVzLCB3ZSBtdXN0IGhhbmRsZSB0aGVtIHNlcGVyYXRlbHkuCiAgICAgICAgICAgICAgICAgICAgY2FzZSAicmVxdWlyZSI6IHJldHVybiByZXE7CiAgICAgICAgICAgICAgICAgICAgY2FzZSAiZXhwb3J0cyI6IHJldHVybiBtb2R1bGUuZXhwb3J0czsKICAgICAgICAgICAgICAgICAgICBjYXNlICJtb2R1bGUiOiAgcmV0dXJuIG1vZHVsZTsKICAgICAgICAgICAgICAgICAgICAvLyBCdXQgZm9yIGFsbCBvdGhlciBkZXBlbmRlbmNpZXMsIHdlIGNhbiBqdXN0IGdvIGFoZWFkIGFuZAogICAgICAgICAgICAgICAgICAgIC8vIHJlcXVpcmUgdGhlbS4KICAgICAgICAgICAgICAgICAgICBkZWZhdWx0OiAgICAgICAgcmV0dXJuIHJlcShkZXApOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9KSk7CiAgICAgICAgICAgIGlmIChyZXR1cm5FeHBvcnRzKQogICAgICAgICAgICAgICAgbW9kdWxlLmV4cG9ydHMgPSByZXR1cm5FeHBvcnRzOwogICAgICAgICAgICByZXR1cm4gbW9kdWxlOwogICAgICAgIH0KICAgIH07Cn07CndpbmRvdy5kZWZpbmUuYW1kID0ge307CnJlcXVpcmUudGxucyA9IHt9Owp3aW5kb3cuaW5pdEJhc2VVcmxzICA9IGZ1bmN0aW9uIGluaXRCYXNlVXJscyh0b3BMZXZlbE5hbWVzcGFjZXMpIHsKICAgIGZvciAodmFyIGkgaW4gdG9wTGV2ZWxOYW1lc3BhY2VzKQogICAgICAgIHJlcXVpcmUudGxuc1tpXSA9IHRvcExldmVsTmFtZXNwYWNlc1tpXTsKfTsKCndpbmRvdy5pbml0U2VuZGVyID0gZnVuY3Rpb24gaW5pdFNlbmRlcigpIHsKCiAgICB2YXIgRXZlbnRFbWl0dGVyID0gd2luZG93LnJlcXVpcmUoImFjZS9saWIvZXZlbnRfZW1pdHRlciIpLkV2ZW50RW1pdHRlcjsKICAgIHZhciBvb3AgPSB3aW5kb3cucmVxdWlyZSgiYWNlL2xpYi9vb3AiKTsKICAgIAogICAgdmFyIFNlbmRlciA9IGZ1bmN0aW9uKCkge307CiAgICAKICAgIChmdW5jdGlvbigpIHsKICAgICAgICAKICAgICAgICBvb3AuaW1wbGVtZW50KHRoaXMsIEV2ZW50RW1pdHRlcik7CiAgICAgICAgICAgICAgICAKICAgICAgICB0aGlzLmNhbGxiYWNrID0gZnVuY3Rpb24oZGF0YSwgY2FsbGJhY2tJZCkgewogICAgICAgICAgICBwb3N0TWVzc2FnZSh7CiAgICAgICAgICAgICAgICB0eXBlOiAiY2FsbCIsCiAgICAgICAgICAgICAgICBpZDogY2FsbGJhY2tJZCwKICAgICAgICAgICAgICAgIGRhdGE6IGRhdGEKICAgICAgICAgICAgfSk7CiAgICAgICAgfTsKICAgIAogICAgICAgIHRoaXMuZW1pdCA9IGZ1bmN0aW9uKG5hbWUsIGRhdGEpIHsKICAgICAgICAgICAgcG9zdE1lc3NhZ2UoewogICAgICAgICAgICAgICAgdHlwZTogImV2ZW50IiwKICAgICAgICAgICAgICAgIG5hbWU6IG5hbWUsCiAgICAgICAgICAgICAgICBkYXRhOiBkYXRhCiAgICAgICAgICAgIH0pOwogICAgICAgIH07CiAgICAgICAgCiAgICB9KS5jYWxsKFNlbmRlci5wcm90b3R5cGUpOwogICAgCiAgICByZXR1cm4gbmV3IFNlbmRlcigpOwp9OwoKdmFyIG1haW4gPSB3aW5kb3cubWFpbiA9IG51bGw7CnZhciBzZW5kZXIgPSB3aW5kb3cuc2VuZGVyID0gbnVsbDsKCndpbmRvdy5vbm1lc3NhZ2UgPSBmdW5jdGlvbihlKSB7CiAgICB2YXIgbXNnID0gZS5kYXRhOwogICAgaWYgKG1zZy5ldmVudCAmJiBzZW5kZXIpIHsKICAgICAgICBzZW5kZXIuX3NpZ25hbChtc2cuZXZlbnQsIG1zZy5kYXRhKTsKICAgIH0KICAgIGVsc2UgaWYgKG1zZy5jb21tYW5kKSB7CiAgICAgICAgaWYgKG1haW5bbXNnLmNvbW1hbmRdKQogICAgICAgICAgICBtYWluW21zZy5jb21tYW5kXS5hcHBseShtYWluLCBtc2cuYXJncyk7CiAgICAgICAgZWxzZSBpZiAod2luZG93W21zZy5jb21tYW5kXSkKICAgICAgICAgICAgd2luZG93W21zZy5jb21tYW5kXS5hcHBseSh3aW5kb3csIG1zZy5hcmdzKTsKICAgICAgICBlbHNlCiAgICAgICAgICAgIHRocm93IG5ldyBFcnJvcigiVW5rbm93biBjb21tYW5kOiIgKyBtc2cuY29tbWFuZCk7CiAgICB9CiAgICBlbHNlIGlmIChtc2cuaW5pdCkgewogICAgICAgIHdpbmRvdy5pbml0QmFzZVVybHMobXNnLnRsbnMpOwogICAgICAgIHJlcXVpcmUoImFjZS9saWIvZXM1LXNoaW0iKTsKICAgICAgICBzZW5kZXIgPSB3aW5kb3cuc2VuZGVyID0gd2luZG93LmluaXRTZW5kZXIoKTsKICAgICAgICB2YXIgY2xhenogPSByZXF1aXJlKG1zZy5tb2R1bGUpW21zZy5jbGFzc25hbWVdOwogICAgICAgIG1haW4gPSB3aW5kb3cubWFpbiA9IG5ldyBjbGF6eihzZW5kZXIpOwogICAgfQp9Owp9KSh0aGlzKTsKCmFjZS5kZWZpbmUoImFjZS9saWIvb29wIixbXSwgZnVuY3Rpb24ocmVxdWlyZSwgZXhwb3J0cywgbW9kdWxlKSB7CiJ1c2Ugc3RyaWN0IjsKCmV4cG9ydHMuaW5oZXJpdHMgPSBmdW5jdGlvbihjdG9yLCBzdXBlckN0b3IpIHsKICAgIGN0b3Iuc3VwZXJfID0gc3VwZXJDdG9yOwogICAgY3Rvci5wcm90b3R5cGUgPSBPYmplY3QuY3JlYXRlKHN1cGVyQ3Rvci5wcm90b3R5cGUsIHsKICAgICAgICBjb25zdHJ1Y3RvcjogewogICAgICAgICAgICB2YWx1ZTogY3RvciwKICAgICAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLAogICAgICAgICAgICBjb25maWd1cmFibGU6IHRydWUKICAgICAgICB9CiAgICB9KTsKfTsKCmV4cG9ydHMubWl4aW4gPSBmdW5jdGlvbihvYmosIG1peGluKSB7CiAgICBmb3IgKHZhciBrZXkgaW4gbWl4aW4pIHsKICAgICAgICBvYmpba2V5XSA9IG1peGluW2tleV07CiAgICB9CiAgICByZXR1cm4gb2JqOwp9OwoKZXhwb3J0cy5pbXBsZW1lbnQgPSBmdW5jdGlvbihwcm90bywgbWl4aW4pIHsKICAgIGV4cG9ydHMubWl4aW4ocHJvdG8sIG1peGluKTsKfTsKCn0pOwoKYWNlLmRlZmluZSgiYWNlL3JhbmdlIixbXSwgZnVuY3Rpb24ocmVxdWlyZSwgZXhwb3J0cywgbW9kdWxlKSB7CiJ1c2Ugc3RyaWN0IjsKdmFyIGNvbXBhcmVQb2ludHMgPSBmdW5jdGlvbihwMSwgcDIpIHsKICAgIHJldHVybiBwMS5yb3cgLSBwMi5yb3cgfHwgcDEuY29sdW1uIC0gcDIuY29sdW1uOwp9Owp2YXIgUmFuZ2UgPSBmdW5jdGlvbihzdGFydFJvdywgc3RhcnRDb2x1bW4sIGVuZFJvdywgZW5kQ29sdW1uKSB7CiAgICB0aGlzLnN0YXJ0ID0gewogICAgICAgIHJvdzogc3RhcnRSb3csCiAgICAgICAgY29sdW1uOiBzdGFydENvbHVtbgogICAgfTsKCiAgICB0aGlzLmVuZCA9IHsKICAgICAgICByb3c6IGVuZFJvdywKICAgICAgICBjb2x1bW46IGVuZENvbHVtbgogICAgfTsKfTsKCihmdW5jdGlvbigpIHsKICAgIHRoaXMuaXNFcXVhbCA9IGZ1bmN0aW9uKHJhbmdlKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuc3RhcnQucm93ID09PSByYW5nZS5zdGFydC5yb3cgJiYKICAgICAgICAgICAgdGhpcy5lbmQucm93ID09PSByYW5nZS5lbmQucm93ICYmCiAgICAgICAgICAgIHRoaXMuc3RhcnQuY29sdW1uID09PSByYW5nZS5zdGFydC5jb2x1bW4gJiYKICAgICAgICAgICAgdGhpcy5lbmQuY29sdW1uID09PSByYW5nZS5lbmQuY29sdW1uOwogICAgfTsKICAgIHRoaXMudG9TdHJpbmcgPSBmdW5jdGlvbigpIHsKICAgICAgICByZXR1cm4gKCJSYW5nZTogWyIgKyB0aGlzLnN0YXJ0LnJvdyArICIvIiArIHRoaXMuc3RhcnQuY29sdW1uICsKICAgICAgICAgICAgIl0gLT4gWyIgKyB0aGlzLmVuZC5yb3cgKyAiLyIgKyB0aGlzLmVuZC5jb2x1bW4gKyAiXSIpOwogICAgfTsKCiAgICB0aGlzLmNvbnRhaW5zID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICByZXR1cm4gdGhpcy5jb21wYXJlKHJvdywgY29sdW1uKSA9PSAwOwogICAgfTsKICAgIHRoaXMuY29tcGFyZVJhbmdlID0gZnVuY3Rpb24ocmFuZ2UpIHsKICAgICAgICB2YXIgY21wLAogICAgICAgICAgICBlbmQgPSByYW5nZS5lbmQsCiAgICAgICAgICAgIHN0YXJ0ID0gcmFuZ2Uuc3RhcnQ7CgogICAgICAgIGNtcCA9IHRoaXMuY29tcGFyZShlbmQucm93LCBlbmQuY29sdW1uKTsKICAgICAgICBpZiAoY21wID09IDEpIHsKICAgICAgICAgICAgY21wID0gdGhpcy5jb21wYXJlKHN0YXJ0LnJvdywgc3RhcnQuY29sdW1uKTsKICAgICAgICAgICAgaWYgKGNtcCA9PSAxKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gMjsKICAgICAgICAgICAgfSBlbHNlIGlmIChjbXAgPT0gMCkgewogICAgICAgICAgICAgICAgcmV0dXJuIDE7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICByZXR1cm4gMDsKICAgICAgICAgICAgfQogICAgICAgIH0gZWxzZSBpZiAoY21wID09IC0xKSB7CiAgICAgICAgICAgIHJldHVybiAtMjsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBjbXAgPSB0aGlzLmNvbXBhcmUoc3RhcnQucm93LCBzdGFydC5jb2x1bW4pOwogICAgICAgICAgICBpZiAoY21wID09IC0xKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gLTE7CiAgICAgICAgICAgIH0gZWxzZSBpZiAoY21wID09IDEpIHsKICAgICAgICAgICAgICAgIHJldHVybiA0MjsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiAwOwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMuY29tcGFyZVBvaW50ID0gZnVuY3Rpb24ocCkgewogICAgICAgIHJldHVybiB0aGlzLmNvbXBhcmUocC5yb3csIHAuY29sdW1uKTsKICAgIH07CiAgICB0aGlzLmNvbnRhaW5zUmFuZ2UgPSBmdW5jdGlvbihyYW5nZSkgewogICAgICAgIHJldHVybiB0aGlzLmNvbXBhcmVQb2ludChyYW5nZS5zdGFydCkgPT0gMCAmJiB0aGlzLmNvbXBhcmVQb2ludChyYW5nZS5lbmQpID09IDA7CiAgICB9OwogICAgdGhpcy5pbnRlcnNlY3RzID0gZnVuY3Rpb24ocmFuZ2UpIHsKICAgICAgICB2YXIgY21wID0gdGhpcy5jb21wYXJlUmFuZ2UocmFuZ2UpOwogICAgICAgIHJldHVybiAoY21wID09IC0xIHx8IGNtcCA9PSAwIHx8IGNtcCA9PSAxKTsKICAgIH07CiAgICB0aGlzLmlzRW5kID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICByZXR1cm4gdGhpcy5lbmQucm93ID09IHJvdyAmJiB0aGlzLmVuZC5jb2x1bW4gPT0gY29sdW1uOwogICAgfTsKICAgIHRoaXMuaXNTdGFydCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuc3RhcnQucm93ID09IHJvdyAmJiB0aGlzLnN0YXJ0LmNvbHVtbiA9PSBjb2x1bW47CiAgICB9OwogICAgdGhpcy5zZXRTdGFydCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgaWYgKHR5cGVvZiByb3cgPT0gIm9iamVjdCIpIHsKICAgICAgICAgICAgdGhpcy5zdGFydC5jb2x1bW4gPSByb3cuY29sdW1uOwogICAgICAgICAgICB0aGlzLnN0YXJ0LnJvdyA9IHJvdy5yb3c7CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgdGhpcy5zdGFydC5yb3cgPSByb3c7CiAgICAgICAgICAgIHRoaXMuc3RhcnQuY29sdW1uID0gY29sdW1uOwogICAgICAgIH0KICAgIH07CiAgICB0aGlzLnNldEVuZCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgaWYgKHR5cGVvZiByb3cgPT0gIm9iamVjdCIpIHsKICAgICAgICAgICAgdGhpcy5lbmQuY29sdW1uID0gcm93LmNvbHVtbjsKICAgICAgICAgICAgdGhpcy5lbmQucm93ID0gcm93LnJvdzsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICB0aGlzLmVuZC5yb3cgPSByb3c7CiAgICAgICAgICAgIHRoaXMuZW5kLmNvbHVtbiA9IGNvbHVtbjsKICAgICAgICB9CiAgICB9OwogICAgdGhpcy5pbnNpZGUgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIGlmICh0aGlzLmNvbXBhcmUocm93LCBjb2x1bW4pID09IDApIHsKICAgICAgICAgICAgaWYgKHRoaXMuaXNFbmQocm93LCBjb2x1bW4pIHx8IHRoaXMuaXNTdGFydChyb3csIGNvbHVtbikpIHsKICAgICAgICAgICAgICAgIHJldHVybiBmYWxzZTsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiB0cnVlOwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgIHJldHVybiBmYWxzZTsKICAgIH07CiAgICB0aGlzLmluc2lkZVN0YXJ0ID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodGhpcy5jb21wYXJlKHJvdywgY29sdW1uKSA9PSAwKSB7CiAgICAgICAgICAgIGlmICh0aGlzLmlzRW5kKHJvdywgY29sdW1uKSkgewogICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgcmV0dXJuIGZhbHNlOwogICAgfTsKICAgIHRoaXMuaW5zaWRlRW5kID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodGhpcy5jb21wYXJlKHJvdywgY29sdW1uKSA9PSAwKSB7CiAgICAgICAgICAgIGlmICh0aGlzLmlzU3RhcnQocm93LCBjb2x1bW4pKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICByZXR1cm4gdHJ1ZTsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICByZXR1cm4gZmFsc2U7CiAgICB9OwogICAgdGhpcy5jb21wYXJlID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAoIXRoaXMuaXNNdWx0aUxpbmUoKSkgewogICAgICAgICAgICBpZiAocm93ID09PSB0aGlzLnN0YXJ0LnJvdykgewogICAgICAgICAgICAgICAgcmV0dXJuIGNvbHVtbiA8IHRoaXMuc3RhcnQuY29sdW1uID8gLTEgOiAoY29sdW1uID4gdGhpcy5lbmQuY29sdW1uID8gMSA6IDApOwogICAgICAgICAgICB9CiAgICAgICAgfQoKICAgICAgICBpZiAocm93IDwgdGhpcy5zdGFydC5yb3cpCiAgICAgICAgICAgIHJldHVybiAtMTsKCiAgICAgICAgaWYgKHJvdyA+IHRoaXMuZW5kLnJvdykKICAgICAgICAgICAgcmV0dXJuIDE7CgogICAgICAgIGlmICh0aGlzLnN0YXJ0LnJvdyA9PT0gcm93KQogICAgICAgICAgICByZXR1cm4gY29sdW1uID49IHRoaXMuc3RhcnQuY29sdW1uID8gMCA6IC0xOwoKICAgICAgICBpZiAodGhpcy5lbmQucm93ID09PSByb3cpCiAgICAgICAgICAgIHJldHVybiBjb2x1bW4gPD0gdGhpcy5lbmQuY29sdW1uID8gMCA6IDE7CgogICAgICAgIHJldHVybiAwOwogICAgfTsKICAgIHRoaXMuY29tcGFyZVN0YXJ0ID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodGhpcy5zdGFydC5yb3cgPT0gcm93ICYmIHRoaXMuc3RhcnQuY29sdW1uID09IGNvbHVtbikgewogICAgICAgICAgICByZXR1cm4gLTE7CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgcmV0dXJuIHRoaXMuY29tcGFyZShyb3csIGNvbHVtbik7CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMuY29tcGFyZUVuZCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgaWYgKHRoaXMuZW5kLnJvdyA9PSByb3cgJiYgdGhpcy5lbmQuY29sdW1uID09IGNvbHVtbikgewogICAgICAgICAgICByZXR1cm4gMTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICByZXR1cm4gdGhpcy5jb21wYXJlKHJvdywgY29sdW1uKTsKICAgICAgICB9CiAgICB9OwogICAgdGhpcy5jb21wYXJlSW5zaWRlID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodGhpcy5lbmQucm93ID09IHJvdyAmJiB0aGlzLmVuZC5jb2x1bW4gPT0gY29sdW1uKSB7CiAgICAgICAgICAgIHJldHVybiAxOwogICAgICAgIH0gZWxzZSBpZiAodGhpcy5zdGFydC5yb3cgPT0gcm93ICYmIHRoaXMuc3RhcnQuY29sdW1uID09IGNvbHVtbikgewogICAgICAgICAgICByZXR1cm4gLTE7CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgcmV0dXJuIHRoaXMuY29tcGFyZShyb3csIGNvbHVtbik7CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMuY2xpcFJvd3MgPSBmdW5jdGlvbihmaXJzdFJvdywgbGFzdFJvdykgewogICAgICAgIGlmICh0aGlzLmVuZC5yb3cgPiBsYXN0Um93KQogICAgICAgICAgICB2YXIgZW5kID0ge3JvdzogbGFzdFJvdyArIDEsIGNvbHVtbjogMH07CiAgICAgICAgZWxzZSBpZiAodGhpcy5lbmQucm93IDwgZmlyc3RSb3cpCiAgICAgICAgICAgIHZhciBlbmQgPSB7cm93OiBmaXJzdFJvdywgY29sdW1uOiAwfTsKCiAgICAgICAgaWYgKHRoaXMuc3RhcnQucm93ID4gbGFzdFJvdykKICAgICAgICAgICAgdmFyIHN0YXJ0ID0ge3JvdzogbGFzdFJvdyArIDEsIGNvbHVtbjogMH07CiAgICAgICAgZWxzZSBpZiAodGhpcy5zdGFydC5yb3cgPCBmaXJzdFJvdykKICAgICAgICAgICAgdmFyIHN0YXJ0ID0ge3JvdzogZmlyc3RSb3csIGNvbHVtbjogMH07CgogICAgICAgIHJldHVybiBSYW5nZS5mcm9tUG9pbnRzKHN0YXJ0IHx8IHRoaXMuc3RhcnQsIGVuZCB8fCB0aGlzLmVuZCk7CiAgICB9OwogICAgdGhpcy5leHRlbmQgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIHZhciBjbXAgPSB0aGlzLmNvbXBhcmUocm93LCBjb2x1bW4pOwoKICAgICAgICBpZiAoY21wID09IDApCiAgICAgICAgICAgIHJldHVybiB0aGlzOwogICAgICAgIGVsc2UgaWYgKGNtcCA9PSAtMSkKICAgICAgICAgICAgdmFyIHN0YXJ0ID0ge3Jvdzogcm93LCBjb2x1bW46IGNvbHVtbn07CiAgICAgICAgZWxzZQogICAgICAgICAgICB2YXIgZW5kID0ge3Jvdzogcm93LCBjb2x1bW46IGNvbHVtbn07CgogICAgICAgIHJldHVybiBSYW5nZS5mcm9tUG9pbnRzKHN0YXJ0IHx8IHRoaXMuc3RhcnQsIGVuZCB8fCB0aGlzLmVuZCk7CiAgICB9OwoKICAgIHRoaXMuaXNFbXB0eSA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiAodGhpcy5zdGFydC5yb3cgPT09IHRoaXMuZW5kLnJvdyAmJiB0aGlzLnN0YXJ0LmNvbHVtbiA9PT0gdGhpcy5lbmQuY29sdW1uKTsKICAgIH07CiAgICB0aGlzLmlzTXVsdGlMaW5lID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuICh0aGlzLnN0YXJ0LnJvdyAhPT0gdGhpcy5lbmQucm93KTsKICAgIH07CiAgICB0aGlzLmNsb25lID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIFJhbmdlLmZyb21Qb2ludHModGhpcy5zdGFydCwgdGhpcy5lbmQpOwogICAgfTsKICAgIHRoaXMuY29sbGFwc2VSb3dzID0gZnVuY3Rpb24oKSB7CiAgICAgICAgaWYgKHRoaXMuZW5kLmNvbHVtbiA9PSAwKQogICAgICAgICAgICByZXR1cm4gbmV3IFJhbmdlKHRoaXMuc3RhcnQucm93LCAwLCBNYXRoLm1heCh0aGlzLnN0YXJ0LnJvdywgdGhpcy5lbmQucm93LTEpLCAwKTsKICAgICAgICBlbHNlCiAgICAgICAgICAgIHJldHVybiBuZXcgUmFuZ2UodGhpcy5zdGFydC5yb3csIDAsIHRoaXMuZW5kLnJvdywgMCk7CiAgICB9OwogICAgdGhpcy50b1NjcmVlblJhbmdlID0gZnVuY3Rpb24oc2Vzc2lvbikgewogICAgICAgIHZhciBzY3JlZW5Qb3NTdGFydCA9IHNlc3Npb24uZG9jdW1lbnRUb1NjcmVlblBvc2l0aW9uKHRoaXMuc3RhcnQpOwogICAgICAgIHZhciBzY3JlZW5Qb3NFbmQgPSBzZXNzaW9uLmRvY3VtZW50VG9TY3JlZW5Qb3NpdGlvbih0aGlzLmVuZCk7CgogICAgICAgIHJldHVybiBuZXcgUmFuZ2UoCiAgICAgICAgICAgIHNjcmVlblBvc1N0YXJ0LnJvdywgc2NyZWVuUG9zU3RhcnQuY29sdW1uLAogICAgICAgICAgICBzY3JlZW5Qb3NFbmQucm93LCBzY3JlZW5Qb3NFbmQuY29sdW1uCiAgICAgICAgKTsKICAgIH07CiAgICB0aGlzLm1vdmVCeSA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgdGhpcy5zdGFydC5yb3cgKz0gcm93OwogICAgICAgIHRoaXMuc3RhcnQuY29sdW1uICs9IGNvbHVtbjsKICAgICAgICB0aGlzLmVuZC5yb3cgKz0gcm93OwogICAgICAgIHRoaXMuZW5kLmNvbHVtbiArPSBjb2x1bW47CiAgICB9OwoKfSkuY2FsbChSYW5nZS5wcm90b3R5cGUpOwpSYW5nZS5mcm9tUG9pbnRzID0gZnVuY3Rpb24oc3RhcnQsIGVuZCkgewogICAgcmV0dXJuIG5ldyBSYW5nZShzdGFydC5yb3csIHN0YXJ0LmNvbHVtbiwgZW5kLnJvdywgZW5kLmNvbHVtbik7Cn07ClJhbmdlLmNvbXBhcmVQb2ludHMgPSBjb21wYXJlUG9pbnRzOwoKUmFuZ2UuY29tcGFyZVBvaW50cyA9IGZ1bmN0aW9uKHAxLCBwMikgewogICAgcmV0dXJuIHAxLnJvdyAtIHAyLnJvdyB8fCBwMS5jb2x1bW4gLSBwMi5jb2x1bW47Cn07CgoKZXhwb3J0cy5SYW5nZSA9IFJhbmdlOwp9KTsKCmFjZS5kZWZpbmUoImFjZS9hcHBseV9kZWx0YSIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7CgpmdW5jdGlvbiB0aHJvd0RlbHRhRXJyb3IoZGVsdGEsIGVycm9yVGV4dCl7CiAgICBjb25zb2xlLmxvZygiSW52YWxpZCBEZWx0YToiLCBkZWx0YSk7CiAgICB0aHJvdyAiSW52YWxpZCBEZWx0YTogIiArIGVycm9yVGV4dDsKfQoKZnVuY3Rpb24gcG9zaXRpb25JbkRvY3VtZW50KGRvY0xpbmVzLCBwb3NpdGlvbikgewogICAgcmV0dXJuIHBvc2l0aW9uLnJvdyAgICA+PSAwICYmIHBvc2l0aW9uLnJvdyAgICA8ICBkb2NMaW5lcy5sZW5ndGggJiYKICAgICAgICAgICBwb3NpdGlvbi5jb2x1bW4gPj0gMCAmJiBwb3NpdGlvbi5jb2x1bW4gPD0gZG9jTGluZXNbcG9zaXRpb24ucm93XS5sZW5ndGg7Cn0KCmZ1bmN0aW9uIHZhbGlkYXRlRGVsdGEoZG9jTGluZXMsIGRlbHRhKSB7CiAgICBpZiAoZGVsdGEuYWN0aW9uICE9ICJpbnNlcnQiICYmIGRlbHRhLmFjdGlvbiAhPSAicmVtb3ZlIikKICAgICAgICB0aHJvd0RlbHRhRXJyb3IoZGVsdGEsICJkZWx0YS5hY3Rpb24gbXVzdCBiZSAnaW5zZXJ0JyBvciAncmVtb3ZlJyIpOwogICAgaWYgKCEoZGVsdGEubGluZXMgaW5zdGFuY2VvZiBBcnJheSkpCiAgICAgICAgdGhyb3dEZWx0YUVycm9yKGRlbHRhLCAiZGVsdGEubGluZXMgbXVzdCBiZSBhbiBBcnJheSIpOwogICAgaWYgKCFkZWx0YS5zdGFydCB8fCAhZGVsdGEuZW5kKQogICAgICAgdGhyb3dEZWx0YUVycm9yKGRlbHRhLCAiZGVsdGEuc3RhcnQvZW5kIG11c3QgYmUgYW4gcHJlc2VudCIpOwogICAgdmFyIHN0YXJ0ID0gZGVsdGEuc3RhcnQ7CiAgICBpZiAoIXBvc2l0aW9uSW5Eb2N1bWVudChkb2NMaW5lcywgZGVsdGEuc3RhcnQpKQogICAgICAgIHRocm93RGVsdGFFcnJvcihkZWx0YSwgImRlbHRhLnN0YXJ0IG11c3QgYmUgY29udGFpbmVkIGluIGRvY3VtZW50Iik7CiAgICB2YXIgZW5kID0gZGVsdGEuZW5kOwogICAgaWYgKGRlbHRhLmFjdGlvbiA9PSAicmVtb3ZlIiAmJiAhcG9zaXRpb25JbkRvY3VtZW50KGRvY0xpbmVzLCBlbmQpKQogICAgICAgIHRocm93RGVsdGFFcnJvcihkZWx0YSwgImRlbHRhLmVuZCBtdXN0IGNvbnRhaW5lZCBpbiBkb2N1bWVudCBmb3IgJ3JlbW92ZScgYWN0aW9ucyIpOwogICAgdmFyIG51bVJhbmdlUm93cyA9IGVuZC5yb3cgLSBzdGFydC5yb3c7CiAgICB2YXIgbnVtUmFuZ2VMYXN0TGluZUNoYXJzID0gKGVuZC5jb2x1bW4gLSAobnVtUmFuZ2VSb3dzID09IDAgPyBzdGFydC5jb2x1bW4gOiAwKSk7CiAgICBpZiAobnVtUmFuZ2VSb3dzICE9IGRlbHRhLmxpbmVzLmxlbmd0aCAtIDEgfHwgZGVsdGEubGluZXNbbnVtUmFuZ2VSb3dzXS5sZW5ndGggIT0gbnVtUmFuZ2VMYXN0TGluZUNoYXJzKQogICAgICAgIHRocm93RGVsdGFFcnJvcihkZWx0YSwgImRlbHRhLnJhbmdlIG11c3QgbWF0Y2ggZGVsdGEgbGluZXMiKTsKfQoKZXhwb3J0cy5hcHBseURlbHRhID0gZnVuY3Rpb24oZG9jTGluZXMsIGRlbHRhLCBkb05vdFZhbGlkYXRlKSB7CiAgICAKICAgIHZhciByb3cgPSBkZWx0YS5zdGFydC5yb3c7CiAgICB2YXIgc3RhcnRDb2x1bW4gPSBkZWx0YS5zdGFydC5jb2x1bW47CiAgICB2YXIgbGluZSA9IGRvY0xpbmVzW3Jvd10gfHwgIiI7CiAgICBzd2l0Y2ggKGRlbHRhLmFjdGlvbikgewogICAgICAgIGNhc2UgImluc2VydCI6CiAgICAgICAgICAgIHZhciBsaW5lcyA9IGRlbHRhLmxpbmVzOwogICAgICAgICAgICBpZiAobGluZXMubGVuZ3RoID09PSAxKSB7CiAgICAgICAgICAgICAgICBkb2NMaW5lc1tyb3ddID0gbGluZS5zdWJzdHJpbmcoMCwgc3RhcnRDb2x1bW4pICsgZGVsdGEubGluZXNbMF0gKyBsaW5lLnN1YnN0cmluZyhzdGFydENvbHVtbik7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICB2YXIgYXJncyA9IFtyb3csIDFdLmNvbmNhdChkZWx0YS5saW5lcyk7CiAgICAgICAgICAgICAgICBkb2NMaW5lcy5zcGxpY2UuYXBwbHkoZG9jTGluZXMsIGFyZ3MpOwogICAgICAgICAgICAgICAgZG9jTGluZXNbcm93XSA9IGxpbmUuc3Vic3RyaW5nKDAsIHN0YXJ0Q29sdW1uKSArIGRvY0xpbmVzW3Jvd107CiAgICAgICAgICAgICAgICBkb2NMaW5lc1tyb3cgKyBkZWx0YS5saW5lcy5sZW5ndGggLSAxXSArPSBsaW5lLnN1YnN0cmluZyhzdGFydENvbHVtbik7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgYnJlYWs7CiAgICAgICAgY2FzZSAicmVtb3ZlIjoKICAgICAgICAgICAgdmFyIGVuZENvbHVtbiA9IGRlbHRhLmVuZC5jb2x1bW47CiAgICAgICAgICAgIHZhciBlbmRSb3cgPSBkZWx0YS5lbmQucm93OwogICAgICAgICAgICBpZiAocm93ID09PSBlbmRSb3cpIHsKICAgICAgICAgICAgICAgIGRvY0xpbmVzW3Jvd10gPSBsaW5lLnN1YnN0cmluZygwLCBzdGFydENvbHVtbikgKyBsaW5lLnN1YnN0cmluZyhlbmRDb2x1bW4pOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgZG9jTGluZXMuc3BsaWNlKAogICAgICAgICAgICAgICAgICAgIHJvdywgZW5kUm93IC0gcm93ICsgMSwKICAgICAgICAgICAgICAgICAgICBsaW5lLnN1YnN0cmluZygwLCBzdGFydENvbHVtbikgKyBkb2NMaW5lc1tlbmRSb3ddLnN1YnN0cmluZyhlbmRDb2x1bW4pCiAgICAgICAgICAgICAgICApOwogICAgICAgICAgICB9CiAgICAgICAgICAgIGJyZWFrOwogICAgfQp9Owp9KTsKCmFjZS5kZWZpbmUoImFjZS9saWIvZXZlbnRfZW1pdHRlciIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7Cgp2YXIgRXZlbnRFbWl0dGVyID0ge307CnZhciBzdG9wUHJvcGFnYXRpb24gPSBmdW5jdGlvbigpIHsgdGhpcy5wcm9wYWdhdGlvblN0b3BwZWQgPSB0cnVlOyB9Owp2YXIgcHJldmVudERlZmF1bHQgPSBmdW5jdGlvbigpIHsgdGhpcy5kZWZhdWx0UHJldmVudGVkID0gdHJ1ZTsgfTsKCkV2ZW50RW1pdHRlci5fZW1pdCA9CkV2ZW50RW1pdHRlci5fZGlzcGF0Y2hFdmVudCA9IGZ1bmN0aW9uKGV2ZW50TmFtZSwgZSkgewogICAgdGhpcy5fZXZlbnRSZWdpc3RyeSB8fCAodGhpcy5fZXZlbnRSZWdpc3RyeSA9IHt9KTsKICAgIHRoaXMuX2RlZmF1bHRIYW5kbGVycyB8fCAodGhpcy5fZGVmYXVsdEhhbmRsZXJzID0ge30pOwoKICAgIHZhciBsaXN0ZW5lcnMgPSB0aGlzLl9ldmVudFJlZ2lzdHJ5W2V2ZW50TmFtZV0gfHwgW107CiAgICB2YXIgZGVmYXVsdEhhbmRsZXIgPSB0aGlzLl9kZWZhdWx0SGFuZGxlcnNbZXZlbnROYW1lXTsKICAgIGlmICghbGlzdGVuZXJzLmxlbmd0aCAmJiAhZGVmYXVsdEhhbmRsZXIpCiAgICAgICAgcmV0dXJuOwoKICAgIGlmICh0eXBlb2YgZSAhPSAib2JqZWN0IiB8fCAhZSkKICAgICAgICBlID0ge307CgogICAgaWYgKCFlLnR5cGUpCiAgICAgICAgZS50eXBlID0gZXZlbnROYW1lOwogICAgaWYgKCFlLnN0b3BQcm9wYWdhdGlvbikKICAgICAgICBlLnN0b3BQcm9wYWdhdGlvbiA9IHN0b3BQcm9wYWdhdGlvbjsKICAgIGlmICghZS5wcmV2ZW50RGVmYXVsdCkKICAgICAgICBlLnByZXZlbnREZWZhdWx0ID0gcHJldmVudERlZmF1bHQ7CgogICAgbGlzdGVuZXJzID0gbGlzdGVuZXJzLnNsaWNlKCk7CiAgICBmb3IgKHZhciBpPTA7IGk8bGlzdGVuZXJzLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgbGlzdGVuZXJzW2ldKGUsIHRoaXMpOwogICAgICAgIGlmIChlLnByb3BhZ2F0aW9uU3RvcHBlZCkKICAgICAgICAgICAgYnJlYWs7CiAgICB9CiAgICAKICAgIGlmIChkZWZhdWx0SGFuZGxlciAmJiAhZS5kZWZhdWx0UHJldmVudGVkKQogICAgICAgIHJldHVybiBkZWZhdWx0SGFuZGxlcihlLCB0aGlzKTsKfTsKCgpFdmVudEVtaXR0ZXIuX3NpZ25hbCA9IGZ1bmN0aW9uKGV2ZW50TmFtZSwgZSkgewogICAgdmFyIGxpc3RlbmVycyA9ICh0aGlzLl9ldmVudFJlZ2lzdHJ5IHx8IHt9KVtldmVudE5hbWVdOwogICAgaWYgKCFsaXN0ZW5lcnMpCiAgICAgICAgcmV0dXJuOwogICAgbGlzdGVuZXJzID0gbGlzdGVuZXJzLnNsaWNlKCk7CiAgICBmb3IgKHZhciBpPTA7IGk8bGlzdGVuZXJzLmxlbmd0aDsgaSsrKQogICAgICAgIGxpc3RlbmVyc1tpXShlLCB0aGlzKTsKfTsKCkV2ZW50RW1pdHRlci5vbmNlID0gZnVuY3Rpb24oZXZlbnROYW1lLCBjYWxsYmFjaykgewogICAgdmFyIF9zZWxmID0gdGhpczsKICAgIHRoaXMuYWRkRXZlbnRMaXN0ZW5lcihldmVudE5hbWUsIGZ1bmN0aW9uIG5ld0NhbGxiYWNrKCkgewogICAgICAgIF9zZWxmLnJlbW92ZUV2ZW50TGlzdGVuZXIoZXZlbnROYW1lLCBuZXdDYWxsYmFjayk7CiAgICAgICAgY2FsbGJhY2suYXBwbHkobnVsbCwgYXJndW1lbnRzKTsKICAgIH0pOwogICAgaWYgKCFjYWxsYmFjaykgewogICAgICAgIHJldHVybiBuZXcgUHJvbWlzZShmdW5jdGlvbihyZXNvbHZlKSB7CiAgICAgICAgICAgIGNhbGxiYWNrID0gcmVzb2x2ZTsKICAgICAgICB9KTsKICAgIH0KfTsKCgpFdmVudEVtaXR0ZXIuc2V0RGVmYXVsdEhhbmRsZXIgPSBmdW5jdGlvbihldmVudE5hbWUsIGNhbGxiYWNrKSB7CiAgICB2YXIgaGFuZGxlcnMgPSB0aGlzLl9kZWZhdWx0SGFuZGxlcnM7CiAgICBpZiAoIWhhbmRsZXJzKQogICAgICAgIGhhbmRsZXJzID0gdGhpcy5fZGVmYXVsdEhhbmRsZXJzID0ge19kaXNhYmxlZF86IHt9fTsKICAgIAogICAgaWYgKGhhbmRsZXJzW2V2ZW50TmFtZV0pIHsKICAgICAgICB2YXIgb2xkID0gaGFuZGxlcnNbZXZlbnROYW1lXTsKICAgICAgICB2YXIgZGlzYWJsZWQgPSBoYW5kbGVycy5fZGlzYWJsZWRfW2V2ZW50TmFtZV07CiAgICAgICAgaWYgKCFkaXNhYmxlZCkKICAgICAgICAgICAgaGFuZGxlcnMuX2Rpc2FibGVkX1tldmVudE5hbWVdID0gZGlzYWJsZWQgPSBbXTsKICAgICAgICBkaXNhYmxlZC5wdXNoKG9sZCk7CiAgICAgICAgdmFyIGkgPSBkaXNhYmxlZC5pbmRleE9mKGNhbGxiYWNrKTsKICAgICAgICBpZiAoaSAhPSAtMSkgCiAgICAgICAgICAgIGRpc2FibGVkLnNwbGljZShpLCAxKTsKICAgIH0KICAgIGhhbmRsZXJzW2V2ZW50TmFtZV0gPSBjYWxsYmFjazsKfTsKRXZlbnRFbWl0dGVyLnJlbW92ZURlZmF1bHRIYW5kbGVyID0gZnVuY3Rpb24oZXZlbnROYW1lLCBjYWxsYmFjaykgewogICAgdmFyIGhhbmRsZXJzID0gdGhpcy5fZGVmYXVsdEhhbmRsZXJzOwogICAgaWYgKCFoYW5kbGVycykKICAgICAgICByZXR1cm47CiAgICB2YXIgZGlzYWJsZWQgPSBoYW5kbGVycy5fZGlzYWJsZWRfW2V2ZW50TmFtZV07CiAgICAKICAgIGlmIChoYW5kbGVyc1tldmVudE5hbWVdID09IGNhbGxiYWNrKSB7CiAgICAgICAgaWYgKGRpc2FibGVkKQogICAgICAgICAgICB0aGlzLnNldERlZmF1bHRIYW5kbGVyKGV2ZW50TmFtZSwgZGlzYWJsZWQucG9wKCkpOwogICAgfSBlbHNlIGlmIChkaXNhYmxlZCkgewogICAgICAgIHZhciBpID0gZGlzYWJsZWQuaW5kZXhPZihjYWxsYmFjayk7CiAgICAgICAgaWYgKGkgIT0gLTEpCiAgICAgICAgICAgIGRpc2FibGVkLnNwbGljZShpLCAxKTsKICAgIH0KfTsKCkV2ZW50RW1pdHRlci5vbiA9CkV2ZW50RW1pdHRlci5hZGRFdmVudExpc3RlbmVyID0gZnVuY3Rpb24oZXZlbnROYW1lLCBjYWxsYmFjaywgY2FwdHVyaW5nKSB7CiAgICB0aGlzLl9ldmVudFJlZ2lzdHJ5ID0gdGhpcy5fZXZlbnRSZWdpc3RyeSB8fCB7fTsKCiAgICB2YXIgbGlzdGVuZXJzID0gdGhpcy5fZXZlbnRSZWdpc3RyeVtldmVudE5hbWVdOwogICAgaWYgKCFsaXN0ZW5lcnMpCiAgICAgICAgbGlzdGVuZXJzID0gdGhpcy5fZXZlbnRSZWdpc3RyeVtldmVudE5hbWVdID0gW107CgogICAgaWYgKGxpc3RlbmVycy5pbmRleE9mKGNhbGxiYWNrKSA9PSAtMSkKICAgICAgICBsaXN0ZW5lcnNbY2FwdHVyaW5nID8gInVuc2hpZnQiIDogInB1c2giXShjYWxsYmFjayk7CiAgICByZXR1cm4gY2FsbGJhY2s7Cn07CgpFdmVudEVtaXR0ZXIub2ZmID0KRXZlbnRFbWl0dGVyLnJlbW92ZUxpc3RlbmVyID0KRXZlbnRFbWl0dGVyLnJlbW92ZUV2ZW50TGlzdGVuZXIgPSBmdW5jdGlvbihldmVudE5hbWUsIGNhbGxiYWNrKSB7CiAgICB0aGlzLl9ldmVudFJlZ2lzdHJ5ID0gdGhpcy5fZXZlbnRSZWdpc3RyeSB8fCB7fTsKCiAgICB2YXIgbGlzdGVuZXJzID0gdGhpcy5fZXZlbnRSZWdpc3RyeVtldmVudE5hbWVdOwogICAgaWYgKCFsaXN0ZW5lcnMpCiAgICAgICAgcmV0dXJuOwoKICAgIHZhciBpbmRleCA9IGxpc3RlbmVycy5pbmRleE9mKGNhbGxiYWNrKTsKICAgIGlmIChpbmRleCAhPT0gLTEpCiAgICAgICAgbGlzdGVuZXJzLnNwbGljZShpbmRleCwgMSk7Cn07CgpFdmVudEVtaXR0ZXIucmVtb3ZlQWxsTGlzdGVuZXJzID0gZnVuY3Rpb24oZXZlbnROYW1lKSB7CiAgICBpZiAodGhpcy5fZXZlbnRSZWdpc3RyeSkgdGhpcy5fZXZlbnRSZWdpc3RyeVtldmVudE5hbWVdID0gW107Cn07CgpleHBvcnRzLkV2ZW50RW1pdHRlciA9IEV2ZW50RW1pdHRlcjsKCn0pOwoKYWNlLmRlZmluZSgiYWNlL2FuY2hvciIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7Cgp2YXIgb29wID0gcmVxdWlyZSgiLi9saWIvb29wIik7CnZhciBFdmVudEVtaXR0ZXIgPSByZXF1aXJlKCIuL2xpYi9ldmVudF9lbWl0dGVyIikuRXZlbnRFbWl0dGVyOwoKdmFyIEFuY2hvciA9IGV4cG9ydHMuQW5jaG9yID0gZnVuY3Rpb24oZG9jLCByb3csIGNvbHVtbikgewogICAgdGhpcy4kb25DaGFuZ2UgPSB0aGlzLm9uQ2hhbmdlLmJpbmQodGhpcyk7CiAgICB0aGlzLmF0dGFjaChkb2MpOwogICAgCiAgICBpZiAodHlwZW9mIGNvbHVtbiA9PSAidW5kZWZpbmVkIikKICAgICAgICB0aGlzLnNldFBvc2l0aW9uKHJvdy5yb3csIHJvdy5jb2x1bW4pOwogICAgZWxzZQogICAgICAgIHRoaXMuc2V0UG9zaXRpb24ocm93LCBjb2x1bW4pOwp9OwoKKGZ1bmN0aW9uKCkgewoKICAgIG9vcC5pbXBsZW1lbnQodGhpcywgRXZlbnRFbWl0dGVyKTsKICAgIHRoaXMuZ2V0UG9zaXRpb24gPSBmdW5jdGlvbigpIHsKICAgICAgICByZXR1cm4gdGhpcy4kY2xpcFBvc2l0aW9uVG9Eb2N1bWVudCh0aGlzLnJvdywgdGhpcy5jb2x1bW4pOwogICAgfTsKICAgIHRoaXMuZ2V0RG9jdW1lbnQgPSBmdW5jdGlvbigpIHsKICAgICAgICByZXR1cm4gdGhpcy5kb2N1bWVudDsKICAgIH07CiAgICB0aGlzLiRpbnNlcnRSaWdodCA9IGZhbHNlOwogICAgdGhpcy5vbkNoYW5nZSA9IGZ1bmN0aW9uKGRlbHRhKSB7CiAgICAgICAgaWYgKGRlbHRhLnN0YXJ0LnJvdyA9PSBkZWx0YS5lbmQucm93ICYmIGRlbHRhLnN0YXJ0LnJvdyAhPSB0aGlzLnJvdykKICAgICAgICAgICAgcmV0dXJuOwoKICAgICAgICBpZiAoZGVsdGEuc3RhcnQucm93ID4gdGhpcy5yb3cpCiAgICAgICAgICAgIHJldHVybjsKICAgICAgICAgICAgCiAgICAgICAgdmFyIHBvaW50ID0gJGdldFRyYW5zZm9ybWVkUG9pbnQoZGVsdGEsIHtyb3c6IHRoaXMucm93LCBjb2x1bW46IHRoaXMuY29sdW1ufSwgdGhpcy4kaW5zZXJ0UmlnaHQpOwogICAgICAgIHRoaXMuc2V0UG9zaXRpb24ocG9pbnQucm93LCBwb2ludC5jb2x1bW4sIHRydWUpOwogICAgfTsKICAgIAogICAgZnVuY3Rpb24gJHBvaW50c0luT3JkZXIocG9pbnQxLCBwb2ludDIsIGVxdWFsUG9pbnRzSW5PcmRlcikgewogICAgICAgIHZhciBiQ29sSXNBZnRlciA9IGVxdWFsUG9pbnRzSW5PcmRlciA/IHBvaW50MS5jb2x1bW4gPD0gcG9pbnQyLmNvbHVtbiA6IHBvaW50MS5jb2x1bW4gPCBwb2ludDIuY29sdW1uOwogICAgICAgIHJldHVybiAocG9pbnQxLnJvdyA8IHBvaW50Mi5yb3cpIHx8IChwb2ludDEucm93ID09IHBvaW50Mi5yb3cgJiYgYkNvbElzQWZ0ZXIpOwogICAgfQogICAgICAgICAgICAKICAgIGZ1bmN0aW9uICRnZXRUcmFuc2Zvcm1lZFBvaW50KGRlbHRhLCBwb2ludCwgbW92ZUlmRXF1YWwpIHsKICAgICAgICB2YXIgZGVsdGFJc0luc2VydCA9IGRlbHRhLmFjdGlvbiA9PSAiaW5zZXJ0IjsKICAgICAgICB2YXIgZGVsdGFSb3dTaGlmdCA9IChkZWx0YUlzSW5zZXJ0ID8gMSA6IC0xKSAqIChkZWx0YS5lbmQucm93ICAgIC0gZGVsdGEuc3RhcnQucm93KTsKICAgICAgICB2YXIgZGVsdGFDb2xTaGlmdCA9IChkZWx0YUlzSW5zZXJ0ID8gMSA6IC0xKSAqIChkZWx0YS5lbmQuY29sdW1uIC0gZGVsdGEuc3RhcnQuY29sdW1uKTsKICAgICAgICB2YXIgZGVsdGFTdGFydCA9IGRlbHRhLnN0YXJ0OwogICAgICAgIHZhciBkZWx0YUVuZCA9IGRlbHRhSXNJbnNlcnQgPyBkZWx0YVN0YXJ0IDogZGVsdGEuZW5kOyAvLyBDb2xsYXBzZSBpbnNlcnQgcmFuZ2UuCiAgICAgICAgaWYgKCRwb2ludHNJbk9yZGVyKHBvaW50LCBkZWx0YVN0YXJ0LCBtb3ZlSWZFcXVhbCkpIHsKICAgICAgICAgICAgcmV0dXJuIHsKICAgICAgICAgICAgICAgIHJvdzogcG9pbnQucm93LAogICAgICAgICAgICAgICAgY29sdW1uOiBwb2ludC5jb2x1bW4KICAgICAgICAgICAgfTsKICAgICAgICB9CiAgICAgICAgaWYgKCRwb2ludHNJbk9yZGVyKGRlbHRhRW5kLCBwb2ludCwgIW1vdmVJZkVxdWFsKSkgewogICAgICAgICAgICByZXR1cm4gewogICAgICAgICAgICAgICAgcm93OiBwb2ludC5yb3cgKyBkZWx0YVJvd1NoaWZ0LAogICAgICAgICAgICAgICAgY29sdW1uOiBwb2ludC5jb2x1bW4gKyAocG9pbnQucm93ID09IGRlbHRhRW5kLnJvdyA/IGRlbHRhQ29sU2hpZnQgOiAwKQogICAgICAgICAgICB9OwogICAgICAgIH0KICAgICAgICAKICAgICAgICByZXR1cm4gewogICAgICAgICAgICByb3c6IGRlbHRhU3RhcnQucm93LAogICAgICAgICAgICBjb2x1bW46IGRlbHRhU3RhcnQuY29sdW1uCiAgICAgICAgfTsKICAgIH0KICAgIHRoaXMuc2V0UG9zaXRpb24gPSBmdW5jdGlvbihyb3csIGNvbHVtbiwgbm9DbGlwKSB7CiAgICAgICAgdmFyIHBvczsKICAgICAgICBpZiAobm9DbGlwKSB7CiAgICAgICAgICAgIHBvcyA9IHsKICAgICAgICAgICAgICAgIHJvdzogcm93LAogICAgICAgICAgICAgICAgY29sdW1uOiBjb2x1bW4KICAgICAgICAgICAgfTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBwb3MgPSB0aGlzLiRjbGlwUG9zaXRpb25Ub0RvY3VtZW50KHJvdywgY29sdW1uKTsKICAgICAgICB9CgogICAgICAgIGlmICh0aGlzLnJvdyA9PSBwb3Mucm93ICYmIHRoaXMuY29sdW1uID09IHBvcy5jb2x1bW4pCiAgICAgICAgICAgIHJldHVybjsKCiAgICAgICAgdmFyIG9sZCA9IHsKICAgICAgICAgICAgcm93OiB0aGlzLnJvdywKICAgICAgICAgICAgY29sdW1uOiB0aGlzLmNvbHVtbgogICAgICAgIH07CgogICAgICAgIHRoaXMucm93ID0gcG9zLnJvdzsKICAgICAgICB0aGlzLmNvbHVtbiA9IHBvcy5jb2x1bW47CiAgICAgICAgdGhpcy5fc2lnbmFsKCJjaGFuZ2UiLCB7CiAgICAgICAgICAgIG9sZDogb2xkLAogICAgICAgICAgICB2YWx1ZTogcG9zCiAgICAgICAgfSk7CiAgICB9OwogICAgdGhpcy5kZXRhY2ggPSBmdW5jdGlvbigpIHsKICAgICAgICB0aGlzLmRvY3VtZW50LnJlbW92ZUV2ZW50TGlzdGVuZXIoImNoYW5nZSIsIHRoaXMuJG9uQ2hhbmdlKTsKICAgIH07CiAgICB0aGlzLmF0dGFjaCA9IGZ1bmN0aW9uKGRvYykgewogICAgICAgIHRoaXMuZG9jdW1lbnQgPSBkb2MgfHwgdGhpcy5kb2N1bWVudDsKICAgICAgICB0aGlzLmRvY3VtZW50Lm9uKCJjaGFuZ2UiLCB0aGlzLiRvbkNoYW5nZSk7CiAgICB9OwogICAgdGhpcy4kY2xpcFBvc2l0aW9uVG9Eb2N1bWVudCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgdmFyIHBvcyA9IHt9OwoKICAgICAgICBpZiAocm93ID49IHRoaXMuZG9jdW1lbnQuZ2V0TGVuZ3RoKCkpIHsKICAgICAgICAgICAgcG9zLnJvdyA9IE1hdGgubWF4KDAsIHRoaXMuZG9jdW1lbnQuZ2V0TGVuZ3RoKCkgLSAxKTsKICAgICAgICAgICAgcG9zLmNvbHVtbiA9IHRoaXMuZG9jdW1lbnQuZ2V0TGluZShwb3Mucm93KS5sZW5ndGg7CiAgICAgICAgfQogICAgICAgIGVsc2UgaWYgKHJvdyA8IDApIHsKICAgICAgICAgICAgcG9zLnJvdyA9IDA7CiAgICAgICAgICAgIHBvcy5jb2x1bW4gPSAwOwogICAgICAgIH0KICAgICAgICBlbHNlIHsKICAgICAgICAgICAgcG9zLnJvdyA9IHJvdzsKICAgICAgICAgICAgcG9zLmNvbHVtbiA9IE1hdGgubWluKHRoaXMuZG9jdW1lbnQuZ2V0TGluZShwb3Mucm93KS5sZW5ndGgsIE1hdGgubWF4KDAsIGNvbHVtbikpOwogICAgICAgIH0KCiAgICAgICAgaWYgKGNvbHVtbiA8IDApCiAgICAgICAgICAgIHBvcy5jb2x1bW4gPSAwOwoKICAgICAgICByZXR1cm4gcG9zOwogICAgfTsKCn0pLmNhbGwoQW5jaG9yLnByb3RvdHlwZSk7Cgp9KTsKCmFjZS5kZWZpbmUoImFjZS9kb2N1bWVudCIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7Cgp2YXIgb29wID0gcmVxdWlyZSgiLi9saWIvb29wIik7CnZhciBhcHBseURlbHRhID0gcmVxdWlyZSgiLi9hcHBseV9kZWx0YSIpLmFwcGx5RGVsdGE7CnZhciBFdmVudEVtaXR0ZXIgPSByZXF1aXJlKCIuL2xpYi9ldmVudF9lbWl0dGVyIikuRXZlbnRFbWl0dGVyOwp2YXIgUmFuZ2UgPSByZXF1aXJlKCIuL3JhbmdlIikuUmFuZ2U7CnZhciBBbmNob3IgPSByZXF1aXJlKCIuL2FuY2hvciIpLkFuY2hvcjsKCnZhciBEb2N1bWVudCA9IGZ1bmN0aW9uKHRleHRPckxpbmVzKSB7CiAgICB0aGlzLiRsaW5lcyA9IFsiIl07CiAgICBpZiAodGV4dE9yTGluZXMubGVuZ3RoID09PSAwKSB7CiAgICAgICAgdGhpcy4kbGluZXMgPSBbIiJdOwogICAgfSBlbHNlIGlmIChBcnJheS5pc0FycmF5KHRleHRPckxpbmVzKSkgewogICAgICAgIHRoaXMuaW5zZXJ0TWVyZ2VkTGluZXMoe3JvdzogMCwgY29sdW1uOiAwfSwgdGV4dE9yTGluZXMpOwogICAgfSBlbHNlIHsKICAgICAgICB0aGlzLmluc2VydCh7cm93OiAwLCBjb2x1bW46MH0sIHRleHRPckxpbmVzKTsKICAgIH0KfTsKCihmdW5jdGlvbigpIHsKCiAgICBvb3AuaW1wbGVtZW50KHRoaXMsIEV2ZW50RW1pdHRlcik7CiAgICB0aGlzLnNldFZhbHVlID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgIHZhciBsZW4gPSB0aGlzLmdldExlbmd0aCgpIC0gMTsKICAgICAgICB0aGlzLnJlbW92ZShuZXcgUmFuZ2UoMCwgMCwgbGVuLCB0aGlzLmdldExpbmUobGVuKS5sZW5ndGgpKTsKICAgICAgICB0aGlzLmluc2VydCh7cm93OiAwLCBjb2x1bW46IDB9LCB0ZXh0KTsKICAgIH07CiAgICB0aGlzLmdldFZhbHVlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuZ2V0QWxsTGluZXMoKS5qb2luKHRoaXMuZ2V0TmV3TGluZUNoYXJhY3RlcigpKTsKICAgIH07CiAgICB0aGlzLmNyZWF0ZUFuY2hvciA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgcmV0dXJuIG5ldyBBbmNob3IodGhpcywgcm93LCBjb2x1bW4pOwogICAgfTsKICAgIGlmICgiYWFhIi5zcGxpdCgvYS8pLmxlbmd0aCA9PT0gMCkgewogICAgICAgIHRoaXMuJHNwbGl0ID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgICAgICByZXR1cm4gdGV4dC5yZXBsYWNlKC9cclxufFxyL2csICJcbiIpLnNwbGl0KCJcbiIpOwogICAgICAgIH07CiAgICB9IGVsc2UgewogICAgICAgIHRoaXMuJHNwbGl0ID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgICAgICByZXR1cm4gdGV4dC5zcGxpdCgvXHJcbnxccnxcbi8pOwogICAgICAgIH07CiAgICB9CgoKICAgIHRoaXMuJGRldGVjdE5ld0xpbmUgPSBmdW5jdGlvbih0ZXh0KSB7CiAgICAgICAgdmFyIG1hdGNoID0gdGV4dC5tYXRjaCgvXi4qPyhcclxufFxyfFxuKS9tKTsKICAgICAgICB0aGlzLiRhdXRvTmV3TGluZSA9IG1hdGNoID8gbWF0Y2hbMV0gOiAiXG4iOwogICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlTmV3TGluZU1vZGUiKTsKICAgIH07CiAgICB0aGlzLmdldE5ld0xpbmVDaGFyYWN0ZXIgPSBmdW5jdGlvbigpIHsKICAgICAgICBzd2l0Y2ggKHRoaXMuJG5ld0xpbmVNb2RlKSB7CiAgICAgICAgICBjYXNlICJ3aW5kb3dzIjoKICAgICAgICAgICAgcmV0dXJuICJcclxuIjsKICAgICAgICAgIGNhc2UgInVuaXgiOgogICAgICAgICAgICByZXR1cm4gIlxuIjsKICAgICAgICAgIGRlZmF1bHQ6CiAgICAgICAgICAgIHJldHVybiB0aGlzLiRhdXRvTmV3TGluZSB8fCAiXG4iOwogICAgICAgIH0KICAgIH07CgogICAgdGhpcy4kYXV0b05ld0xpbmUgPSAiIjsKICAgIHRoaXMuJG5ld0xpbmVNb2RlID0gImF1dG8iOwogICAgdGhpcy5zZXROZXdMaW5lTW9kZSA9IGZ1bmN0aW9uKG5ld0xpbmVNb2RlKSB7CiAgICAgICAgaWYgKHRoaXMuJG5ld0xpbmVNb2RlID09PSBuZXdMaW5lTW9kZSkKICAgICAgICAgICAgcmV0dXJuOwoKICAgICAgICB0aGlzLiRuZXdMaW5lTW9kZSA9IG5ld0xpbmVNb2RlOwogICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlTmV3TGluZU1vZGUiKTsKICAgIH07CiAgICB0aGlzLmdldE5ld0xpbmVNb2RlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJG5ld0xpbmVNb2RlOwogICAgfTsKICAgIHRoaXMuaXNOZXdMaW5lID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgIHJldHVybiAodGV4dCA9PSAiXHJcbiIgfHwgdGV4dCA9PSAiXHIiIHx8IHRleHQgPT0gIlxuIik7CiAgICB9OwogICAgdGhpcy5nZXRMaW5lID0gZnVuY3Rpb24ocm93KSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGxpbmVzW3Jvd10gfHwgIiI7CiAgICB9OwogICAgdGhpcy5nZXRMaW5lcyA9IGZ1bmN0aW9uKGZpcnN0Um93LCBsYXN0Um93KSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGxpbmVzLnNsaWNlKGZpcnN0Um93LCBsYXN0Um93ICsgMSk7CiAgICB9OwogICAgdGhpcy5nZXRBbGxMaW5lcyA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiB0aGlzLmdldExpbmVzKDAsIHRoaXMuZ2V0TGVuZ3RoKCkpOwogICAgfTsKICAgIHRoaXMuZ2V0TGVuZ3RoID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGxpbmVzLmxlbmd0aDsKICAgIH07CiAgICB0aGlzLmdldFRleHRSYW5nZSA9IGZ1bmN0aW9uKHJhbmdlKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuZ2V0TGluZXNGb3JSYW5nZShyYW5nZSkuam9pbih0aGlzLmdldE5ld0xpbmVDaGFyYWN0ZXIoKSk7CiAgICB9OwogICAgdGhpcy5nZXRMaW5lc0ZvclJhbmdlID0gZnVuY3Rpb24ocmFuZ2UpIHsKICAgICAgICB2YXIgbGluZXM7CiAgICAgICAgaWYgKHJhbmdlLnN0YXJ0LnJvdyA9PT0gcmFuZ2UuZW5kLnJvdykgewogICAgICAgICAgICBsaW5lcyA9IFt0aGlzLmdldExpbmUocmFuZ2Uuc3RhcnQucm93KS5zdWJzdHJpbmcocmFuZ2Uuc3RhcnQuY29sdW1uLCByYW5nZS5lbmQuY29sdW1uKV07CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgbGluZXMgPSB0aGlzLmdldExpbmVzKHJhbmdlLnN0YXJ0LnJvdywgcmFuZ2UuZW5kLnJvdyk7CiAgICAgICAgICAgIGxpbmVzWzBdID0gKGxpbmVzWzBdIHx8ICIiKS5zdWJzdHJpbmcocmFuZ2Uuc3RhcnQuY29sdW1uKTsKICAgICAgICAgICAgdmFyIGwgPSBsaW5lcy5sZW5ndGggLSAxOwogICAgICAgICAgICBpZiAocmFuZ2UuZW5kLnJvdyAtIHJhbmdlLnN0YXJ0LnJvdyA9PSBsKQogICAgICAgICAgICAgICAgbGluZXNbbF0gPSBsaW5lc1tsXS5zdWJzdHJpbmcoMCwgcmFuZ2UuZW5kLmNvbHVtbik7CiAgICAgICAgfQogICAgICAgIHJldHVybiBsaW5lczsKICAgIH07CiAgICB0aGlzLmluc2VydExpbmVzID0gZnVuY3Rpb24ocm93LCBsaW5lcykgewogICAgICAgIGNvbnNvbGUud2FybigiVXNlIG9mIGRvY3VtZW50Lmluc2VydExpbmVzIGlzIGRlcHJlY2F0ZWQuIFVzZSB0aGUgaW5zZXJ0RnVsbExpbmVzIG1ldGhvZCBpbnN0ZWFkLiIpOwogICAgICAgIHJldHVybiB0aGlzLmluc2VydEZ1bGxMaW5lcyhyb3csIGxpbmVzKTsKICAgIH07CiAgICB0aGlzLnJlbW92ZUxpbmVzID0gZnVuY3Rpb24oZmlyc3RSb3csIGxhc3RSb3cpIHsKICAgICAgICBjb25zb2xlLndhcm4oIlVzZSBvZiBkb2N1bWVudC5yZW1vdmVMaW5lcyBpcyBkZXByZWNhdGVkLiBVc2UgdGhlIHJlbW92ZUZ1bGxMaW5lcyBtZXRob2QgaW5zdGVhZC4iKTsKICAgICAgICByZXR1cm4gdGhpcy5yZW1vdmVGdWxsTGluZXMoZmlyc3RSb3csIGxhc3RSb3cpOwogICAgfTsKICAgIHRoaXMuaW5zZXJ0TmV3TGluZSA9IGZ1bmN0aW9uKHBvc2l0aW9uKSB7CiAgICAgICAgY29uc29sZS53YXJuKCJVc2Ugb2YgZG9jdW1lbnQuaW5zZXJ0TmV3TGluZSBpcyBkZXByZWNhdGVkLiBVc2UgaW5zZXJ0TWVyZ2VkTGluZXMocG9zaXRpb24sIFsnJywgJyddKSBpbnN0ZWFkLiIpOwogICAgICAgIHJldHVybiB0aGlzLmluc2VydE1lcmdlZExpbmVzKHBvc2l0aW9uLCBbIiIsICIiXSk7CiAgICB9OwogICAgdGhpcy5pbnNlcnQgPSBmdW5jdGlvbihwb3NpdGlvbiwgdGV4dCkgewogICAgICAgIGlmICh0aGlzLmdldExlbmd0aCgpIDw9IDEpCiAgICAgICAgICAgIHRoaXMuJGRldGVjdE5ld0xpbmUodGV4dCk7CiAgICAgICAgCiAgICAgICAgcmV0dXJuIHRoaXMuaW5zZXJ0TWVyZ2VkTGluZXMocG9zaXRpb24sIHRoaXMuJHNwbGl0KHRleHQpKTsKICAgIH07CiAgICB0aGlzLmluc2VydEluTGluZSA9IGZ1bmN0aW9uKHBvc2l0aW9uLCB0ZXh0KSB7CiAgICAgICAgdmFyIHN0YXJ0ID0gdGhpcy5jbGlwcGVkUG9zKHBvc2l0aW9uLnJvdywgcG9zaXRpb24uY29sdW1uKTsKICAgICAgICB2YXIgZW5kID0gdGhpcy5wb3MocG9zaXRpb24ucm93LCBwb3NpdGlvbi5jb2x1bW4gKyB0ZXh0Lmxlbmd0aCk7CiAgICAgICAgCiAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgc3RhcnQ6IHN0YXJ0LAogICAgICAgICAgICBlbmQ6IGVuZCwKICAgICAgICAgICAgYWN0aW9uOiAiaW5zZXJ0IiwKICAgICAgICAgICAgbGluZXM6IFt0ZXh0XQogICAgICAgIH0sIHRydWUpOwogICAgICAgIAogICAgICAgIHJldHVybiB0aGlzLmNsb25lUG9zKGVuZCk7CiAgICB9OwogICAgCiAgICB0aGlzLmNsaXBwZWRQb3MgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIHZhciBsZW5ndGggPSB0aGlzLmdldExlbmd0aCgpOwogICAgICAgIGlmIChyb3cgPT09IHVuZGVmaW5lZCkgewogICAgICAgICAgICByb3cgPSBsZW5ndGg7CiAgICAgICAgfSBlbHNlIGlmIChyb3cgPCAwKSB7CiAgICAgICAgICAgIHJvdyA9IDA7CiAgICAgICAgfSBlbHNlIGlmIChyb3cgPj0gbGVuZ3RoKSB7CiAgICAgICAgICAgIHJvdyA9IGxlbmd0aCAtIDE7CiAgICAgICAgICAgIGNvbHVtbiA9IHVuZGVmaW5lZDsKICAgICAgICB9CiAgICAgICAgdmFyIGxpbmUgPSB0aGlzLmdldExpbmUocm93KTsKICAgICAgICBpZiAoY29sdW1uID09IHVuZGVmaW5lZCkKICAgICAgICAgICAgY29sdW1uID0gbGluZS5sZW5ndGg7CiAgICAgICAgY29sdW1uID0gTWF0aC5taW4oTWF0aC5tYXgoY29sdW1uLCAwKSwgbGluZS5sZW5ndGgpOwogICAgICAgIHJldHVybiB7cm93OiByb3csIGNvbHVtbjogY29sdW1ufTsKICAgIH07CiAgICAKICAgIHRoaXMuY2xvbmVQb3MgPSBmdW5jdGlvbihwb3MpIHsKICAgICAgICByZXR1cm4ge3JvdzogcG9zLnJvdywgY29sdW1uOiBwb3MuY29sdW1ufTsKICAgIH07CiAgICAKICAgIHRoaXMucG9zID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICByZXR1cm4ge3Jvdzogcm93LCBjb2x1bW46IGNvbHVtbn07CiAgICB9OwogICAgCiAgICB0aGlzLiRjbGlwUG9zaXRpb24gPSBmdW5jdGlvbihwb3NpdGlvbikgewogICAgICAgIHZhciBsZW5ndGggPSB0aGlzLmdldExlbmd0aCgpOwogICAgICAgIGlmIChwb3NpdGlvbi5yb3cgPj0gbGVuZ3RoKSB7CiAgICAgICAgICAgIHBvc2l0aW9uLnJvdyA9IE1hdGgubWF4KDAsIGxlbmd0aCAtIDEpOwogICAgICAgICAgICBwb3NpdGlvbi5jb2x1bW4gPSB0aGlzLmdldExpbmUobGVuZ3RoIC0gMSkubGVuZ3RoOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIHBvc2l0aW9uLnJvdyA9IE1hdGgubWF4KDAsIHBvc2l0aW9uLnJvdyk7CiAgICAgICAgICAgIHBvc2l0aW9uLmNvbHVtbiA9IE1hdGgubWluKE1hdGgubWF4KHBvc2l0aW9uLmNvbHVtbiwgMCksIHRoaXMuZ2V0TGluZShwb3NpdGlvbi5yb3cpLmxlbmd0aCk7CiAgICAgICAgfQogICAgICAgIHJldHVybiBwb3NpdGlvbjsKICAgIH07CiAgICB0aGlzLmluc2VydEZ1bGxMaW5lcyA9IGZ1bmN0aW9uKHJvdywgbGluZXMpIHsKICAgICAgICByb3cgPSBNYXRoLm1pbihNYXRoLm1heChyb3csIDApLCB0aGlzLmdldExlbmd0aCgpKTsKICAgICAgICB2YXIgY29sdW1uID0gMDsKICAgICAgICBpZiAocm93IDwgdGhpcy5nZXRMZW5ndGgoKSkgewogICAgICAgICAgICBsaW5lcyA9IGxpbmVzLmNvbmNhdChbIiJdKTsKICAgICAgICAgICAgY29sdW1uID0gMDsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBsaW5lcyA9IFsiIl0uY29uY2F0KGxpbmVzKTsKICAgICAgICAgICAgcm93LS07CiAgICAgICAgICAgIGNvbHVtbiA9IHRoaXMuJGxpbmVzW3Jvd10ubGVuZ3RoOwogICAgICAgIH0KICAgICAgICB0aGlzLmluc2VydE1lcmdlZExpbmVzKHtyb3c6IHJvdywgY29sdW1uOiBjb2x1bW59LCBsaW5lcyk7CiAgICB9OyAgICAKICAgIHRoaXMuaW5zZXJ0TWVyZ2VkTGluZXMgPSBmdW5jdGlvbihwb3NpdGlvbiwgbGluZXMpIHsKICAgICAgICB2YXIgc3RhcnQgPSB0aGlzLmNsaXBwZWRQb3MocG9zaXRpb24ucm93LCBwb3NpdGlvbi5jb2x1bW4pOwogICAgICAgIHZhciBlbmQgPSB7CiAgICAgICAgICAgIHJvdzogc3RhcnQucm93ICsgbGluZXMubGVuZ3RoIC0gMSwKICAgICAgICAgICAgY29sdW1uOiAobGluZXMubGVuZ3RoID09IDEgPyBzdGFydC5jb2x1bW4gOiAwKSArIGxpbmVzW2xpbmVzLmxlbmd0aCAtIDFdLmxlbmd0aAogICAgICAgIH07CiAgICAgICAgCiAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgc3RhcnQ6IHN0YXJ0LAogICAgICAgICAgICBlbmQ6IGVuZCwKICAgICAgICAgICAgYWN0aW9uOiAiaW5zZXJ0IiwKICAgICAgICAgICAgbGluZXM6IGxpbmVzCiAgICAgICAgfSk7CiAgICAgICAgCiAgICAgICAgcmV0dXJuIHRoaXMuY2xvbmVQb3MoZW5kKTsKICAgIH07CiAgICB0aGlzLnJlbW92ZSA9IGZ1bmN0aW9uKHJhbmdlKSB7CiAgICAgICAgdmFyIHN0YXJ0ID0gdGhpcy5jbGlwcGVkUG9zKHJhbmdlLnN0YXJ0LnJvdywgcmFuZ2Uuc3RhcnQuY29sdW1uKTsKICAgICAgICB2YXIgZW5kID0gdGhpcy5jbGlwcGVkUG9zKHJhbmdlLmVuZC5yb3csIHJhbmdlLmVuZC5jb2x1bW4pOwogICAgICAgIHRoaXMuYXBwbHlEZWx0YSh7CiAgICAgICAgICAgIHN0YXJ0OiBzdGFydCwKICAgICAgICAgICAgZW5kOiBlbmQsCiAgICAgICAgICAgIGFjdGlvbjogInJlbW92ZSIsCiAgICAgICAgICAgIGxpbmVzOiB0aGlzLmdldExpbmVzRm9yUmFuZ2Uoe3N0YXJ0OiBzdGFydCwgZW5kOiBlbmR9KQogICAgICAgIH0pOwogICAgICAgIHJldHVybiB0aGlzLmNsb25lUG9zKHN0YXJ0KTsKICAgIH07CiAgICB0aGlzLnJlbW92ZUluTGluZSA9IGZ1bmN0aW9uKHJvdywgc3RhcnRDb2x1bW4sIGVuZENvbHVtbikgewogICAgICAgIHZhciBzdGFydCA9IHRoaXMuY2xpcHBlZFBvcyhyb3csIHN0YXJ0Q29sdW1uKTsKICAgICAgICB2YXIgZW5kID0gdGhpcy5jbGlwcGVkUG9zKHJvdywgZW5kQ29sdW1uKTsKICAgICAgICAKICAgICAgICB0aGlzLmFwcGx5RGVsdGEoewogICAgICAgICAgICBzdGFydDogc3RhcnQsCiAgICAgICAgICAgIGVuZDogZW5kLAogICAgICAgICAgICBhY3Rpb246ICJyZW1vdmUiLAogICAgICAgICAgICBsaW5lczogdGhpcy5nZXRMaW5lc0ZvclJhbmdlKHtzdGFydDogc3RhcnQsIGVuZDogZW5kfSkKICAgICAgICB9LCB0cnVlKTsKICAgICAgICAKICAgICAgICByZXR1cm4gdGhpcy5jbG9uZVBvcyhzdGFydCk7CiAgICB9OwogICAgdGhpcy5yZW1vdmVGdWxsTGluZXMgPSBmdW5jdGlvbihmaXJzdFJvdywgbGFzdFJvdykgewogICAgICAgIGZpcnN0Um93ID0gTWF0aC5taW4oTWF0aC5tYXgoMCwgZmlyc3RSb3cpLCB0aGlzLmdldExlbmd0aCgpIC0gMSk7CiAgICAgICAgbGFzdFJvdyAgPSBNYXRoLm1pbihNYXRoLm1heCgwLCBsYXN0Um93ICksIHRoaXMuZ2V0TGVuZ3RoKCkgLSAxKTsKICAgICAgICB2YXIgZGVsZXRlRmlyc3ROZXdMaW5lID0gbGFzdFJvdyA9PSB0aGlzLmdldExlbmd0aCgpIC0gMSAmJiBmaXJzdFJvdyA+IDA7CiAgICAgICAgdmFyIGRlbGV0ZUxhc3ROZXdMaW5lICA9IGxhc3RSb3cgIDwgdGhpcy5nZXRMZW5ndGgoKSAtIDE7CiAgICAgICAgdmFyIHN0YXJ0Um93ID0gKCBkZWxldGVGaXJzdE5ld0xpbmUgPyBmaXJzdFJvdyAtIDEgICAgICAgICAgICAgICAgICA6IGZpcnN0Um93ICAgICAgICAgICAgICAgICAgICApOwogICAgICAgIHZhciBzdGFydENvbCA9ICggZGVsZXRlRmlyc3ROZXdMaW5lID8gdGhpcy5nZXRMaW5lKHN0YXJ0Um93KS5sZW5ndGggOiAwICAgICAgICAgICAgICAgICAgICAgICAgICAgKTsKICAgICAgICB2YXIgZW5kUm93ICAgPSAoIGRlbGV0ZUxhc3ROZXdMaW5lICA/IGxhc3RSb3cgKyAxICAgICAgICAgICAgICAgICAgIDogbGFzdFJvdyAgICAgICAgICAgICAgICAgICAgICk7CiAgICAgICAgdmFyIGVuZENvbCAgID0gKCBkZWxldGVMYXN0TmV3TGluZSAgPyAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICA6IHRoaXMuZ2V0TGluZShlbmRSb3cpLmxlbmd0aCApOyAKICAgICAgICB2YXIgcmFuZ2UgPSBuZXcgUmFuZ2Uoc3RhcnRSb3csIHN0YXJ0Q29sLCBlbmRSb3csIGVuZENvbCk7CiAgICAgICAgdmFyIGRlbGV0ZWRMaW5lcyA9IHRoaXMuJGxpbmVzLnNsaWNlKGZpcnN0Um93LCBsYXN0Um93ICsgMSk7CiAgICAgICAgCiAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgc3RhcnQ6IHJhbmdlLnN0YXJ0LAogICAgICAgICAgICBlbmQ6IHJhbmdlLmVuZCwKICAgICAgICAgICAgYWN0aW9uOiAicmVtb3ZlIiwKICAgICAgICAgICAgbGluZXM6IHRoaXMuZ2V0TGluZXNGb3JSYW5nZShyYW5nZSkKICAgICAgICB9KTsKICAgICAgICByZXR1cm4gZGVsZXRlZExpbmVzOwogICAgfTsKICAgIHRoaXMucmVtb3ZlTmV3TGluZSA9IGZ1bmN0aW9uKHJvdykgewogICAgICAgIGlmIChyb3cgPCB0aGlzLmdldExlbmd0aCgpIC0gMSAmJiByb3cgPj0gMCkgewogICAgICAgICAgICB0aGlzLmFwcGx5RGVsdGEoewogICAgICAgICAgICAgICAgc3RhcnQ6IHRoaXMucG9zKHJvdywgdGhpcy5nZXRMaW5lKHJvdykubGVuZ3RoKSwKICAgICAgICAgICAgICAgIGVuZDogdGhpcy5wb3Mocm93ICsgMSwgMCksCiAgICAgICAgICAgICAgICBhY3Rpb246ICJyZW1vdmUiLAogICAgICAgICAgICAgICAgbGluZXM6IFsiIiwgIiJdCiAgICAgICAgICAgIH0pOwogICAgICAgIH0KICAgIH07CiAgICB0aGlzLnJlcGxhY2UgPSBmdW5jdGlvbihyYW5nZSwgdGV4dCkgewogICAgICAgIGlmICghKHJhbmdlIGluc3RhbmNlb2YgUmFuZ2UpKQogICAgICAgICAgICByYW5nZSA9IFJhbmdlLmZyb21Qb2ludHMocmFuZ2Uuc3RhcnQsIHJhbmdlLmVuZCk7CiAgICAgICAgaWYgKHRleHQubGVuZ3RoID09PSAwICYmIHJhbmdlLmlzRW1wdHkoKSkKICAgICAgICAgICAgcmV0dXJuIHJhbmdlLnN0YXJ0OwogICAgICAgIGlmICh0ZXh0ID09IHRoaXMuZ2V0VGV4dFJhbmdlKHJhbmdlKSkKICAgICAgICAgICAgcmV0dXJuIHJhbmdlLmVuZDsKCiAgICAgICAgdGhpcy5yZW1vdmUocmFuZ2UpOwogICAgICAgIHZhciBlbmQ7CiAgICAgICAgaWYgKHRleHQpIHsKICAgICAgICAgICAgZW5kID0gdGhpcy5pbnNlcnQocmFuZ2Uuc3RhcnQsIHRleHQpOwogICAgICAgIH0KICAgICAgICBlbHNlIHsKICAgICAgICAgICAgZW5kID0gcmFuZ2Uuc3RhcnQ7CiAgICAgICAgfQogICAgICAgIAogICAgICAgIHJldHVybiBlbmQ7CiAgICB9OwogICAgdGhpcy5hcHBseURlbHRhcyA9IGZ1bmN0aW9uKGRlbHRhcykgewogICAgICAgIGZvciAodmFyIGk9MDsgaTxkZWx0YXMubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgdGhpcy5hcHBseURlbHRhKGRlbHRhc1tpXSk7CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMucmV2ZXJ0RGVsdGFzID0gZnVuY3Rpb24oZGVsdGFzKSB7CiAgICAgICAgZm9yICh2YXIgaT1kZWx0YXMubGVuZ3RoLTE7IGk+PTA7IGktLSkgewogICAgICAgICAgICB0aGlzLnJldmVydERlbHRhKGRlbHRhc1tpXSk7CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMuYXBwbHlEZWx0YSA9IGZ1bmN0aW9uKGRlbHRhLCBkb05vdFZhbGlkYXRlKSB7CiAgICAgICAgdmFyIGlzSW5zZXJ0ID0gZGVsdGEuYWN0aW9uID09ICJpbnNlcnQiOwogICAgICAgIGlmIChpc0luc2VydCA/IGRlbHRhLmxpbmVzLmxlbmd0aCA8PSAxICYmICFkZWx0YS5saW5lc1swXQogICAgICAgICAgICA6ICFSYW5nZS5jb21wYXJlUG9pbnRzKGRlbHRhLnN0YXJ0LCBkZWx0YS5lbmQpKSB7CiAgICAgICAgICAgIHJldHVybjsKICAgICAgICB9CiAgICAgICAgCiAgICAgICAgaWYgKGlzSW5zZXJ0ICYmIGRlbHRhLmxpbmVzLmxlbmd0aCA+IDIwMDAwKSB7CiAgICAgICAgICAgIHRoaXMuJHNwbGl0QW5kYXBwbHlMYXJnZURlbHRhKGRlbHRhLCAyMDAwMCk7CiAgICAgICAgfQogICAgICAgIGVsc2UgewogICAgICAgICAgICBhcHBseURlbHRhKHRoaXMuJGxpbmVzLCBkZWx0YSwgZG9Ob3RWYWxpZGF0ZSk7CiAgICAgICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlIiwgZGVsdGEpOwogICAgICAgIH0KICAgIH07CiAgICAKICAgIHRoaXMuJHNwbGl0QW5kYXBwbHlMYXJnZURlbHRhID0gZnVuY3Rpb24oZGVsdGEsIE1BWCkgewogICAgICAgIHZhciBsaW5lcyA9IGRlbHRhLmxpbmVzOwogICAgICAgIHZhciBsID0gbGluZXMubGVuZ3RoIC0gTUFYICsgMTsKICAgICAgICB2YXIgcm93ID0gZGVsdGEuc3RhcnQucm93OyAKICAgICAgICB2YXIgY29sdW1uID0gZGVsdGEuc3RhcnQuY29sdW1uOwogICAgICAgIGZvciAodmFyIGZyb20gPSAwLCB0byA9IDA7IGZyb20gPCBsOyBmcm9tID0gdG8pIHsKICAgICAgICAgICAgdG8gKz0gTUFYIC0gMTsKICAgICAgICAgICAgdmFyIGNodW5rID0gbGluZXMuc2xpY2UoZnJvbSwgdG8pOwogICAgICAgICAgICBjaHVuay5wdXNoKCIiKTsKICAgICAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgICAgIHN0YXJ0OiB0aGlzLnBvcyhyb3cgKyBmcm9tLCBjb2x1bW4pLAogICAgICAgICAgICAgICAgZW5kOiB0aGlzLnBvcyhyb3cgKyB0bywgY29sdW1uID0gMCksCiAgICAgICAgICAgICAgICBhY3Rpb246IGRlbHRhLmFjdGlvbiwKICAgICAgICAgICAgICAgIGxpbmVzOiBjaHVuawogICAgICAgICAgICB9LCB0cnVlKTsKICAgICAgICB9CiAgICAgICAgZGVsdGEubGluZXMgPSBsaW5lcy5zbGljZShmcm9tKTsKICAgICAgICBkZWx0YS5zdGFydC5yb3cgPSByb3cgKyBmcm9tOwogICAgICAgIGRlbHRhLnN0YXJ0LmNvbHVtbiA9IGNvbHVtbjsKICAgICAgICB0aGlzLmFwcGx5RGVsdGEoZGVsdGEsIHRydWUpOwogICAgfTsKICAgIHRoaXMucmV2ZXJ0RGVsdGEgPSBmdW5jdGlvbihkZWx0YSkgewogICAgICAgIHRoaXMuYXBwbHlEZWx0YSh7CiAgICAgICAgICAgIHN0YXJ0OiB0aGlzLmNsb25lUG9zKGRlbHRhLnN0YXJ0KSwKICAgICAgICAgICAgZW5kOiB0aGlzLmNsb25lUG9zKGRlbHRhLmVuZCksCiAgICAgICAgICAgIGFjdGlvbjogKGRlbHRhLmFjdGlvbiA9PSAiaW5zZXJ0IiA/ICJyZW1vdmUiIDogImluc2VydCIpLAogICAgICAgICAgICBsaW5lczogZGVsdGEubGluZXMuc2xpY2UoKQogICAgICAgIH0pOwogICAgfTsKICAgIHRoaXMuaW5kZXhUb1Bvc2l0aW9uID0gZnVuY3Rpb24oaW5kZXgsIHN0YXJ0Um93KSB7CiAgICAgICAgdmFyIGxpbmVzID0gdGhpcy4kbGluZXMgfHwgdGhpcy5nZXRBbGxMaW5lcygpOwogICAgICAgIHZhciBuZXdsaW5lTGVuZ3RoID0gdGhpcy5nZXROZXdMaW5lQ2hhcmFjdGVyKCkubGVuZ3RoOwogICAgICAgIGZvciAodmFyIGkgPSBzdGFydFJvdyB8fCAwLCBsID0gbGluZXMubGVuZ3RoOyBpIDwgbDsgaSsrKSB7CiAgICAgICAgICAgIGluZGV4IC09IGxpbmVzW2ldLmxlbmd0aCArIG5ld2xpbmVMZW5ndGg7CiAgICAgICAgICAgIGlmIChpbmRleCA8IDApCiAgICAgICAgICAgICAgICByZXR1cm4ge3JvdzogaSwgY29sdW1uOiBpbmRleCArIGxpbmVzW2ldLmxlbmd0aCArIG5ld2xpbmVMZW5ndGh9OwogICAgICAgIH0KICAgICAgICByZXR1cm4ge3JvdzogbC0xLCBjb2x1bW46IGluZGV4ICsgbGluZXNbbC0xXS5sZW5ndGggKyBuZXdsaW5lTGVuZ3RofTsKICAgIH07CiAgICB0aGlzLnBvc2l0aW9uVG9JbmRleCA9IGZ1bmN0aW9uKHBvcywgc3RhcnRSb3cpIHsKICAgICAgICB2YXIgbGluZXMgPSB0aGlzLiRsaW5lcyB8fCB0aGlzLmdldEFsbExpbmVzKCk7CiAgICAgICAgdmFyIG5ld2xpbmVMZW5ndGggPSB0aGlzLmdldE5ld0xpbmVDaGFyYWN0ZXIoKS5sZW5ndGg7CiAgICAgICAgdmFyIGluZGV4ID0gMDsKICAgICAgICB2YXIgcm93ID0gTWF0aC5taW4ocG9zLnJvdywgbGluZXMubGVuZ3RoKTsKICAgICAgICBmb3IgKHZhciBpID0gc3RhcnRSb3cgfHwgMDsgaSA8IHJvdzsgKytpKQogICAgICAgICAgICBpbmRleCArPSBsaW5lc1tpXS5sZW5ndGggKyBuZXdsaW5lTGVuZ3RoOwoKICAgICAgICByZXR1cm4gaW5kZXggKyBwb3MuY29sdW1uOwogICAgfTsKCn0pLmNhbGwoRG9jdW1lbnQucHJvdG90eXBlKTsKCmV4cG9ydHMuRG9jdW1lbnQgPSBEb2N1bWVudDsKfSk7CgphY2UuZGVmaW5lKCJhY2UvbGliL2xhbmciLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwoKZXhwb3J0cy5sYXN0ID0gZnVuY3Rpb24oYSkgewogICAgcmV0dXJuIGFbYS5sZW5ndGggLSAxXTsKfTsKCmV4cG9ydHMuc3RyaW5nUmV2ZXJzZSA9IGZ1bmN0aW9uKHN0cmluZykgewogICAgcmV0dXJuIHN0cmluZy5zcGxpdCgiIikucmV2ZXJzZSgpLmpvaW4oIiIpOwp9OwoKZXhwb3J0cy5zdHJpbmdSZXBlYXQgPSBmdW5jdGlvbiAoc3RyaW5nLCBjb3VudCkgewogICAgdmFyIHJlc3VsdCA9ICcnOwogICAgd2hpbGUgKGNvdW50ID4gMCkgewogICAgICAgIGlmIChjb3VudCAmIDEpCiAgICAgICAgICAgIHJlc3VsdCArPSBzdHJpbmc7CgogICAgICAgIGlmIChjb3VudCA+Pj0gMSkKICAgICAgICAgICAgc3RyaW5nICs9IHN0cmluZzsKICAgIH0KICAgIHJldHVybiByZXN1bHQ7Cn07Cgp2YXIgdHJpbUJlZ2luUmVnZXhwID0gL15cc1xzKi87CnZhciB0cmltRW5kUmVnZXhwID0gL1xzXHMqJC87CgpleHBvcnRzLnN0cmluZ1RyaW1MZWZ0ID0gZnVuY3Rpb24gKHN0cmluZykgewogICAgcmV0dXJuIHN0cmluZy5yZXBsYWNlKHRyaW1CZWdpblJlZ2V4cCwgJycpOwp9OwoKZXhwb3J0cy5zdHJpbmdUcmltUmlnaHQgPSBmdW5jdGlvbiAoc3RyaW5nKSB7CiAgICByZXR1cm4gc3RyaW5nLnJlcGxhY2UodHJpbUVuZFJlZ2V4cCwgJycpOwp9OwoKZXhwb3J0cy5jb3B5T2JqZWN0ID0gZnVuY3Rpb24ob2JqKSB7CiAgICB2YXIgY29weSA9IHt9OwogICAgZm9yICh2YXIga2V5IGluIG9iaikgewogICAgICAgIGNvcHlba2V5XSA9IG9ialtrZXldOwogICAgfQogICAgcmV0dXJuIGNvcHk7Cn07CgpleHBvcnRzLmNvcHlBcnJheSA9IGZ1bmN0aW9uKGFycmF5KXsKICAgIHZhciBjb3B5ID0gW107CiAgICBmb3IgKHZhciBpPTAsIGw9YXJyYXkubGVuZ3RoOyBpPGw7IGkrKykgewogICAgICAgIGlmIChhcnJheVtpXSAmJiB0eXBlb2YgYXJyYXlbaV0gPT0gIm9iamVjdCIpCiAgICAgICAgICAgIGNvcHlbaV0gPSB0aGlzLmNvcHlPYmplY3QoYXJyYXlbaV0pOwogICAgICAgIGVsc2UgCiAgICAgICAgICAgIGNvcHlbaV0gPSBhcnJheVtpXTsKICAgIH0KICAgIHJldHVybiBjb3B5Owp9OwoKZXhwb3J0cy5kZWVwQ29weSA9IGZ1bmN0aW9uIGRlZXBDb3B5KG9iaikgewogICAgaWYgKHR5cGVvZiBvYmogIT09ICJvYmplY3QiIHx8ICFvYmopCiAgICAgICAgcmV0dXJuIG9iajsKICAgIHZhciBjb3B5OwogICAgaWYgKEFycmF5LmlzQXJyYXkob2JqKSkgewogICAgICAgIGNvcHkgPSBbXTsKICAgICAgICBmb3IgKHZhciBrZXkgPSAwOyBrZXkgPCBvYmoubGVuZ3RoOyBrZXkrKykgewogICAgICAgICAgICBjb3B5W2tleV0gPSBkZWVwQ29weShvYmpba2V5XSk7CiAgICAgICAgfQogICAgICAgIHJldHVybiBjb3B5OwogICAgfQogICAgaWYgKE9iamVjdC5wcm90b3R5cGUudG9TdHJpbmcuY2FsbChvYmopICE9PSAiW29iamVjdCBPYmplY3RdIikKICAgICAgICByZXR1cm4gb2JqOwogICAgCiAgICBjb3B5ID0ge307CiAgICBmb3IgKHZhciBrZXkgaW4gb2JqKQogICAgICAgIGNvcHlba2V5XSA9IGRlZXBDb3B5KG9ialtrZXldKTsKICAgIHJldHVybiBjb3B5Owp9OwoKZXhwb3J0cy5hcnJheVRvTWFwID0gZnVuY3Rpb24oYXJyKSB7CiAgICB2YXIgbWFwID0ge307CiAgICBmb3IgKHZhciBpPTA7IGk8YXJyLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgbWFwW2FycltpXV0gPSAxOwogICAgfQogICAgcmV0dXJuIG1hcDsKCn07CgpleHBvcnRzLmNyZWF0ZU1hcCA9IGZ1bmN0aW9uKHByb3BzKSB7CiAgICB2YXIgbWFwID0gT2JqZWN0LmNyZWF0ZShudWxsKTsKICAgIGZvciAodmFyIGkgaW4gcHJvcHMpIHsKICAgICAgICBtYXBbaV0gPSBwcm9wc1tpXTsKICAgIH0KICAgIHJldHVybiBtYXA7Cn07CmV4cG9ydHMuYXJyYXlSZW1vdmUgPSBmdW5jdGlvbihhcnJheSwgdmFsdWUpIHsKICBmb3IgKHZhciBpID0gMDsgaSA8PSBhcnJheS5sZW5ndGg7IGkrKykgewogICAgaWYgKHZhbHVlID09PSBhcnJheVtpXSkgewogICAgICBhcnJheS5zcGxpY2UoaSwgMSk7CiAgICB9CiAgfQp9OwoKZXhwb3J0cy5lc2NhcGVSZWdFeHAgPSBmdW5jdGlvbihzdHIpIHsKICAgIHJldHVybiBzdHIucmVwbGFjZSgvKFsuKis/XiR7fSgpfFtcXVwvXFxdKS9nLCAnXFwkMScpOwp9OwoKZXhwb3J0cy5lc2NhcGVIVE1MID0gZnVuY3Rpb24oc3RyKSB7CiAgICByZXR1cm4gKCIiICsgc3RyKS5yZXBsYWNlKC8mL2csICImIzM4OyIpLnJlcGxhY2UoLyIvZywgIiYjMzQ7IikucmVwbGFjZSgvJy9nLCAiJiMzOTsiKS5yZXBsYWNlKC88L2csICImIzYwOyIpOwp9OwoKZXhwb3J0cy5nZXRNYXRjaE9mZnNldHMgPSBmdW5jdGlvbihzdHJpbmcsIHJlZ0V4cCkgewogICAgdmFyIG1hdGNoZXMgPSBbXTsKCiAgICBzdHJpbmcucmVwbGFjZShyZWdFeHAsIGZ1bmN0aW9uKHN0cikgewogICAgICAgIG1hdGNoZXMucHVzaCh7CiAgICAgICAgICAgIG9mZnNldDogYXJndW1lbnRzW2FyZ3VtZW50cy5sZW5ndGgtMl0sCiAgICAgICAgICAgIGxlbmd0aDogc3RyLmxlbmd0aAogICAgICAgIH0pOwogICAgfSk7CgogICAgcmV0dXJuIG1hdGNoZXM7Cn07CmV4cG9ydHMuZGVmZXJyZWRDYWxsID0gZnVuY3Rpb24oZmNuKSB7CiAgICB2YXIgdGltZXIgPSBudWxsOwogICAgdmFyIGNhbGxiYWNrID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdGltZXIgPSBudWxsOwogICAgICAgIGZjbigpOwogICAgfTsKCiAgICB2YXIgZGVmZXJyZWQgPSBmdW5jdGlvbih0aW1lb3V0KSB7CiAgICAgICAgZGVmZXJyZWQuY2FuY2VsKCk7CiAgICAgICAgdGltZXIgPSBzZXRUaW1lb3V0KGNhbGxiYWNrLCB0aW1lb3V0IHx8IDApOwogICAgICAgIHJldHVybiBkZWZlcnJlZDsKICAgIH07CgogICAgZGVmZXJyZWQuc2NoZWR1bGUgPSBkZWZlcnJlZDsKCiAgICBkZWZlcnJlZC5jYWxsID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdGhpcy5jYW5jZWwoKTsKICAgICAgICBmY24oKTsKICAgICAgICByZXR1cm4gZGVmZXJyZWQ7CiAgICB9OwoKICAgIGRlZmVycmVkLmNhbmNlbCA9IGZ1bmN0aW9uKCkgewogICAgICAgIGNsZWFyVGltZW91dCh0aW1lcik7CiAgICAgICAgdGltZXIgPSBudWxsOwogICAgICAgIHJldHVybiBkZWZlcnJlZDsKICAgIH07CiAgICAKICAgIGRlZmVycmVkLmlzUGVuZGluZyA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiB0aW1lcjsKICAgIH07CgogICAgcmV0dXJuIGRlZmVycmVkOwp9OwoKCmV4cG9ydHMuZGVsYXllZENhbGwgPSBmdW5jdGlvbihmY24sIGRlZmF1bHRUaW1lb3V0KSB7CiAgICB2YXIgdGltZXIgPSBudWxsOwogICAgdmFyIGNhbGxiYWNrID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdGltZXIgPSBudWxsOwogICAgICAgIGZjbigpOwogICAgfTsKCiAgICB2YXIgX3NlbGYgPSBmdW5jdGlvbih0aW1lb3V0KSB7CiAgICAgICAgaWYgKHRpbWVyID09IG51bGwpCiAgICAgICAgICAgIHRpbWVyID0gc2V0VGltZW91dChjYWxsYmFjaywgdGltZW91dCB8fCBkZWZhdWx0VGltZW91dCk7CiAgICB9OwoKICAgIF9zZWxmLmRlbGF5ID0gZnVuY3Rpb24odGltZW91dCkgewogICAgICAgIHRpbWVyICYmIGNsZWFyVGltZW91dCh0aW1lcik7CiAgICAgICAgdGltZXIgPSBzZXRUaW1lb3V0KGNhbGxiYWNrLCB0aW1lb3V0IHx8IGRlZmF1bHRUaW1lb3V0KTsKICAgIH07CiAgICBfc2VsZi5zY2hlZHVsZSA9IF9zZWxmOwoKICAgIF9zZWxmLmNhbGwgPSBmdW5jdGlvbigpIHsKICAgICAgICB0aGlzLmNhbmNlbCgpOwogICAgICAgIGZjbigpOwogICAgfTsKCiAgICBfc2VsZi5jYW5jZWwgPSBmdW5jdGlvbigpIHsKICAgICAgICB0aW1lciAmJiBjbGVhclRpbWVvdXQodGltZXIpOwogICAgICAgIHRpbWVyID0gbnVsbDsKICAgIH07CgogICAgX3NlbGYuaXNQZW5kaW5nID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRpbWVyOwogICAgfTsKCiAgICByZXR1cm4gX3NlbGY7Cn07Cn0pOwoKYWNlLmRlZmluZSgiYWNlL3dvcmtlci9taXJyb3IiLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwoKdmFyIFJhbmdlID0gcmVxdWlyZSgiLi4vcmFuZ2UiKS5SYW5nZTsKdmFyIERvY3VtZW50ID0gcmVxdWlyZSgiLi4vZG9jdW1lbnQiKS5Eb2N1bWVudDsKdmFyIGxhbmcgPSByZXF1aXJlKCIuLi9saWIvbGFuZyIpOwogICAgCnZhciBNaXJyb3IgPSBleHBvcnRzLk1pcnJvciA9IGZ1bmN0aW9uKHNlbmRlcikgewogICAgdGhpcy5zZW5kZXIgPSBzZW5kZXI7CiAgICB2YXIgZG9jID0gdGhpcy5kb2MgPSBuZXcgRG9jdW1lbnQoIiIpOwogICAgCiAgICB2YXIgZGVmZXJyZWRVcGRhdGUgPSB0aGlzLmRlZmVycmVkVXBkYXRlID0gbGFuZy5kZWxheWVkQ2FsbCh0aGlzLm9uVXBkYXRlLmJpbmQodGhpcykpOwogICAgCiAgICB2YXIgX3NlbGYgPSB0aGlzOwogICAgc2VuZGVyLm9uKCJjaGFuZ2UiLCBmdW5jdGlvbihlKSB7CiAgICAgICAgdmFyIGRhdGEgPSBlLmRhdGE7CiAgICAgICAgaWYgKGRhdGFbMF0uc3RhcnQpIHsKICAgICAgICAgICAgZG9jLmFwcGx5RGVsdGFzKGRhdGEpOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIGZvciAodmFyIGkgPSAwOyBpIDwgZGF0YS5sZW5ndGg7IGkgKz0gMikgewogICAgICAgICAgICAgICAgaWYgKEFycmF5LmlzQXJyYXkoZGF0YVtpKzFdKSkgewogICAgICAgICAgICAgICAgICAgIHZhciBkID0ge2FjdGlvbjogImluc2VydCIsIHN0YXJ0OiBkYXRhW2ldLCBsaW5lczogZGF0YVtpKzFdfTsKICAgICAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICAgICAgdmFyIGQgPSB7YWN0aW9uOiAicmVtb3ZlIiwgc3RhcnQ6IGRhdGFbaV0sIGVuZDogZGF0YVtpKzFdfTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGRvYy5hcHBseURlbHRhKGQsIHRydWUpOwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgIGlmIChfc2VsZi4kdGltZW91dCkKICAgICAgICAgICAgcmV0dXJuIGRlZmVycmVkVXBkYXRlLnNjaGVkdWxlKF9zZWxmLiR0aW1lb3V0KTsKICAgICAgICBfc2VsZi5vblVwZGF0ZSgpOwogICAgfSk7Cn07CgooZnVuY3Rpb24oKSB7CiAgICAKICAgIHRoaXMuJHRpbWVvdXQgPSA1MDA7CiAgICAKICAgIHRoaXMuc2V0VGltZW91dCA9IGZ1bmN0aW9uKHRpbWVvdXQpIHsKICAgICAgICB0aGlzLiR0aW1lb3V0ID0gdGltZW91dDsKICAgIH07CiAgICAKICAgIHRoaXMuc2V0VmFsdWUgPSBmdW5jdGlvbih2YWx1ZSkgewogICAgICAgIHRoaXMuZG9jLnNldFZhbHVlKHZhbHVlKTsKICAgICAgICB0aGlzLmRlZmVycmVkVXBkYXRlLnNjaGVkdWxlKHRoaXMuJHRpbWVvdXQpOwogICAgfTsKICAgIAogICAgdGhpcy5nZXRWYWx1ZSA9IGZ1bmN0aW9uKGNhbGxiYWNrSWQpIHsKICAgICAgICB0aGlzLnNlbmRlci5jYWxsYmFjayh0aGlzLmRvYy5nZXRWYWx1ZSgpLCBjYWxsYmFja0lkKTsKICAgIH07CiAgICAKICAgIHRoaXMub25VcGRhdGUgPSBmdW5jdGlvbigpIHsKICAgIH07CiAgICAKICAgIHRoaXMuaXNQZW5kaW5nID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuZGVmZXJyZWRVcGRhdGUuaXNQZW5kaW5nKCk7CiAgICB9OwogICAgCn0pLmNhbGwoTWlycm9yLnByb3RvdHlwZSk7Cgp9KTsKCmFjZS5kZWZpbmUoImFjZS9tb2RlL2pzb24vanNvbl9wYXJzZSIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7CgogICAgdmFyIGF0LCAgICAgLy8gVGhlIGluZGV4IG9mIHRoZSBjdXJyZW50IGNoYXJhY3RlcgogICAgICAgIGNoLCAgICAgLy8gVGhlIGN1cnJlbnQgY2hhcmFjdGVyCiAgICAgICAgZXNjYXBlZSA9IHsKICAgICAgICAgICAgJyInOiAgJyInLAogICAgICAgICAgICAnXFwnOiAnXFwnLAogICAgICAgICAgICAnLyc6ICAnLycsCiAgICAgICAgICAgIGI6ICAgICdcYicsCiAgICAgICAgICAgIGY6ICAgICdcZicsCiAgICAgICAgICAgIG46ICAgICdcbicsCiAgICAgICAgICAgIHI6ICAgICdccicsCiAgICAgICAgICAgIHQ6ICAgICdcdCcKICAgICAgICB9LAogICAgICAgIHRleHQsCgogICAgICAgIGVycm9yID0gZnVuY3Rpb24gKG0pIHsKCiAgICAgICAgICAgIHRocm93IHsKICAgICAgICAgICAgICAgIG5hbWU6ICAgICdTeW50YXhFcnJvcicsCiAgICAgICAgICAgICAgICBtZXNzYWdlOiBtLAogICAgICAgICAgICAgICAgYXQ6ICAgICAgYXQsCiAgICAgICAgICAgICAgICB0ZXh0OiAgICB0ZXh0CiAgICAgICAgICAgIH07CiAgICAgICAgfSwKCiAgICAgICAgbmV4dCA9IGZ1bmN0aW9uIChjKSB7CgogICAgICAgICAgICBpZiAoYyAmJiBjICE9PSBjaCkgewogICAgICAgICAgICAgICAgZXJyb3IoIkV4cGVjdGVkICciICsgYyArICInIGluc3RlYWQgb2YgJyIgKyBjaCArICInIik7CiAgICAgICAgICAgIH0KCiAgICAgICAgICAgIGNoID0gdGV4dC5jaGFyQXQoYXQpOwogICAgICAgICAgICBhdCArPSAxOwogICAgICAgICAgICByZXR1cm4gY2g7CiAgICAgICAgfSwKCiAgICAgICAgbnVtYmVyID0gZnVuY3Rpb24gKCkgewoKICAgICAgICAgICAgdmFyIG51bWJlciwKICAgICAgICAgICAgICAgIHN0cmluZyA9ICcnOwoKICAgICAgICAgICAgaWYgKGNoID09PSAnLScpIHsKICAgICAgICAgICAgICAgIHN0cmluZyA9ICctJzsKICAgICAgICAgICAgICAgIG5leHQoJy0nKTsKICAgICAgICAgICAgfQogICAgICAgICAgICB3aGlsZSAoY2ggPj0gJzAnICYmIGNoIDw9ICc5JykgewogICAgICAgICAgICAgICAgc3RyaW5nICs9IGNoOwogICAgICAgICAgICAgICAgbmV4dCgpOwogICAgICAgICAgICB9CiAgICAgICAgICAgIGlmIChjaCA9PT0gJy4nKSB7CiAgICAgICAgICAgICAgICBzdHJpbmcgKz0gJy4nOwogICAgICAgICAgICAgICAgd2hpbGUgKG5leHQoKSAmJiBjaCA+PSAnMCcgJiYgY2ggPD0gJzknKSB7CiAgICAgICAgICAgICAgICAgICAgc3RyaW5nICs9IGNoOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIGlmIChjaCA9PT0gJ2UnIHx8IGNoID09PSAnRScpIHsKICAgICAgICAgICAgICAgIHN0cmluZyArPSBjaDsKICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgICAgIGlmIChjaCA9PT0gJy0nIHx8IGNoID09PSAnKycpIHsKICAgICAgICAgICAgICAgICAgICBzdHJpbmcgKz0gY2g7CiAgICAgICAgICAgICAgICAgICAgbmV4dCgpOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgd2hpbGUgKGNoID49ICcwJyAmJiBjaCA8PSAnOScpIHsKICAgICAgICAgICAgICAgICAgICBzdHJpbmcgKz0gY2g7CiAgICAgICAgICAgICAgICAgICAgbmV4dCgpOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIG51bWJlciA9ICtzdHJpbmc7CiAgICAgICAgICAgIGlmIChpc05hTihudW1iZXIpKSB7CiAgICAgICAgICAgICAgICBlcnJvcigiQmFkIG51bWJlciIpOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgcmV0dXJuIG51bWJlcjsKICAgICAgICAgICAgfQogICAgICAgIH0sCgogICAgICAgIHN0cmluZyA9IGZ1bmN0aW9uICgpIHsKCiAgICAgICAgICAgIHZhciBoZXgsCiAgICAgICAgICAgICAgICBpLAogICAgICAgICAgICAgICAgc3RyaW5nID0gJycsCiAgICAgICAgICAgICAgICB1ZmZmZjsKCiAgICAgICAgICAgIGlmIChjaCA9PT0gJyInKSB7CiAgICAgICAgICAgICAgICB3aGlsZSAobmV4dCgpKSB7CiAgICAgICAgICAgICAgICAgICAgaWYgKGNoID09PSAnIicpIHsKICAgICAgICAgICAgICAgICAgICAgICAgbmV4dCgpOwogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gc3RyaW5nOwogICAgICAgICAgICAgICAgICAgIH0gZWxzZSBpZiAoY2ggPT09ICdcXCcpIHsKICAgICAgICAgICAgICAgICAgICAgICAgbmV4dCgpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoY2ggPT09ICd1JykgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgdWZmZmYgPSAwOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgZm9yIChpID0gMDsgaSA8IDQ7IGkgKz0gMSkgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGhleCA9IHBhcnNlSW50KG5leHQoKSwgMTYpOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGlmICghaXNGaW5pdGUoaGV4KSkgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBicmVhazsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdWZmZmYgPSB1ZmZmZiAqIDE2ICsgaGV4OwogICAgICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgICAgICAgICAgc3RyaW5nICs9IFN0cmluZy5mcm9tQ2hhckNvZGUodWZmZmYpOwogICAgICAgICAgICAgICAgICAgICAgICB9IGVsc2UgaWYgKHR5cGVvZiBlc2NhcGVlW2NoXSA9PT0gJ3N0cmluZycpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0cmluZyArPSBlc2NhcGVlW2NoXTsKICAgICAgICAgICAgICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrOwogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgfSBlbHNlIGlmIChjaCA9PSAiXG4iIHx8IGNoID09ICJcciIpIHsKICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWs7CiAgICAgICAgICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAgICAgc3RyaW5nICs9IGNoOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBlcnJvcigiQmFkIHN0cmluZyIpOwogICAgICAgIH0sCgogICAgICAgIHdoaXRlID0gZnVuY3Rpb24gKCkgewoKICAgICAgICAgICAgd2hpbGUgKGNoICYmIGNoIDw9ICcgJykgewogICAgICAgICAgICAgICAgbmV4dCgpOwogICAgICAgICAgICB9CiAgICAgICAgfSwKCiAgICAgICAgd29yZCA9IGZ1bmN0aW9uICgpIHsKCiAgICAgICAgICAgIHN3aXRjaCAoY2gpIHsKICAgICAgICAgICAgY2FzZSAndCc6CiAgICAgICAgICAgICAgICBuZXh0KCd0Jyk7CiAgICAgICAgICAgICAgICBuZXh0KCdyJyk7CiAgICAgICAgICAgICAgICBuZXh0KCd1Jyk7CiAgICAgICAgICAgICAgICBuZXh0KCdlJyk7CiAgICAgICAgICAgICAgICByZXR1cm4gdHJ1ZTsKICAgICAgICAgICAgY2FzZSAnZic6CiAgICAgICAgICAgICAgICBuZXh0KCdmJyk7CiAgICAgICAgICAgICAgICBuZXh0KCdhJyk7CiAgICAgICAgICAgICAgICBuZXh0KCdsJyk7CiAgICAgICAgICAgICAgICBuZXh0KCdzJyk7CiAgICAgICAgICAgICAgICBuZXh0KCdlJyk7CiAgICAgICAgICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgICAgICAgIGNhc2UgJ24nOgogICAgICAgICAgICAgICAgbmV4dCgnbicpOwogICAgICAgICAgICAgICAgbmV4dCgndScpOwogICAgICAgICAgICAgICAgbmV4dCgnbCcpOwogICAgICAgICAgICAgICAgbmV4dCgnbCcpOwogICAgICAgICAgICAgICAgcmV0dXJuIG51bGw7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgZXJyb3IoIlVuZXhwZWN0ZWQgJyIgKyBjaCArICInIik7CiAgICAgICAgfSwKCiAgICAgICAgdmFsdWUsICAvLyBQbGFjZSBob2xkZXIgZm9yIHRoZSB2YWx1ZSBmdW5jdGlvbi4KCiAgICAgICAgYXJyYXkgPSBmdW5jdGlvbiAoKSB7CgogICAgICAgICAgICB2YXIgYXJyYXkgPSBbXTsKCiAgICAgICAgICAgIGlmIChjaCA9PT0gJ1snKSB7CiAgICAgICAgICAgICAgICBuZXh0KCdbJyk7CiAgICAgICAgICAgICAgICB3aGl0ZSgpOwogICAgICAgICAgICAgICAgaWYgKGNoID09PSAnXScpIHsKICAgICAgICAgICAgICAgICAgICBuZXh0KCddJyk7CiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGFycmF5OyAgIC8vIGVtcHR5IGFycmF5CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB3aGlsZSAoY2gpIHsKICAgICAgICAgICAgICAgICAgICBhcnJheS5wdXNoKHZhbHVlKCkpOwogICAgICAgICAgICAgICAgICAgIHdoaXRlKCk7CiAgICAgICAgICAgICAgICAgICAgaWYgKGNoID09PSAnXScpIHsKICAgICAgICAgICAgICAgICAgICAgICAgbmV4dCgnXScpOwogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gYXJyYXk7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIG5leHQoJywnKTsKICAgICAgICAgICAgICAgICAgICB3aGl0ZSgpOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIGVycm9yKCJCYWQgYXJyYXkiKTsKICAgICAgICB9LAoKICAgICAgICBvYmplY3QgPSBmdW5jdGlvbiAoKSB7CgogICAgICAgICAgICB2YXIga2V5LAogICAgICAgICAgICAgICAgb2JqZWN0ID0ge307CgogICAgICAgICAgICBpZiAoY2ggPT09ICd7JykgewogICAgICAgICAgICAgICAgbmV4dCgneycpOwogICAgICAgICAgICAgICAgd2hpdGUoKTsKICAgICAgICAgICAgICAgIGlmIChjaCA9PT0gJ30nKSB7CiAgICAgICAgICAgICAgICAgICAgbmV4dCgnfScpOwogICAgICAgICAgICAgICAgICAgIHJldHVybiBvYmplY3Q7ICAgLy8gZW1wdHkgb2JqZWN0CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB3aGlsZSAoY2gpIHsKICAgICAgICAgICAgICAgICAgICBrZXkgPSBzdHJpbmcoKTsKICAgICAgICAgICAgICAgICAgICB3aGl0ZSgpOwogICAgICAgICAgICAgICAgICAgIG5leHQoJzonKTsKICAgICAgICAgICAgICAgICAgICBpZiAoT2JqZWN0Lmhhc093blByb3BlcnR5LmNhbGwob2JqZWN0LCBrZXkpKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIGVycm9yKCdEdXBsaWNhdGUga2V5ICInICsga2V5ICsgJyInKTsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgb2JqZWN0W2tleV0gPSB2YWx1ZSgpOwogICAgICAgICAgICAgICAgICAgIHdoaXRlKCk7CiAgICAgICAgICAgICAgICAgICAgaWYgKGNoID09PSAnfScpIHsKICAgICAgICAgICAgICAgICAgICAgICAgbmV4dCgnfScpOwogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gb2JqZWN0OwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBuZXh0KCcsJyk7CiAgICAgICAgICAgICAgICAgICAgd2hpdGUoKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBlcnJvcigiQmFkIG9iamVjdCIpOwogICAgICAgIH07CgogICAgdmFsdWUgPSBmdW5jdGlvbiAoKSB7CgogICAgICAgIHdoaXRlKCk7CiAgICAgICAgc3dpdGNoIChjaCkgewogICAgICAgIGNhc2UgJ3snOgogICAgICAgICAgICByZXR1cm4gb2JqZWN0KCk7CiAgICAgICAgY2FzZSAnWyc6CiAgICAgICAgICAgIHJldHVybiBhcnJheSgpOwogICAgICAgIGNhc2UgJyInOgogICAgICAgICAgICByZXR1cm4gc3RyaW5nKCk7CiAgICAgICAgY2FzZSAnLSc6CiAgICAgICAgICAgIHJldHVybiBudW1iZXIoKTsKICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICByZXR1cm4gY2ggPj0gJzAnICYmIGNoIDw9ICc5JyA/IG51bWJlcigpIDogd29yZCgpOwogICAgICAgIH0KICAgIH07CgogICAgcmV0dXJuIGZ1bmN0aW9uIChzb3VyY2UsIHJldml2ZXIpIHsKICAgICAgICB2YXIgcmVzdWx0OwoKICAgICAgICB0ZXh0ID0gc291cmNlOwogICAgICAgIGF0ID0gMDsKICAgICAgICBjaCA9ICcgJzsKICAgICAgICByZXN1bHQgPSB2YWx1ZSgpOwogICAgICAgIHdoaXRlKCk7CiAgICAgICAgaWYgKGNoKSB7CiAgICAgICAgICAgIGVycm9yKCJTeW50YXggZXJyb3IiKTsKICAgICAgICB9CgogICAgICAgIHJldHVybiB0eXBlb2YgcmV2aXZlciA9PT0gJ2Z1bmN0aW9uJyA/IGZ1bmN0aW9uIHdhbGsoaG9sZGVyLCBrZXkpIHsKICAgICAgICAgICAgdmFyIGssIHYsIHZhbHVlID0gaG9sZGVyW2tleV07CiAgICAgICAgICAgIGlmICh2YWx1ZSAmJiB0eXBlb2YgdmFsdWUgPT09ICdvYmplY3QnKSB7CiAgICAgICAgICAgICAgICBmb3IgKGsgaW4gdmFsdWUpIHsKICAgICAgICAgICAgICAgICAgICBpZiAoT2JqZWN0Lmhhc093blByb3BlcnR5LmNhbGwodmFsdWUsIGspKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHYgPSB3YWxrKHZhbHVlLCBrKTsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHYgIT09IHVuZGVmaW5lZCkgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgdmFsdWVba10gPSB2OwogICAgICAgICAgICAgICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgZGVsZXRlIHZhbHVlW2tdOwogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIHJldHVybiByZXZpdmVyLmNhbGwoaG9sZGVyLCBrZXksIHZhbHVlKTsKICAgICAgICB9KHsnJzogcmVzdWx0fSwgJycpIDogcmVzdWx0OwogICAgfTsKfSk7CgphY2UuZGVmaW5lKCJhY2UvbW9kZS9qc29uX3dvcmtlciIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7Cgp2YXIgb29wID0gcmVxdWlyZSgiLi4vbGliL29vcCIpOwp2YXIgTWlycm9yID0gcmVxdWlyZSgiLi4vd29ya2VyL21pcnJvciIpLk1pcnJvcjsKdmFyIHBhcnNlID0gcmVxdWlyZSgiLi9qc29uL2pzb25fcGFyc2UiKTsKCnZhciBKc29uV29ya2VyID0gZXhwb3J0cy5Kc29uV29ya2VyID0gZnVuY3Rpb24oc2VuZGVyKSB7CiAgICBNaXJyb3IuY2FsbCh0aGlzLCBzZW5kZXIpOwogICAgdGhpcy5zZXRUaW1lb3V0KDIwMCk7Cn07Cgpvb3AuaW5oZXJpdHMoSnNvbldvcmtlciwgTWlycm9yKTsKCihmdW5jdGlvbigpIHsKCiAgICB0aGlzLm9uVXBkYXRlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdmFyIHZhbHVlID0gdGhpcy5kb2MuZ2V0VmFsdWUoKTsKICAgICAgICB2YXIgZXJyb3JzID0gW107CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHZhbHVlKQogICAgICAgICAgICAgICAgcGFyc2UodmFsdWUpOwogICAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICAgICAgdmFyIHBvcyA9IHRoaXMuZG9jLmluZGV4VG9Qb3NpdGlvbihlLmF0LTEpOwogICAgICAgICAgICBlcnJvcnMucHVzaCh7CiAgICAgICAgICAgICAgICByb3c6IHBvcy5yb3csCiAgICAgICAgICAgICAgICBjb2x1bW46IHBvcy5jb2x1bW4sCiAgICAgICAgICAgICAgICB0ZXh0OiBlLm1lc3NhZ2UsCiAgICAgICAgICAgICAgICB0eXBlOiAiZXJyb3IiCiAgICAgICAgICAgIH0pOwogICAgICAgIH0KICAgICAgICB0aGlzLnNlbmRlci5lbWl0KCJhbm5vdGF0ZSIsIGVycm9ycyk7CiAgICB9OwoKfSkuY2FsbChKc29uV29ya2VyLnByb3RvdHlwZSk7Cgp9KTsKCmFjZS5kZWZpbmUoImFjZS9saWIvZXM1LXNoaW0iLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKCmZ1bmN0aW9uIEVtcHR5KCkge30KCmlmICghRnVuY3Rpb24ucHJvdG90eXBlLmJpbmQpIHsKICAgIEZ1bmN0aW9uLnByb3RvdHlwZS5iaW5kID0gZnVuY3Rpb24gYmluZCh0aGF0KSB7IC8vIC5sZW5ndGggaXMgMQogICAgICAgIHZhciB0YXJnZXQgPSB0aGlzOwogICAgICAgIGlmICh0eXBlb2YgdGFyZ2V0ICE9ICJmdW5jdGlvbiIpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigiRnVuY3Rpb24ucHJvdG90eXBlLmJpbmQgY2FsbGVkIG9uIGluY29tcGF0aWJsZSAiICsgdGFyZ2V0KTsKICAgICAgICB9CiAgICAgICAgdmFyIGFyZ3MgPSBzbGljZS5jYWxsKGFyZ3VtZW50cywgMSk7IC8vIGZvciBub3JtYWwgY2FsbAogICAgICAgIHZhciBib3VuZCA9IGZ1bmN0aW9uICgpIHsKCiAgICAgICAgICAgIGlmICh0aGlzIGluc3RhbmNlb2YgYm91bmQpIHsKCiAgICAgICAgICAgICAgICB2YXIgcmVzdWx0ID0gdGFyZ2V0LmFwcGx5KAogICAgICAgICAgICAgICAgICAgIHRoaXMsCiAgICAgICAgICAgICAgICAgICAgYXJncy5jb25jYXQoc2xpY2UuY2FsbChhcmd1bWVudHMpKQogICAgICAgICAgICAgICAgKTsKICAgICAgICAgICAgICAgIGlmIChPYmplY3QocmVzdWx0KSA9PT0gcmVzdWx0KSB7CiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHJlc3VsdDsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIHJldHVybiB0aGlzOwoKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiB0YXJnZXQuYXBwbHkoCiAgICAgICAgICAgICAgICAgICAgdGhhdCwKICAgICAgICAgICAgICAgICAgICBhcmdzLmNvbmNhdChzbGljZS5jYWxsKGFyZ3VtZW50cykpCiAgICAgICAgICAgICAgICApOwoKICAgICAgICAgICAgfQoKICAgICAgICB9OwogICAgICAgIGlmKHRhcmdldC5wcm90b3R5cGUpIHsKICAgICAgICAgICAgRW1wdHkucHJvdG90eXBlID0gdGFyZ2V0LnByb3RvdHlwZTsKICAgICAgICAgICAgYm91bmQucHJvdG90eXBlID0gbmV3IEVtcHR5KCk7CiAgICAgICAgICAgIEVtcHR5LnByb3RvdHlwZSA9IG51bGw7CiAgICAgICAgfQogICAgICAgIHJldHVybiBib3VuZDsKICAgIH07Cn0KdmFyIGNhbGwgPSBGdW5jdGlvbi5wcm90b3R5cGUuY2FsbDsKdmFyIHByb3RvdHlwZU9mQXJyYXkgPSBBcnJheS5wcm90b3R5cGU7CnZhciBwcm90b3R5cGVPZk9iamVjdCA9IE9iamVjdC5wcm90b3R5cGU7CnZhciBzbGljZSA9IHByb3RvdHlwZU9mQXJyYXkuc2xpY2U7CnZhciBfdG9TdHJpbmcgPSBjYWxsLmJpbmQocHJvdG90eXBlT2ZPYmplY3QudG9TdHJpbmcpOwp2YXIgb3ducyA9IGNhbGwuYmluZChwcm90b3R5cGVPZk9iamVjdC5oYXNPd25Qcm9wZXJ0eSk7CnZhciBkZWZpbmVHZXR0ZXI7CnZhciBkZWZpbmVTZXR0ZXI7CnZhciBsb29rdXBHZXR0ZXI7CnZhciBsb29rdXBTZXR0ZXI7CnZhciBzdXBwb3J0c0FjY2Vzc29yczsKaWYgKChzdXBwb3J0c0FjY2Vzc29ycyA9IG93bnMocHJvdG90eXBlT2ZPYmplY3QsICJfX2RlZmluZUdldHRlcl9fIikpKSB7CiAgICBkZWZpbmVHZXR0ZXIgPSBjYWxsLmJpbmQocHJvdG90eXBlT2ZPYmplY3QuX19kZWZpbmVHZXR0ZXJfXyk7CiAgICBkZWZpbmVTZXR0ZXIgPSBjYWxsLmJpbmQocHJvdG90eXBlT2ZPYmplY3QuX19kZWZpbmVTZXR0ZXJfXyk7CiAgICBsb29rdXBHZXR0ZXIgPSBjYWxsLmJpbmQocHJvdG90eXBlT2ZPYmplY3QuX19sb29rdXBHZXR0ZXJfXyk7CiAgICBsb29rdXBTZXR0ZXIgPSBjYWxsLmJpbmQocHJvdG90eXBlT2ZPYmplY3QuX19sb29rdXBTZXR0ZXJfXyk7Cn0KaWYgKFsxLDJdLnNwbGljZSgwKS5sZW5ndGggIT0gMikgewogICAgaWYoZnVuY3Rpb24oKSB7IC8vIHRlc3QgSUUgPCA5IHRvIHNwbGljZSBidWcgLSBzZWUgaXNzdWUgIzEzOAogICAgICAgIGZ1bmN0aW9uIG1ha2VBcnJheShsKSB7CiAgICAgICAgICAgIHZhciBhID0gbmV3IEFycmF5KGwrMik7CiAgICAgICAgICAgIGFbMF0gPSBhWzFdID0gMDsKICAgICAgICAgICAgcmV0dXJuIGE7CiAgICAgICAgfQogICAgICAgIHZhciBhcnJheSA9IFtdLCBsZW5ndGhCZWZvcmU7CiAgICAgICAgCiAgICAgICAgYXJyYXkuc3BsaWNlLmFwcGx5KGFycmF5LCBtYWtlQXJyYXkoMjApKTsKICAgICAgICBhcnJheS5zcGxpY2UuYXBwbHkoYXJyYXksIG1ha2VBcnJheSgyNikpOwoKICAgICAgICBsZW5ndGhCZWZvcmUgPSBhcnJheS5sZW5ndGg7IC8vNDYKICAgICAgICBhcnJheS5zcGxpY2UoNSwgMCwgIlhYWCIpOyAvLyBhZGQgb25lIGVsZW1lbnQKCiAgICAgICAgbGVuZ3RoQmVmb3JlICsgMSA9PSBhcnJheS5sZW5ndGgKCiAgICAgICAgaWYgKGxlbmd0aEJlZm9yZSArIDEgPT0gYXJyYXkubGVuZ3RoKSB7CiAgICAgICAgICAgIHJldHVybiB0cnVlOy8vIGhhcyByaWdodCBzcGxpY2UgaW1wbGVtZW50YXRpb24gd2l0aG91dCBidWdzCiAgICAgICAgfQogICAgfSgpKSB7Ly9JRSA2LzcKICAgICAgICB2YXIgYXJyYXlfc3BsaWNlID0gQXJyYXkucHJvdG90eXBlLnNwbGljZTsKICAgICAgICBBcnJheS5wcm90b3R5cGUuc3BsaWNlID0gZnVuY3Rpb24oc3RhcnQsIGRlbGV0ZUNvdW50KSB7CiAgICAgICAgICAgIGlmICghYXJndW1lbnRzLmxlbmd0aCkgewogICAgICAgICAgICAgICAgcmV0dXJuIFtdOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgcmV0dXJuIGFycmF5X3NwbGljZS5hcHBseSh0aGlzLCBbCiAgICAgICAgICAgICAgICAgICAgc3RhcnQgPT09IHZvaWQgMCA/IDAgOiBzdGFydCwKICAgICAgICAgICAgICAgICAgICBkZWxldGVDb3VudCA9PT0gdm9pZCAwID8gKHRoaXMubGVuZ3RoIC0gc3RhcnQpIDogZGVsZXRlQ291bnQKICAgICAgICAgICAgICAgIF0uY29uY2F0KHNsaWNlLmNhbGwoYXJndW1lbnRzLCAyKSkpCiAgICAgICAgICAgIH0KICAgICAgICB9OwogICAgfSBlbHNlIHsvL0lFOAogICAgICAgIEFycmF5LnByb3RvdHlwZS5zcGxpY2UgPSBmdW5jdGlvbihwb3MsIHJlbW92ZUNvdW50KXsKICAgICAgICAgICAgdmFyIGxlbmd0aCA9IHRoaXMubGVuZ3RoOwogICAgICAgICAgICBpZiAocG9zID4gMCkgewogICAgICAgICAgICAgICAgaWYgKHBvcyA+IGxlbmd0aCkKICAgICAgICAgICAgICAgICAgICBwb3MgPSBsZW5ndGg7CiAgICAgICAgICAgIH0gZWxzZSBpZiAocG9zID09IHZvaWQgMCkgewogICAgICAgICAgICAgICAgcG9zID0gMDsKICAgICAgICAgICAgfSBlbHNlIGlmIChwb3MgPCAwKSB7CiAgICAgICAgICAgICAgICBwb3MgPSBNYXRoLm1heChsZW5ndGggKyBwb3MsIDApOwogICAgICAgICAgICB9CgogICAgICAgICAgICBpZiAoIShwb3MrcmVtb3ZlQ291bnQgPCBsZW5ndGgpKQogICAgICAgICAgICAgICAgcmVtb3ZlQ291bnQgPSBsZW5ndGggLSBwb3M7CgogICAgICAgICAgICB2YXIgcmVtb3ZlZCA9IHRoaXMuc2xpY2UocG9zLCBwb3MrcmVtb3ZlQ291bnQpOwogICAgICAgICAgICB2YXIgaW5zZXJ0ID0gc2xpY2UuY2FsbChhcmd1bWVudHMsIDIpOwogICAgICAgICAgICB2YXIgYWRkID0gaW5zZXJ0Lmxlbmd0aDsgICAgICAgICAgICAKICAgICAgICAgICAgaWYgKHBvcyA9PT0gbGVuZ3RoKSB7CiAgICAgICAgICAgICAgICBpZiAoYWRkKSB7CiAgICAgICAgICAgICAgICAgICAgdGhpcy5wdXNoLmFwcGx5KHRoaXMsIGluc2VydCk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICB2YXIgcmVtb3ZlID0gTWF0aC5taW4ocmVtb3ZlQ291bnQsIGxlbmd0aCAtIHBvcyk7CiAgICAgICAgICAgICAgICB2YXIgdGFpbE9sZFBvcyA9IHBvcyArIHJlbW92ZTsKICAgICAgICAgICAgICAgIHZhciB0YWlsTmV3UG9zID0gdGFpbE9sZFBvcyArIGFkZCAtIHJlbW92ZTsKICAgICAgICAgICAgICAgIHZhciB0YWlsQ291bnQgPSBsZW5ndGggLSB0YWlsT2xkUG9zOwogICAgICAgICAgICAgICAgdmFyIGxlbmd0aEFmdGVyUmVtb3ZlID0gbGVuZ3RoIC0gcmVtb3ZlOwoKICAgICAgICAgICAgICAgIGlmICh0YWlsTmV3UG9zIDwgdGFpbE9sZFBvcykgeyAvLyBjYXNlIEEKICAgICAgICAgICAgICAgICAgICBmb3IgKHZhciBpID0gMDsgaSA8IHRhaWxDb3VudDsgKytpKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHRoaXNbdGFpbE5ld1BvcytpXSA9IHRoaXNbdGFpbE9sZFBvcytpXTsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9IGVsc2UgaWYgKHRhaWxOZXdQb3MgPiB0YWlsT2xkUG9zKSB7IC8vIGNhc2UgQgogICAgICAgICAgICAgICAgICAgIGZvciAoaSA9IHRhaWxDb3VudDsgaS0tOyApIHsKICAgICAgICAgICAgICAgICAgICAgICAgdGhpc1t0YWlsTmV3UG9zK2ldID0gdGhpc1t0YWlsT2xkUG9zK2ldOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIH0gLy8gZWxzZSwgYWRkID09IHJlbW92ZSAobm90aGluZyB0byBkbykKCiAgICAgICAgICAgICAgICBpZiAoYWRkICYmIHBvcyA9PT0gbGVuZ3RoQWZ0ZXJSZW1vdmUpIHsKICAgICAgICAgICAgICAgICAgICB0aGlzLmxlbmd0aCA9IGxlbmd0aEFmdGVyUmVtb3ZlOyAvLyB0cnVuY2F0ZSBhcnJheQogICAgICAgICAgICAgICAgICAgIHRoaXMucHVzaC5hcHBseSh0aGlzLCBpbnNlcnQpOwogICAgICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgICAgICB0aGlzLmxlbmd0aCA9IGxlbmd0aEFmdGVyUmVtb3ZlICsgYWRkOyAvLyByZXNlcnZlcyBzcGFjZQogICAgICAgICAgICAgICAgICAgIGZvciAoaSA9IDA7IGkgPCBhZGQ7ICsraSkgewogICAgICAgICAgICAgICAgICAgICAgICB0aGlzW3BvcytpXSA9IGluc2VydFtpXTsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgICAgcmV0dXJuIHJlbW92ZWQ7CiAgICAgICAgfTsKICAgIH0KfQppZiAoIUFycmF5LmlzQXJyYXkpIHsKICAgIEFycmF5LmlzQXJyYXkgPSBmdW5jdGlvbiBpc0FycmF5KG9iaikgewogICAgICAgIHJldHVybiBfdG9TdHJpbmcob2JqKSA9PSAiW29iamVjdCBBcnJheV0iOwogICAgfTsKfQp2YXIgYm94ZWRTdHJpbmcgPSBPYmplY3QoImEiKSwKICAgIHNwbGl0U3RyaW5nID0gYm94ZWRTdHJpbmdbMF0gIT0gImEiIHx8ICEoMCBpbiBib3hlZFN0cmluZyk7CgppZiAoIUFycmF5LnByb3RvdHlwZS5mb3JFYWNoKSB7CiAgICBBcnJheS5wcm90b3R5cGUuZm9yRWFjaCA9IGZ1bmN0aW9uIGZvckVhY2goZnVuIC8qLCB0aGlzcCovKSB7CiAgICAgICAgdmFyIG9iamVjdCA9IHRvT2JqZWN0KHRoaXMpLAogICAgICAgICAgICBzZWxmID0gc3BsaXRTdHJpbmcgJiYgX3RvU3RyaW5nKHRoaXMpID09ICJbb2JqZWN0IFN0cmluZ10iID8KICAgICAgICAgICAgICAgIHRoaXMuc3BsaXQoIiIpIDoKICAgICAgICAgICAgICAgIG9iamVjdCwKICAgICAgICAgICAgdGhpc3AgPSBhcmd1bWVudHNbMV0sCiAgICAgICAgICAgIGkgPSAtMSwKICAgICAgICAgICAgbGVuZ3RoID0gc2VsZi5sZW5ndGggPj4+IDA7CiAgICAgICAgaWYgKF90b1N0cmluZyhmdW4pICE9ICJbb2JqZWN0IEZ1bmN0aW9uXSIpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigpOyAvLyBUT0RPIG1lc3NhZ2UKICAgICAgICB9CgogICAgICAgIHdoaWxlICgrK2kgPCBsZW5ndGgpIHsKICAgICAgICAgICAgaWYgKGkgaW4gc2VsZikgewogICAgICAgICAgICAgICAgZnVuLmNhbGwodGhpc3AsIHNlbGZbaV0sIGksIG9iamVjdCk7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Owp9CmlmICghQXJyYXkucHJvdG90eXBlLm1hcCkgewogICAgQXJyYXkucHJvdG90eXBlLm1hcCA9IGZ1bmN0aW9uIG1hcChmdW4gLyosIHRoaXNwKi8pIHsKICAgICAgICB2YXIgb2JqZWN0ID0gdG9PYmplY3QodGhpcyksCiAgICAgICAgICAgIHNlbGYgPSBzcGxpdFN0cmluZyAmJiBfdG9TdHJpbmcodGhpcykgPT0gIltvYmplY3QgU3RyaW5nXSIgPwogICAgICAgICAgICAgICAgdGhpcy5zcGxpdCgiIikgOgogICAgICAgICAgICAgICAgb2JqZWN0LAogICAgICAgICAgICBsZW5ndGggPSBzZWxmLmxlbmd0aCA+Pj4gMCwKICAgICAgICAgICAgcmVzdWx0ID0gQXJyYXkobGVuZ3RoKSwKICAgICAgICAgICAgdGhpc3AgPSBhcmd1bWVudHNbMV07CiAgICAgICAgaWYgKF90b1N0cmluZyhmdW4pICE9ICJbb2JqZWN0IEZ1bmN0aW9uXSIpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcihmdW4gKyAiIGlzIG5vdCBhIGZ1bmN0aW9uIik7CiAgICAgICAgfQoKICAgICAgICBmb3IgKHZhciBpID0gMDsgaSA8IGxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChpIGluIHNlbGYpCiAgICAgICAgICAgICAgICByZXN1bHRbaV0gPSBmdW4uY2FsbCh0aGlzcCwgc2VsZltpXSwgaSwgb2JqZWN0KTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHJlc3VsdDsKICAgIH07Cn0KaWYgKCFBcnJheS5wcm90b3R5cGUuZmlsdGVyKSB7CiAgICBBcnJheS5wcm90b3R5cGUuZmlsdGVyID0gZnVuY3Rpb24gZmlsdGVyKGZ1biAvKiwgdGhpc3AgKi8pIHsKICAgICAgICB2YXIgb2JqZWN0ID0gdG9PYmplY3QodGhpcyksCiAgICAgICAgICAgIHNlbGYgPSBzcGxpdFN0cmluZyAmJiBfdG9TdHJpbmcodGhpcykgPT0gIltvYmplY3QgU3RyaW5nXSIgPwogICAgICAgICAgICAgICAgdGhpcy5zcGxpdCgiIikgOgogICAgICAgICAgICAgICAgICAgIG9iamVjdCwKICAgICAgICAgICAgbGVuZ3RoID0gc2VsZi5sZW5ndGggPj4+IDAsCiAgICAgICAgICAgIHJlc3VsdCA9IFtdLAogICAgICAgICAgICB2YWx1ZSwKICAgICAgICAgICAgdGhpc3AgPSBhcmd1bWVudHNbMV07CiAgICAgICAgaWYgKF90b1N0cmluZyhmdW4pICE9ICJbb2JqZWN0IEZ1bmN0aW9uXSIpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcihmdW4gKyAiIGlzIG5vdCBhIGZ1bmN0aW9uIik7CiAgICAgICAgfQoKICAgICAgICBmb3IgKHZhciBpID0gMDsgaSA8IGxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChpIGluIHNlbGYpIHsKICAgICAgICAgICAgICAgIHZhbHVlID0gc2VsZltpXTsKICAgICAgICAgICAgICAgIGlmIChmdW4uY2FsbCh0aGlzcCwgdmFsdWUsIGksIG9iamVjdCkpIHsKICAgICAgICAgICAgICAgICAgICByZXN1bHQucHVzaCh2YWx1ZSk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgcmV0dXJuIHJlc3VsdDsKICAgIH07Cn0KaWYgKCFBcnJheS5wcm90b3R5cGUuZXZlcnkpIHsKICAgIEFycmF5LnByb3RvdHlwZS5ldmVyeSA9IGZ1bmN0aW9uIGV2ZXJ5KGZ1biAvKiwgdGhpc3AgKi8pIHsKICAgICAgICB2YXIgb2JqZWN0ID0gdG9PYmplY3QodGhpcyksCiAgICAgICAgICAgIHNlbGYgPSBzcGxpdFN0cmluZyAmJiBfdG9TdHJpbmcodGhpcykgPT0gIltvYmplY3QgU3RyaW5nXSIgPwogICAgICAgICAgICAgICAgdGhpcy5zcGxpdCgiIikgOgogICAgICAgICAgICAgICAgb2JqZWN0LAogICAgICAgICAgICBsZW5ndGggPSBzZWxmLmxlbmd0aCA+Pj4gMCwKICAgICAgICAgICAgdGhpc3AgPSBhcmd1bWVudHNbMV07CiAgICAgICAgaWYgKF90b1N0cmluZyhmdW4pICE9ICJbb2JqZWN0IEZ1bmN0aW9uXSIpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcihmdW4gKyAiIGlzIG5vdCBhIGZ1bmN0aW9uIik7CiAgICAgICAgfQoKICAgICAgICBmb3IgKHZhciBpID0gMDsgaSA8IGxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChpIGluIHNlbGYgJiYgIWZ1bi5jYWxsKHRoaXNwLCBzZWxmW2ldLCBpLCBvYmplY3QpKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgcmV0dXJuIHRydWU7CiAgICB9Owp9CmlmICghQXJyYXkucHJvdG90eXBlLnNvbWUpIHsKICAgIEFycmF5LnByb3RvdHlwZS5zb21lID0gZnVuY3Rpb24gc29tZShmdW4gLyosIHRoaXNwICovKSB7CiAgICAgICAgdmFyIG9iamVjdCA9IHRvT2JqZWN0KHRoaXMpLAogICAgICAgICAgICBzZWxmID0gc3BsaXRTdHJpbmcgJiYgX3RvU3RyaW5nKHRoaXMpID09ICJbb2JqZWN0IFN0cmluZ10iID8KICAgICAgICAgICAgICAgIHRoaXMuc3BsaXQoIiIpIDoKICAgICAgICAgICAgICAgIG9iamVjdCwKICAgICAgICAgICAgbGVuZ3RoID0gc2VsZi5sZW5ndGggPj4+IDAsCiAgICAgICAgICAgIHRoaXNwID0gYXJndW1lbnRzWzFdOwogICAgICAgIGlmIChfdG9TdHJpbmcoZnVuKSAhPSAiW29iamVjdCBGdW5jdGlvbl0iKSB7CiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoZnVuICsgIiBpcyBub3QgYSBmdW5jdGlvbiIpOwogICAgICAgIH0KCiAgICAgICAgZm9yICh2YXIgaSA9IDA7IGkgPCBsZW5ndGg7IGkrKykgewogICAgICAgICAgICBpZiAoaSBpbiBzZWxmICYmIGZ1bi5jYWxsKHRoaXNwLCBzZWxmW2ldLCBpLCBvYmplY3QpKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gdHJ1ZTsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICByZXR1cm4gZmFsc2U7CiAgICB9Owp9CmlmICghQXJyYXkucHJvdG90eXBlLnJlZHVjZSkgewogICAgQXJyYXkucHJvdG90eXBlLnJlZHVjZSA9IGZ1bmN0aW9uIHJlZHVjZShmdW4gLyosIGluaXRpYWwqLykgewogICAgICAgIHZhciBvYmplY3QgPSB0b09iamVjdCh0aGlzKSwKICAgICAgICAgICAgc2VsZiA9IHNwbGl0U3RyaW5nICYmIF90b1N0cmluZyh0aGlzKSA9PSAiW29iamVjdCBTdHJpbmddIiA/CiAgICAgICAgICAgICAgICB0aGlzLnNwbGl0KCIiKSA6CiAgICAgICAgICAgICAgICBvYmplY3QsCiAgICAgICAgICAgIGxlbmd0aCA9IHNlbGYubGVuZ3RoID4+PiAwOwogICAgICAgIGlmIChfdG9TdHJpbmcoZnVuKSAhPSAiW29iamVjdCBGdW5jdGlvbl0iKSB7CiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoZnVuICsgIiBpcyBub3QgYSBmdW5jdGlvbiIpOwogICAgICAgIH0KICAgICAgICBpZiAoIWxlbmd0aCAmJiBhcmd1bWVudHMubGVuZ3RoID09IDEpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigicmVkdWNlIG9mIGVtcHR5IGFycmF5IHdpdGggbm8gaW5pdGlhbCB2YWx1ZSIpOwogICAgICAgIH0KCiAgICAgICAgdmFyIGkgPSAwOwogICAgICAgIHZhciByZXN1bHQ7CiAgICAgICAgaWYgKGFyZ3VtZW50cy5sZW5ndGggPj0gMikgewogICAgICAgICAgICByZXN1bHQgPSBhcmd1bWVudHNbMV07CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgZG8gewogICAgICAgICAgICAgICAgaWYgKGkgaW4gc2VsZikgewogICAgICAgICAgICAgICAgICAgIHJlc3VsdCA9IHNlbGZbaSsrXTsKICAgICAgICAgICAgICAgICAgICBicmVhazsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGlmICgrK2kgPj0gbGVuZ3RoKSB7CiAgICAgICAgICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigicmVkdWNlIG9mIGVtcHR5IGFycmF5IHdpdGggbm8gaW5pdGlhbCB2YWx1ZSIpOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9IHdoaWxlICh0cnVlKTsKICAgICAgICB9CgogICAgICAgIGZvciAoOyBpIDwgbGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGkgaW4gc2VsZikgewogICAgICAgICAgICAgICAgcmVzdWx0ID0gZnVuLmNhbGwodm9pZCAwLCByZXN1bHQsIHNlbGZbaV0sIGksIG9iamVjdCk7CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIHJldHVybiByZXN1bHQ7CiAgICB9Owp9CmlmICghQXJyYXkucHJvdG90eXBlLnJlZHVjZVJpZ2h0KSB7CiAgICBBcnJheS5wcm90b3R5cGUucmVkdWNlUmlnaHQgPSBmdW5jdGlvbiByZWR1Y2VSaWdodChmdW4gLyosIGluaXRpYWwqLykgewogICAgICAgIHZhciBvYmplY3QgPSB0b09iamVjdCh0aGlzKSwKICAgICAgICAgICAgc2VsZiA9IHNwbGl0U3RyaW5nICYmIF90b1N0cmluZyh0aGlzKSA9PSAiW29iamVjdCBTdHJpbmddIiA/CiAgICAgICAgICAgICAgICB0aGlzLnNwbGl0KCIiKSA6CiAgICAgICAgICAgICAgICBvYmplY3QsCiAgICAgICAgICAgIGxlbmd0aCA9IHNlbGYubGVuZ3RoID4+PiAwOwogICAgICAgIGlmIChfdG9TdHJpbmcoZnVuKSAhPSAiW29iamVjdCBGdW5jdGlvbl0iKSB7CiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoZnVuICsgIiBpcyBub3QgYSBmdW5jdGlvbiIpOwogICAgICAgIH0KICAgICAgICBpZiAoIWxlbmd0aCAmJiBhcmd1bWVudHMubGVuZ3RoID09IDEpIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigicmVkdWNlUmlnaHQgb2YgZW1wdHkgYXJyYXkgd2l0aCBubyBpbml0aWFsIHZhbHVlIik7CiAgICAgICAgfQoKICAgICAgICB2YXIgcmVzdWx0LCBpID0gbGVuZ3RoIC0gMTsKICAgICAgICBpZiAoYXJndW1lbnRzLmxlbmd0aCA+PSAyKSB7CiAgICAgICAgICAgIHJlc3VsdCA9IGFyZ3VtZW50c1sxXTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBkbyB7CiAgICAgICAgICAgICAgICBpZiAoaSBpbiBzZWxmKSB7CiAgICAgICAgICAgICAgICAgICAgcmVzdWx0ID0gc2VsZltpLS1dOwogICAgICAgICAgICAgICAgICAgIGJyZWFrOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgaWYgKC0taSA8IDApIHsKICAgICAgICAgICAgICAgICAgICB0aHJvdyBuZXcgVHlwZUVycm9yKCJyZWR1Y2VSaWdodCBvZiBlbXB0eSBhcnJheSB3aXRoIG5vIGluaXRpYWwgdmFsdWUiKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSB3aGlsZSAodHJ1ZSk7CiAgICAgICAgfQoKICAgICAgICBkbyB7CiAgICAgICAgICAgIGlmIChpIGluIHRoaXMpIHsKICAgICAgICAgICAgICAgIHJlc3VsdCA9IGZ1bi5jYWxsKHZvaWQgMCwgcmVzdWx0LCBzZWxmW2ldLCBpLCBvYmplY3QpOwogICAgICAgICAgICB9CiAgICAgICAgfSB3aGlsZSAoaS0tKTsKCiAgICAgICAgcmV0dXJuIHJlc3VsdDsKICAgIH07Cn0KaWYgKCFBcnJheS5wcm90b3R5cGUuaW5kZXhPZiB8fCAoWzAsIDFdLmluZGV4T2YoMSwgMikgIT0gLTEpKSB7CiAgICBBcnJheS5wcm90b3R5cGUuaW5kZXhPZiA9IGZ1bmN0aW9uIGluZGV4T2Yoc291Z2h0IC8qLCBmcm9tSW5kZXggKi8gKSB7CiAgICAgICAgdmFyIHNlbGYgPSBzcGxpdFN0cmluZyAmJiBfdG9TdHJpbmcodGhpcykgPT0gIltvYmplY3QgU3RyaW5nXSIgPwogICAgICAgICAgICAgICAgdGhpcy5zcGxpdCgiIikgOgogICAgICAgICAgICAgICAgdG9PYmplY3QodGhpcyksCiAgICAgICAgICAgIGxlbmd0aCA9IHNlbGYubGVuZ3RoID4+PiAwOwoKICAgICAgICBpZiAoIWxlbmd0aCkgewogICAgICAgICAgICByZXR1cm4gLTE7CiAgICAgICAgfQoKICAgICAgICB2YXIgaSA9IDA7CiAgICAgICAgaWYgKGFyZ3VtZW50cy5sZW5ndGggPiAxKSB7CiAgICAgICAgICAgIGkgPSB0b0ludGVnZXIoYXJndW1lbnRzWzFdKTsKICAgICAgICB9CiAgICAgICAgaSA9IGkgPj0gMCA/IGkgOiBNYXRoLm1heCgwLCBsZW5ndGggKyBpKTsKICAgICAgICBmb3IgKDsgaSA8IGxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChpIGluIHNlbGYgJiYgc2VsZltpXSA9PT0gc291Z2h0KSB7CiAgICAgICAgICAgICAgICByZXR1cm4gaTsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICByZXR1cm4gLTE7CiAgICB9Owp9CmlmICghQXJyYXkucHJvdG90eXBlLmxhc3RJbmRleE9mIHx8IChbMCwgMV0ubGFzdEluZGV4T2YoMCwgLTMpICE9IC0xKSkgewogICAgQXJyYXkucHJvdG90eXBlLmxhc3RJbmRleE9mID0gZnVuY3Rpb24gbGFzdEluZGV4T2Yoc291Z2h0IC8qLCBmcm9tSW5kZXggKi8pIHsKICAgICAgICB2YXIgc2VsZiA9IHNwbGl0U3RyaW5nICYmIF90b1N0cmluZyh0aGlzKSA9PSAiW29iamVjdCBTdHJpbmddIiA/CiAgICAgICAgICAgICAgICB0aGlzLnNwbGl0KCIiKSA6CiAgICAgICAgICAgICAgICB0b09iamVjdCh0aGlzKSwKICAgICAgICAgICAgbGVuZ3RoID0gc2VsZi5sZW5ndGggPj4+IDA7CgogICAgICAgIGlmICghbGVuZ3RoKSB7CiAgICAgICAgICAgIHJldHVybiAtMTsKICAgICAgICB9CiAgICAgICAgdmFyIGkgPSBsZW5ndGggLSAxOwogICAgICAgIGlmIChhcmd1bWVudHMubGVuZ3RoID4gMSkgewogICAgICAgICAgICBpID0gTWF0aC5taW4oaSwgdG9JbnRlZ2VyKGFyZ3VtZW50c1sxXSkpOwogICAgICAgIH0KICAgICAgICBpID0gaSA+PSAwID8gaSA6IGxlbmd0aCAtIE1hdGguYWJzKGkpOwogICAgICAgIGZvciAoOyBpID49IDA7IGktLSkgewogICAgICAgICAgICBpZiAoaSBpbiBzZWxmICYmIHNvdWdodCA9PT0gc2VsZltpXSkgewogICAgICAgICAgICAgICAgcmV0dXJuIGk7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgcmV0dXJuIC0xOwogICAgfTsKfQppZiAoIU9iamVjdC5nZXRQcm90b3R5cGVPZikgewogICAgT2JqZWN0LmdldFByb3RvdHlwZU9mID0gZnVuY3Rpb24gZ2V0UHJvdG90eXBlT2Yob2JqZWN0KSB7CiAgICAgICAgcmV0dXJuIG9iamVjdC5fX3Byb3RvX18gfHwgKAogICAgICAgICAgICBvYmplY3QuY29uc3RydWN0b3IgPwogICAgICAgICAgICBvYmplY3QuY29uc3RydWN0b3IucHJvdG90eXBlIDoKICAgICAgICAgICAgcHJvdG90eXBlT2ZPYmplY3QKICAgICAgICApOwogICAgfTsKfQppZiAoIU9iamVjdC5nZXRPd25Qcm9wZXJ0eURlc2NyaXB0b3IpIHsKICAgIHZhciBFUlJfTk9OX09CSkVDVCA9ICJPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yIGNhbGxlZCBvbiBhICIgKwogICAgICAgICAgICAgICAgICAgICAgICAgIm5vbi1vYmplY3Q6ICI7CiAgICBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yID0gZnVuY3Rpb24gZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG9iamVjdCwgcHJvcGVydHkpIHsKICAgICAgICBpZiAoKHR5cGVvZiBvYmplY3QgIT0gIm9iamVjdCIgJiYgdHlwZW9mIG9iamVjdCAhPSAiZnVuY3Rpb24iKSB8fCBvYmplY3QgPT09IG51bGwpCiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoRVJSX05PTl9PQkpFQ1QgKyBvYmplY3QpOwogICAgICAgIGlmICghb3ducyhvYmplY3QsIHByb3BlcnR5KSkKICAgICAgICAgICAgcmV0dXJuOwoKICAgICAgICB2YXIgZGVzY3JpcHRvciwgZ2V0dGVyLCBzZXR0ZXI7CiAgICAgICAgZGVzY3JpcHRvciA9ICB7IGVudW1lcmFibGU6IHRydWUsIGNvbmZpZ3VyYWJsZTogdHJ1ZSB9OwogICAgICAgIGlmIChzdXBwb3J0c0FjY2Vzc29ycykgewogICAgICAgICAgICB2YXIgcHJvdG90eXBlID0gb2JqZWN0Ll9fcHJvdG9fXzsKICAgICAgICAgICAgb2JqZWN0Ll9fcHJvdG9fXyA9IHByb3RvdHlwZU9mT2JqZWN0OwoKICAgICAgICAgICAgdmFyIGdldHRlciA9IGxvb2t1cEdldHRlcihvYmplY3QsIHByb3BlcnR5KTsKICAgICAgICAgICAgdmFyIHNldHRlciA9IGxvb2t1cFNldHRlcihvYmplY3QsIHByb3BlcnR5KTsKICAgICAgICAgICAgb2JqZWN0Ll9fcHJvdG9fXyA9IHByb3RvdHlwZTsKCiAgICAgICAgICAgIGlmIChnZXR0ZXIgfHwgc2V0dGVyKSB7CiAgICAgICAgICAgICAgICBpZiAoZ2V0dGVyKSBkZXNjcmlwdG9yLmdldCA9IGdldHRlcjsKICAgICAgICAgICAgICAgIGlmIChzZXR0ZXIpIGRlc2NyaXB0b3Iuc2V0ID0gc2V0dGVyOwogICAgICAgICAgICAgICAgcmV0dXJuIGRlc2NyaXB0b3I7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgZGVzY3JpcHRvci52YWx1ZSA9IG9iamVjdFtwcm9wZXJ0eV07CiAgICAgICAgcmV0dXJuIGRlc2NyaXB0b3I7CiAgICB9Owp9CmlmICghT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMpIHsKICAgIE9iamVjdC5nZXRPd25Qcm9wZXJ0eU5hbWVzID0gZnVuY3Rpb24gZ2V0T3duUHJvcGVydHlOYW1lcyhvYmplY3QpIHsKICAgICAgICByZXR1cm4gT2JqZWN0LmtleXMob2JqZWN0KTsKICAgIH07Cn0KaWYgKCFPYmplY3QuY3JlYXRlKSB7CiAgICB2YXIgY3JlYXRlRW1wdHk7CiAgICBpZiAoT2JqZWN0LnByb3RvdHlwZS5fX3Byb3RvX18gPT09IG51bGwpIHsKICAgICAgICBjcmVhdGVFbXB0eSA9IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgcmV0dXJuIHsgIl9fcHJvdG9fXyI6IG51bGwgfTsKICAgICAgICB9OwogICAgfSBlbHNlIHsKICAgICAgICBjcmVhdGVFbXB0eSA9IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgdmFyIGVtcHR5ID0ge307CiAgICAgICAgICAgIGZvciAodmFyIGkgaW4gZW1wdHkpCiAgICAgICAgICAgICAgICBlbXB0eVtpXSA9IG51bGw7CiAgICAgICAgICAgIGVtcHR5LmNvbnN0cnVjdG9yID0KICAgICAgICAgICAgZW1wdHkuaGFzT3duUHJvcGVydHkgPQogICAgICAgICAgICBlbXB0eS5wcm9wZXJ0eUlzRW51bWVyYWJsZSA9CiAgICAgICAgICAgIGVtcHR5LmlzUHJvdG90eXBlT2YgPQogICAgICAgICAgICBlbXB0eS50b0xvY2FsZVN0cmluZyA9CiAgICAgICAgICAgIGVtcHR5LnRvU3RyaW5nID0KICAgICAgICAgICAgZW1wdHkudmFsdWVPZiA9CiAgICAgICAgICAgIGVtcHR5Ll9fcHJvdG9fXyA9IG51bGw7CiAgICAgICAgICAgIHJldHVybiBlbXB0eTsKICAgICAgICB9CiAgICB9CgogICAgT2JqZWN0LmNyZWF0ZSA9IGZ1bmN0aW9uIGNyZWF0ZShwcm90b3R5cGUsIHByb3BlcnRpZXMpIHsKICAgICAgICB2YXIgb2JqZWN0OwogICAgICAgIGlmIChwcm90b3R5cGUgPT09IG51bGwpIHsKICAgICAgICAgICAgb2JqZWN0ID0gY3JlYXRlRW1wdHkoKTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBpZiAodHlwZW9mIHByb3RvdHlwZSAhPSAib2JqZWN0IikKICAgICAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoInR5cGVvZiBwcm90b3R5cGVbIisodHlwZW9mIHByb3RvdHlwZSkrIl0gIT0gJ29iamVjdCciKTsKICAgICAgICAgICAgdmFyIFR5cGUgPSBmdW5jdGlvbiAoKSB7fTsKICAgICAgICAgICAgVHlwZS5wcm90b3R5cGUgPSBwcm90b3R5cGU7CiAgICAgICAgICAgIG9iamVjdCA9IG5ldyBUeXBlKCk7CiAgICAgICAgICAgIG9iamVjdC5fX3Byb3RvX18gPSBwcm90b3R5cGU7CiAgICAgICAgfQogICAgICAgIGlmIChwcm9wZXJ0aWVzICE9PSB2b2lkIDApCiAgICAgICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0aWVzKG9iamVjdCwgcHJvcGVydGllcyk7CiAgICAgICAgcmV0dXJuIG9iamVjdDsKICAgIH07Cn0KCmZ1bmN0aW9uIGRvZXNEZWZpbmVQcm9wZXJ0eVdvcmsob2JqZWN0KSB7CiAgICB0cnkgewogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShvYmplY3QsICJzZW50aW5lbCIsIHt9KTsKICAgICAgICByZXR1cm4gInNlbnRpbmVsIiBpbiBvYmplY3Q7CiAgICB9IGNhdGNoIChleGNlcHRpb24pIHsKICAgIH0KfQppZiAoT2JqZWN0LmRlZmluZVByb3BlcnR5KSB7CiAgICB2YXIgZGVmaW5lUHJvcGVydHlXb3Jrc09uT2JqZWN0ID0gZG9lc0RlZmluZVByb3BlcnR5V29yayh7fSk7CiAgICB2YXIgZGVmaW5lUHJvcGVydHlXb3Jrc09uRG9tID0gdHlwZW9mIGRvY3VtZW50ID09ICJ1bmRlZmluZWQiIHx8CiAgICAgICAgZG9lc0RlZmluZVByb3BlcnR5V29yayhkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJkaXYiKSk7CiAgICBpZiAoIWRlZmluZVByb3BlcnR5V29ya3NPbk9iamVjdCB8fCAhZGVmaW5lUHJvcGVydHlXb3Jrc09uRG9tKSB7CiAgICAgICAgdmFyIGRlZmluZVByb3BlcnR5RmFsbGJhY2sgPSBPYmplY3QuZGVmaW5lUHJvcGVydHk7CiAgICB9Cn0KCmlmICghT2JqZWN0LmRlZmluZVByb3BlcnR5IHx8IGRlZmluZVByb3BlcnR5RmFsbGJhY2spIHsKICAgIHZhciBFUlJfTk9OX09CSkVDVF9ERVNDUklQVE9SID0gIlByb3BlcnR5IGRlc2NyaXB0aW9uIG11c3QgYmUgYW4gb2JqZWN0OiAiOwogICAgdmFyIEVSUl9OT05fT0JKRUNUX1RBUkdFVCA9ICJPYmplY3QuZGVmaW5lUHJvcGVydHkgY2FsbGVkIG9uIG5vbi1vYmplY3Q6ICIKICAgIHZhciBFUlJfQUNDRVNTT1JTX05PVF9TVVBQT1JURUQgPSAiZ2V0dGVycyAmIHNldHRlcnMgY2FuIG5vdCBiZSBkZWZpbmVkICIgKwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJvbiB0aGlzIGphdmFzY3JpcHQgZW5naW5lIjsKCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkgPSBmdW5jdGlvbiBkZWZpbmVQcm9wZXJ0eShvYmplY3QsIHByb3BlcnR5LCBkZXNjcmlwdG9yKSB7CiAgICAgICAgaWYgKCh0eXBlb2Ygb2JqZWN0ICE9ICJvYmplY3QiICYmIHR5cGVvZiBvYmplY3QgIT0gImZ1bmN0aW9uIikgfHwgb2JqZWN0ID09PSBudWxsKQogICAgICAgICAgICB0aHJvdyBuZXcgVHlwZUVycm9yKEVSUl9OT05fT0JKRUNUX1RBUkdFVCArIG9iamVjdCk7CiAgICAgICAgaWYgKCh0eXBlb2YgZGVzY3JpcHRvciAhPSAib2JqZWN0IiAmJiB0eXBlb2YgZGVzY3JpcHRvciAhPSAiZnVuY3Rpb24iKSB8fCBkZXNjcmlwdG9yID09PSBudWxsKQogICAgICAgICAgICB0aHJvdyBuZXcgVHlwZUVycm9yKEVSUl9OT05fT0JKRUNUX0RFU0NSSVBUT1IgKyBkZXNjcmlwdG9yKTsKICAgICAgICBpZiAoZGVmaW5lUHJvcGVydHlGYWxsYmFjaykgewogICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgcmV0dXJuIGRlZmluZVByb3BlcnR5RmFsbGJhY2suY2FsbChPYmplY3QsIG9iamVjdCwgcHJvcGVydHksIGRlc2NyaXB0b3IpOwogICAgICAgICAgICB9IGNhdGNoIChleGNlcHRpb24pIHsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICBpZiAob3ducyhkZXNjcmlwdG9yLCAidmFsdWUiKSkgewoKICAgICAgICAgICAgaWYgKHN1cHBvcnRzQWNjZXNzb3JzICYmIChsb29rdXBHZXR0ZXIob2JqZWN0LCBwcm9wZXJ0eSkgfHwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBsb29rdXBTZXR0ZXIob2JqZWN0LCBwcm9wZXJ0eSkpKQogICAgICAgICAgICB7CiAgICAgICAgICAgICAgICB2YXIgcHJvdG90eXBlID0gb2JqZWN0Ll9fcHJvdG9fXzsKICAgICAgICAgICAgICAgIG9iamVjdC5fX3Byb3RvX18gPSBwcm90b3R5cGVPZk9iamVjdDsKICAgICAgICAgICAgICAgIGRlbGV0ZSBvYmplY3RbcHJvcGVydHldOwogICAgICAgICAgICAgICAgb2JqZWN0W3Byb3BlcnR5XSA9IGRlc2NyaXB0b3IudmFsdWU7CiAgICAgICAgICAgICAgICBvYmplY3QuX19wcm90b19fID0gcHJvdG90eXBlOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgb2JqZWN0W3Byb3BlcnR5XSA9IGRlc2NyaXB0b3IudmFsdWU7CiAgICAgICAgICAgIH0KICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBpZiAoIXN1cHBvcnRzQWNjZXNzb3JzKQogICAgICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcihFUlJfQUNDRVNTT1JTX05PVF9TVVBQT1JURUQpOwogICAgICAgICAgICBpZiAob3ducyhkZXNjcmlwdG9yLCAiZ2V0IikpCiAgICAgICAgICAgICAgICBkZWZpbmVHZXR0ZXIob2JqZWN0LCBwcm9wZXJ0eSwgZGVzY3JpcHRvci5nZXQpOwogICAgICAgICAgICBpZiAob3ducyhkZXNjcmlwdG9yLCAic2V0IikpCiAgICAgICAgICAgICAgICBkZWZpbmVTZXR0ZXIob2JqZWN0LCBwcm9wZXJ0eSwgZGVzY3JpcHRvci5zZXQpOwogICAgICAgIH0KCiAgICAgICAgcmV0dXJuIG9iamVjdDsKICAgIH07Cn0KaWYgKCFPYmplY3QuZGVmaW5lUHJvcGVydGllcykgewogICAgT2JqZWN0LmRlZmluZVByb3BlcnRpZXMgPSBmdW5jdGlvbiBkZWZpbmVQcm9wZXJ0aWVzKG9iamVjdCwgcHJvcGVydGllcykgewogICAgICAgIGZvciAodmFyIHByb3BlcnR5IGluIHByb3BlcnRpZXMpIHsKICAgICAgICAgICAgaWYgKG93bnMocHJvcGVydGllcywgcHJvcGVydHkpKQogICAgICAgICAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG9iamVjdCwgcHJvcGVydHksIHByb3BlcnRpZXNbcHJvcGVydHldKTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIG9iamVjdDsKICAgIH07Cn0KaWYgKCFPYmplY3Quc2VhbCkgewogICAgT2JqZWN0LnNlYWwgPSBmdW5jdGlvbiBzZWFsKG9iamVjdCkgewogICAgICAgIHJldHVybiBvYmplY3Q7CiAgICB9Owp9CmlmICghT2JqZWN0LmZyZWV6ZSkgewogICAgT2JqZWN0LmZyZWV6ZSA9IGZ1bmN0aW9uIGZyZWV6ZShvYmplY3QpIHsKICAgICAgICByZXR1cm4gb2JqZWN0OwogICAgfTsKfQp0cnkgewogICAgT2JqZWN0LmZyZWV6ZShmdW5jdGlvbiAoKSB7fSk7Cn0gY2F0Y2ggKGV4Y2VwdGlvbikgewogICAgT2JqZWN0LmZyZWV6ZSA9IChmdW5jdGlvbiBmcmVlemUoZnJlZXplT2JqZWN0KSB7CiAgICAgICAgcmV0dXJuIGZ1bmN0aW9uIGZyZWV6ZShvYmplY3QpIHsKICAgICAgICAgICAgaWYgKHR5cGVvZiBvYmplY3QgPT0gImZ1bmN0aW9uIikgewogICAgICAgICAgICAgICAgcmV0dXJuIG9iamVjdDsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiBmcmVlemVPYmplY3Qob2JqZWN0KTsKICAgICAgICAgICAgfQogICAgICAgIH07CiAgICB9KShPYmplY3QuZnJlZXplKTsKfQppZiAoIU9iamVjdC5wcmV2ZW50RXh0ZW5zaW9ucykgewogICAgT2JqZWN0LnByZXZlbnRFeHRlbnNpb25zID0gZnVuY3Rpb24gcHJldmVudEV4dGVuc2lvbnMob2JqZWN0KSB7CiAgICAgICAgcmV0dXJuIG9iamVjdDsKICAgIH07Cn0KaWYgKCFPYmplY3QuaXNTZWFsZWQpIHsKICAgIE9iamVjdC5pc1NlYWxlZCA9IGZ1bmN0aW9uIGlzU2VhbGVkKG9iamVjdCkgewogICAgICAgIHJldHVybiBmYWxzZTsKICAgIH07Cn0KaWYgKCFPYmplY3QuaXNGcm96ZW4pIHsKICAgIE9iamVjdC5pc0Zyb3plbiA9IGZ1bmN0aW9uIGlzRnJvemVuKG9iamVjdCkgewogICAgICAgIHJldHVybiBmYWxzZTsKICAgIH07Cn0KaWYgKCFPYmplY3QuaXNFeHRlbnNpYmxlKSB7CiAgICBPYmplY3QuaXNFeHRlbnNpYmxlID0gZnVuY3Rpb24gaXNFeHRlbnNpYmxlKG9iamVjdCkgewogICAgICAgIGlmIChPYmplY3Qob2JqZWN0KSA9PT0gb2JqZWN0KSB7CiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoKTsgLy8gVE9ETyBtZXNzYWdlCiAgICAgICAgfQogICAgICAgIHZhciBuYW1lID0gJyc7CiAgICAgICAgd2hpbGUgKG93bnMob2JqZWN0LCBuYW1lKSkgewogICAgICAgICAgICBuYW1lICs9ICc/JzsKICAgICAgICB9CiAgICAgICAgb2JqZWN0W25hbWVdID0gdHJ1ZTsKICAgICAgICB2YXIgcmV0dXJuVmFsdWUgPSBvd25zKG9iamVjdCwgbmFtZSk7CiAgICAgICAgZGVsZXRlIG9iamVjdFtuYW1lXTsKICAgICAgICByZXR1cm4gcmV0dXJuVmFsdWU7CiAgICB9Owp9CmlmICghT2JqZWN0LmtleXMpIHsKICAgIHZhciBoYXNEb250RW51bUJ1ZyA9IHRydWUsCiAgICAgICAgZG9udEVudW1zID0gWwogICAgICAgICAgICAidG9TdHJpbmciLAogICAgICAgICAgICAidG9Mb2NhbGVTdHJpbmciLAogICAgICAgICAgICAidmFsdWVPZiIsCiAgICAgICAgICAgICJoYXNPd25Qcm9wZXJ0eSIsCiAgICAgICAgICAgICJpc1Byb3RvdHlwZU9mIiwKICAgICAgICAgICAgInByb3BlcnR5SXNFbnVtZXJhYmxlIiwKICAgICAgICAgICAgImNvbnN0cnVjdG9yIgogICAgICAgIF0sCiAgICAgICAgZG9udEVudW1zTGVuZ3RoID0gZG9udEVudW1zLmxlbmd0aDsKCiAgICBmb3IgKHZhciBrZXkgaW4geyJ0b1N0cmluZyI6IG51bGx9KSB7CiAgICAgICAgaGFzRG9udEVudW1CdWcgPSBmYWxzZTsKICAgIH0KCiAgICBPYmplY3Qua2V5cyA9IGZ1bmN0aW9uIGtleXMob2JqZWN0KSB7CgogICAgICAgIGlmICgKICAgICAgICAgICAgKHR5cGVvZiBvYmplY3QgIT0gIm9iamVjdCIgJiYgdHlwZW9mIG9iamVjdCAhPSAiZnVuY3Rpb24iKSB8fAogICAgICAgICAgICBvYmplY3QgPT09IG51bGwKICAgICAgICApIHsKICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0LmtleXMgY2FsbGVkIG9uIGEgbm9uLW9iamVjdCIpOwogICAgICAgIH0KCiAgICAgICAgdmFyIGtleXMgPSBbXTsKICAgICAgICBmb3IgKHZhciBuYW1lIGluIG9iamVjdCkgewogICAgICAgICAgICBpZiAob3ducyhvYmplY3QsIG5hbWUpKSB7CiAgICAgICAgICAgICAgICBrZXlzLnB1c2gobmFtZSk7CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIGlmIChoYXNEb250RW51bUJ1ZykgewogICAgICAgICAgICBmb3IgKHZhciBpID0gMCwgaWkgPSBkb250RW51bXNMZW5ndGg7IGkgPCBpaTsgaSsrKSB7CiAgICAgICAgICAgICAgICB2YXIgZG9udEVudW0gPSBkb250RW51bXNbaV07CiAgICAgICAgICAgICAgICBpZiAob3ducyhvYmplY3QsIGRvbnRFbnVtKSkgewogICAgICAgICAgICAgICAgICAgIGtleXMucHVzaChkb250RW51bSk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgcmV0dXJuIGtleXM7CiAgICB9OwoKfQppZiAoIURhdGUubm93KSB7CiAgICBEYXRlLm5vdyA9IGZ1bmN0aW9uIG5vdygpIHsKICAgICAgICByZXR1cm4gbmV3IERhdGUoKS5nZXRUaW1lKCk7CiAgICB9Owp9CnZhciB3cyA9ICJceDA5XHgwQVx4MEJceDBDXHgwRFx4MjBceEEwXHUxNjgwXHUyMDAwXHUyMDAxXHUyMDAyXHUyMDAzIiArCiAgICAiXHUyMDA0XHUyMDA1XHUyMDA2XHUyMDA3XHUyMDA4XHUyMDA5XHUyMDBBXHUyMDJGXHUyMDVGXHUzMDAwXHUyMDI4IiArCiAgICAiXHUyMDI5XHVGRUZGIjsKaWYgKCFTdHJpbmcucHJvdG90eXBlLnRyaW0pIHsKICAgIHdzID0gIlsiICsgd3MgKyAiXSI7CiAgICB2YXIgdHJpbUJlZ2luUmVnZXhwID0gbmV3IFJlZ0V4cCgiXiIgKyB3cyArIHdzICsgIioiKSwKICAgICAgICB0cmltRW5kUmVnZXhwID0gbmV3IFJlZ0V4cCh3cyArIHdzICsgIiokIik7CiAgICBTdHJpbmcucHJvdG90eXBlLnRyaW0gPSBmdW5jdGlvbiB0cmltKCkgewogICAgICAgIHJldHVybiBTdHJpbmcodGhpcykucmVwbGFjZSh0cmltQmVnaW5SZWdleHAsICIiKS5yZXBsYWNlKHRyaW1FbmRSZWdleHAsICIiKTsKICAgIH07Cn0KCmZ1bmN0aW9uIHRvSW50ZWdlcihuKSB7CiAgICBuID0gK247CiAgICBpZiAobiAhPT0gbikgeyAvLyBpc05hTgogICAgICAgIG4gPSAwOwogICAgfSBlbHNlIGlmIChuICE9PSAwICYmIG4gIT09ICgxLzApICYmIG4gIT09IC0oMS8wKSkgewogICAgICAgIG4gPSAobiA+IDAgfHwgLTEpICogTWF0aC5mbG9vcihNYXRoLmFicyhuKSk7CiAgICB9CiAgICByZXR1cm4gbjsKfQoKZnVuY3Rpb24gaXNQcmltaXRpdmUoaW5wdXQpIHsKICAgIHZhciB0eXBlID0gdHlwZW9mIGlucHV0OwogICAgcmV0dXJuICgKICAgICAgICBpbnB1dCA9PT0gbnVsbCB8fAogICAgICAgIHR5cGUgPT09ICJ1bmRlZmluZWQiIHx8CiAgICAgICAgdHlwZSA9PT0gImJvb2xlYW4iIHx8CiAgICAgICAgdHlwZSA9PT0gIm51bWJlciIgfHwKICAgICAgICB0eXBlID09PSAic3RyaW5nIgogICAgKTsKfQoKZnVuY3Rpb24gdG9QcmltaXRpdmUoaW5wdXQpIHsKICAgIHZhciB2YWwsIHZhbHVlT2YsIHRvU3RyaW5nOwogICAgaWYgKGlzUHJpbWl0aXZlKGlucHV0KSkgewogICAgICAgIHJldHVybiBpbnB1dDsKICAgIH0KICAgIHZhbHVlT2YgPSBpbnB1dC52YWx1ZU9mOwogICAgaWYgKHR5cGVvZiB2YWx1ZU9mID09PSAiZnVuY3Rpb24iKSB7CiAgICAgICAgdmFsID0gdmFsdWVPZi5jYWxsKGlucHV0KTsKICAgICAgICBpZiAoaXNQcmltaXRpdmUodmFsKSkgewogICAgICAgICAgICByZXR1cm4gdmFsOwogICAgICAgIH0KICAgIH0KICAgIHRvU3RyaW5nID0gaW5wdXQudG9TdHJpbmc7CiAgICBpZiAodHlwZW9mIHRvU3RyaW5nID09PSAiZnVuY3Rpb24iKSB7CiAgICAgICAgdmFsID0gdG9TdHJpbmcuY2FsbChpbnB1dCk7CiAgICAgICAgaWYgKGlzUHJpbWl0aXZlKHZhbCkpIHsKICAgICAgICAgICAgcmV0dXJuIHZhbDsKICAgICAgICB9CiAgICB9CiAgICB0aHJvdyBuZXcgVHlwZUVycm9yKCk7Cn0KdmFyIHRvT2JqZWN0ID0gZnVuY3Rpb24gKG8pIHsKICAgIGlmIChvID09IG51bGwpIHsgLy8gdGhpcyBtYXRjaGVzIGJvdGggbnVsbCBhbmQgdW5kZWZpbmVkCiAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcigiY2FuJ3QgY29udmVydCAiK28rIiB0byBvYmplY3QiKTsKICAgIH0KICAgIHJldHVybiBPYmplY3Qobyk7Cn07Cgp9KTsK';
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(17)(module)))
 
 /***/ }),
 /* 41 */
+/***/ (function(module, exports) {
+
+module.exports = 'data:application/javascript;base64,Im5vIHVzZSBzdHJpY3QiOwohKGZ1bmN0aW9uKHdpbmRvdykgewppZiAodHlwZW9mIHdpbmRvdy53aW5kb3cgIT0gInVuZGVmaW5lZCIgJiYgd2luZG93LmRvY3VtZW50KQogICAgcmV0dXJuOwppZiAod2luZG93LnJlcXVpcmUgJiYgd2luZG93LmRlZmluZSkKICAgIHJldHVybjsKCmlmICghd2luZG93LmNvbnNvbGUpIHsKICAgIHdpbmRvdy5jb25zb2xlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdmFyIG1zZ3MgPSBBcnJheS5wcm90b3R5cGUuc2xpY2UuY2FsbChhcmd1bWVudHMsIDApOwogICAgICAgIHBvc3RNZXNzYWdlKHt0eXBlOiAibG9nIiwgZGF0YTogbXNnc30pOwogICAgfTsKICAgIHdpbmRvdy5jb25zb2xlLmVycm9yID0KICAgIHdpbmRvdy5jb25zb2xlLndhcm4gPSAKICAgIHdpbmRvdy5jb25zb2xlLmxvZyA9CiAgICB3aW5kb3cuY29uc29sZS50cmFjZSA9IHdpbmRvdy5jb25zb2xlOwp9CndpbmRvdy53aW5kb3cgPSB3aW5kb3c7CndpbmRvdy5hY2UgPSB3aW5kb3c7Cgp3aW5kb3cub25lcnJvciA9IGZ1bmN0aW9uKG1lc3NhZ2UsIGZpbGUsIGxpbmUsIGNvbCwgZXJyKSB7CiAgICBwb3N0TWVzc2FnZSh7dHlwZTogImVycm9yIiwgZGF0YTogewogICAgICAgIG1lc3NhZ2U6IG1lc3NhZ2UsCiAgICAgICAgZGF0YTogZXJyLmRhdGEsCiAgICAgICAgZmlsZTogZmlsZSwKICAgICAgICBsaW5lOiBsaW5lLCAKICAgICAgICBjb2w6IGNvbCwKICAgICAgICBzdGFjazogZXJyLnN0YWNrCiAgICB9fSk7Cn07Cgp3aW5kb3cubm9ybWFsaXplTW9kdWxlID0gZnVuY3Rpb24ocGFyZW50SWQsIG1vZHVsZU5hbWUpIHsKICAgIC8vIG5vcm1hbGl6ZSBwbHVnaW4gcmVxdWlyZXMKICAgIGlmIChtb2R1bGVOYW1lLmluZGV4T2YoIiEiKSAhPT0gLTEpIHsKICAgICAgICB2YXIgY2h1bmtzID0gbW9kdWxlTmFtZS5zcGxpdCgiISIpOwogICAgICAgIHJldHVybiB3aW5kb3cubm9ybWFsaXplTW9kdWxlKHBhcmVudElkLCBjaHVua3NbMF0pICsgIiEiICsgd2luZG93Lm5vcm1hbGl6ZU1vZHVsZShwYXJlbnRJZCwgY2h1bmtzWzFdKTsKICAgIH0KICAgIC8vIG5vcm1hbGl6ZSByZWxhdGl2ZSByZXF1aXJlcwogICAgaWYgKG1vZHVsZU5hbWUuY2hhckF0KDApID09ICIuIikgewogICAgICAgIHZhciBiYXNlID0gcGFyZW50SWQuc3BsaXQoIi8iKS5zbGljZSgwLCAtMSkuam9pbigiLyIpOwogICAgICAgIG1vZHVsZU5hbWUgPSAoYmFzZSA/IGJhc2UgKyAiLyIgOiAiIikgKyBtb2R1bGVOYW1lOwogICAgICAgIAogICAgICAgIHdoaWxlIChtb2R1bGVOYW1lLmluZGV4T2YoIi4iKSAhPT0gLTEgJiYgcHJldmlvdXMgIT0gbW9kdWxlTmFtZSkgewogICAgICAgICAgICB2YXIgcHJldmlvdXMgPSBtb2R1bGVOYW1lOwogICAgICAgICAgICBtb2R1bGVOYW1lID0gbW9kdWxlTmFtZS5yZXBsYWNlKC9eXC5cLy8sICIiKS5yZXBsYWNlKC9cL1wuXC8vLCAiLyIpLnJlcGxhY2UoL1teXC9dK1wvXC5cLlwvLywgIiIpOwogICAgICAgIH0KICAgIH0KICAgIAogICAgcmV0dXJuIG1vZHVsZU5hbWU7Cn07Cgp3aW5kb3cucmVxdWlyZSA9IGZ1bmN0aW9uIHJlcXVpcmUocGFyZW50SWQsIGlkKSB7CiAgICBpZiAoIWlkKSB7CiAgICAgICAgaWQgPSBwYXJlbnRJZDsKICAgICAgICBwYXJlbnRJZCA9IG51bGw7CiAgICB9CiAgICBpZiAoIWlkLmNoYXJBdCkKICAgICAgICB0aHJvdyBuZXcgRXJyb3IoIndvcmtlci5qcyByZXF1aXJlKCkgYWNjZXB0cyBvbmx5IChwYXJlbnRJZCwgaWQpIGFzIGFyZ3VtZW50cyIpOwoKICAgIGlkID0gd2luZG93Lm5vcm1hbGl6ZU1vZHVsZShwYXJlbnRJZCwgaWQpOwoKICAgIHZhciBtb2R1bGUgPSB3aW5kb3cucmVxdWlyZS5tb2R1bGVzW2lkXTsKICAgIGlmIChtb2R1bGUpIHsKICAgICAgICBpZiAoIW1vZHVsZS5pbml0aWFsaXplZCkgewogICAgICAgICAgICBtb2R1bGUuaW5pdGlhbGl6ZWQgPSB0cnVlOwogICAgICAgICAgICBtb2R1bGUuZXhwb3J0cyA9IG1vZHVsZS5mYWN0b3J5KCkuZXhwb3J0czsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIG1vZHVsZS5leHBvcnRzOwogICAgfQogICAKICAgIGlmICghd2luZG93LnJlcXVpcmUudGxucykKICAgICAgICByZXR1cm4gY29uc29sZS5sb2coInVuYWJsZSB0byBsb2FkICIgKyBpZCk7CiAgICAKICAgIHZhciBwYXRoID0gcmVzb2x2ZU1vZHVsZUlkKGlkLCB3aW5kb3cucmVxdWlyZS50bG5zKTsKICAgIGlmIChwYXRoLnNsaWNlKC0zKSAhPSAiLmpzIikgcGF0aCArPSAiLmpzIjsKICAgIAogICAgd2luZG93LnJlcXVpcmUuaWQgPSBpZDsKICAgIHdpbmRvdy5yZXF1aXJlLm1vZHVsZXNbaWRdID0ge307IC8vIHByZXZlbnQgaW5maW5pdGUgbG9vcCBvbiBicm9rZW4gbW9kdWxlcwogICAgaW1wb3J0U2NyaXB0cyhwYXRoKTsKICAgIHJldHVybiB3aW5kb3cucmVxdWlyZShwYXJlbnRJZCwgaWQpOwp9OwpmdW5jdGlvbiByZXNvbHZlTW9kdWxlSWQoaWQsIHBhdGhzKSB7CiAgICB2YXIgdGVzdFBhdGggPSBpZCwgdGFpbCA9ICIiOwogICAgd2hpbGUgKHRlc3RQYXRoKSB7CiAgICAgICAgdmFyIGFsaWFzID0gcGF0aHNbdGVzdFBhdGhdOwogICAgICAgIGlmICh0eXBlb2YgYWxpYXMgPT0gInN0cmluZyIpIHsKICAgICAgICAgICAgcmV0dXJuIGFsaWFzICsgdGFpbDsKICAgICAgICB9IGVsc2UgaWYgKGFsaWFzKSB7CiAgICAgICAgICAgIHJldHVybiAgYWxpYXMubG9jYXRpb24ucmVwbGFjZSgvXC8qJC8sICIvIikgKyAodGFpbCB8fCBhbGlhcy5tYWluIHx8IGFsaWFzLm5hbWUpOwogICAgICAgIH0gZWxzZSBpZiAoYWxpYXMgPT09IGZhbHNlKSB7CiAgICAgICAgICAgIHJldHVybiAiIjsKICAgICAgICB9CiAgICAgICAgdmFyIGkgPSB0ZXN0UGF0aC5sYXN0SW5kZXhPZigiLyIpOwogICAgICAgIGlmIChpID09PSAtMSkgYnJlYWs7CiAgICAgICAgdGFpbCA9IHRlc3RQYXRoLnN1YnN0cihpKSArIHRhaWw7CiAgICAgICAgdGVzdFBhdGggPSB0ZXN0UGF0aC5zbGljZSgwLCBpKTsKICAgIH0KICAgIHJldHVybiBpZDsKfQp3aW5kb3cucmVxdWlyZS5tb2R1bGVzID0ge307CndpbmRvdy5yZXF1aXJlLnRsbnMgPSB7fTsKCndpbmRvdy5kZWZpbmUgPSBmdW5jdGlvbihpZCwgZGVwcywgZmFjdG9yeSkgewogICAgaWYgKGFyZ3VtZW50cy5sZW5ndGggPT0gMikgewogICAgICAgIGZhY3RvcnkgPSBkZXBzOwogICAgICAgIGlmICh0eXBlb2YgaWQgIT0gInN0cmluZyIpIHsKICAgICAgICAgICAgZGVwcyA9IGlkOwogICAgICAgICAgICBpZCA9IHdpbmRvdy5yZXF1aXJlLmlkOwogICAgICAgIH0KICAgIH0gZWxzZSBpZiAoYXJndW1lbnRzLmxlbmd0aCA9PSAxKSB7CiAgICAgICAgZmFjdG9yeSA9IGlkOwogICAgICAgIGRlcHMgPSBbXTsKICAgICAgICBpZCA9IHdpbmRvdy5yZXF1aXJlLmlkOwogICAgfQogICAgCiAgICBpZiAodHlwZW9mIGZhY3RvcnkgIT0gImZ1bmN0aW9uIikgewogICAgICAgIHdpbmRvdy5yZXF1aXJlLm1vZHVsZXNbaWRdID0gewogICAgICAgICAgICBleHBvcnRzOiBmYWN0b3J5LAogICAgICAgICAgICBpbml0aWFsaXplZDogdHJ1ZQogICAgICAgIH07CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGlmICghZGVwcy5sZW5ndGgpCiAgICAgICAgLy8gSWYgdGhlcmUgaXMgbm8gZGVwZW5kZW5jaWVzLCB3ZSBpbmplY3QgInJlcXVpcmUiLCAiZXhwb3J0cyIgYW5kCiAgICAgICAgLy8gIm1vZHVsZSIgYXMgZGVwZW5kZW5jaWVzLCB0byBwcm92aWRlIENvbW1vbkpTIGNvbXBhdGliaWxpdHkuCiAgICAgICAgZGVwcyA9IFsicmVxdWlyZSIsICJleHBvcnRzIiwgIm1vZHVsZSJdOwoKICAgIHZhciByZXEgPSBmdW5jdGlvbihjaGlsZElkKSB7CiAgICAgICAgcmV0dXJuIHdpbmRvdy5yZXF1aXJlKGlkLCBjaGlsZElkKTsKICAgIH07CgogICAgd2luZG93LnJlcXVpcmUubW9kdWxlc1tpZF0gPSB7CiAgICAgICAgZXhwb3J0czoge30sCiAgICAgICAgZmFjdG9yeTogZnVuY3Rpb24oKSB7CiAgICAgICAgICAgIHZhciBtb2R1bGUgPSB0aGlzOwogICAgICAgICAgICB2YXIgcmV0dXJuRXhwb3J0cyA9IGZhY3RvcnkuYXBwbHkodGhpcywgZGVwcy5zbGljZSgwLCBmYWN0b3J5Lmxlbmd0aCkubWFwKGZ1bmN0aW9uKGRlcCkgewogICAgICAgICAgICAgICAgc3dpdGNoIChkZXApIHsKICAgICAgICAgICAgICAgICAgICAvLyBCZWNhdXNlICJyZXF1aXJlIiwgImV4cG9ydHMiIGFuZCAibW9kdWxlIiBhcmVuJ3QgYWN0dWFsCiAgICAgICAgICAgICAgICAgICAgLy8gZGVwZW5kZW5jaWVzLCB3ZSBtdXN0IGhhbmRsZSB0aGVtIHNlcGVyYXRlbHkuCiAgICAgICAgICAgICAgICAgICAgY2FzZSAicmVxdWlyZSI6IHJldHVybiByZXE7CiAgICAgICAgICAgICAgICAgICAgY2FzZSAiZXhwb3J0cyI6IHJldHVybiBtb2R1bGUuZXhwb3J0czsKICAgICAgICAgICAgICAgICAgICBjYXNlICJtb2R1bGUiOiAgcmV0dXJuIG1vZHVsZTsKICAgICAgICAgICAgICAgICAgICAvLyBCdXQgZm9yIGFsbCBvdGhlciBkZXBlbmRlbmNpZXMsIHdlIGNhbiBqdXN0IGdvIGFoZWFkIGFuZAogICAgICAgICAgICAgICAgICAgIC8vIHJlcXVpcmUgdGhlbS4KICAgICAgICAgICAgICAgICAgICBkZWZhdWx0OiAgICAgICAgcmV0dXJuIHJlcShkZXApOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9KSk7CiAgICAgICAgICAgIGlmIChyZXR1cm5FeHBvcnRzKQogICAgICAgICAgICAgICAgbW9kdWxlLmV4cG9ydHMgPSByZXR1cm5FeHBvcnRzOwogICAgICAgICAgICByZXR1cm4gbW9kdWxlOwogICAgICAgIH0KICAgIH07Cn07CndpbmRvdy5kZWZpbmUuYW1kID0ge307CnJlcXVpcmUudGxucyA9IHt9Owp3aW5kb3cuaW5pdEJhc2VVcmxzICA9IGZ1bmN0aW9uIGluaXRCYXNlVXJscyh0b3BMZXZlbE5hbWVzcGFjZXMpIHsKICAgIGZvciAodmFyIGkgaW4gdG9wTGV2ZWxOYW1lc3BhY2VzKQogICAgICAgIHJlcXVpcmUudGxuc1tpXSA9IHRvcExldmVsTmFtZXNwYWNlc1tpXTsKfTsKCndpbmRvdy5pbml0U2VuZGVyID0gZnVuY3Rpb24gaW5pdFNlbmRlcigpIHsKCiAgICB2YXIgRXZlbnRFbWl0dGVyID0gd2luZG93LnJlcXVpcmUoImFjZS9saWIvZXZlbnRfZW1pdHRlciIpLkV2ZW50RW1pdHRlcjsKICAgIHZhciBvb3AgPSB3aW5kb3cucmVxdWlyZSgiYWNlL2xpYi9vb3AiKTsKICAgIAogICAgdmFyIFNlbmRlciA9IGZ1bmN0aW9uKCkge307CiAgICAKICAgIChmdW5jdGlvbigpIHsKICAgICAgICAKICAgICAgICBvb3AuaW1wbGVtZW50KHRoaXMsIEV2ZW50RW1pdHRlcik7CiAgICAgICAgICAgICAgICAKICAgICAgICB0aGlzLmNhbGxiYWNrID0gZnVuY3Rpb24oZGF0YSwgY2FsbGJhY2tJZCkgewogICAgICAgICAgICBwb3N0TWVzc2FnZSh7CiAgICAgICAgICAgICAgICB0eXBlOiAiY2FsbCIsCiAgICAgICAgICAgICAgICBpZDogY2FsbGJhY2tJZCwKICAgICAgICAgICAgICAgIGRhdGE6IGRhdGEKICAgICAgICAgICAgfSk7CiAgICAgICAgfTsKICAgIAogICAgICAgIHRoaXMuZW1pdCA9IGZ1bmN0aW9uKG5hbWUsIGRhdGEpIHsKICAgICAgICAgICAgcG9zdE1lc3NhZ2UoewogICAgICAgICAgICAgICAgdHlwZTogImV2ZW50IiwKICAgICAgICAgICAgICAgIG5hbWU6IG5hbWUsCiAgICAgICAgICAgICAgICBkYXRhOiBkYXRhCiAgICAgICAgICAgIH0pOwogICAgICAgIH07CiAgICAgICAgCiAgICB9KS5jYWxsKFNlbmRlci5wcm90b3R5cGUpOwogICAgCiAgICByZXR1cm4gbmV3IFNlbmRlcigpOwp9OwoKdmFyIG1haW4gPSB3aW5kb3cubWFpbiA9IG51bGw7CnZhciBzZW5kZXIgPSB3aW5kb3cuc2VuZGVyID0gbnVsbDsKCndpbmRvdy5vbm1lc3NhZ2UgPSBmdW5jdGlvbihlKSB7CiAgICB2YXIgbXNnID0gZS5kYXRhOwogICAgaWYgKG1zZy5ldmVudCAmJiBzZW5kZXIpIHsKICAgICAgICBzZW5kZXIuX3NpZ25hbChtc2cuZXZlbnQsIG1zZy5kYXRhKTsKICAgIH0KICAgIGVsc2UgaWYgKG1zZy5jb21tYW5kKSB7CiAgICAgICAgaWYgKG1haW5bbXNnLmNvbW1hbmRdKQogICAgICAgICAgICBtYWluW21zZy5jb21tYW5kXS5hcHBseShtYWluLCBtc2cuYXJncyk7CiAgICAgICAgZWxzZSBpZiAod2luZG93W21zZy5jb21tYW5kXSkKICAgICAgICAgICAgd2luZG93W21zZy5jb21tYW5kXS5hcHBseSh3aW5kb3csIG1zZy5hcmdzKTsKICAgICAgICBlbHNlCiAgICAgICAgICAgIHRocm93IG5ldyBFcnJvcigiVW5rbm93biBjb21tYW5kOiIgKyBtc2cuY29tbWFuZCk7CiAgICB9CiAgICBlbHNlIGlmIChtc2cuaW5pdCkgewogICAgICAgIHdpbmRvdy5pbml0QmFzZVVybHMobXNnLnRsbnMpOwogICAgICAgIHNlbmRlciA9IHdpbmRvdy5zZW5kZXIgPSB3aW5kb3cuaW5pdFNlbmRlcigpOwogICAgICAgIHZhciBjbGF6eiA9IHJlcXVpcmUobXNnLm1vZHVsZSlbbXNnLmNsYXNzbmFtZV07CiAgICAgICAgbWFpbiA9IHdpbmRvdy5tYWluID0gbmV3IGNsYXp6KHNlbmRlcik7CiAgICB9Cn07Cn0pKHRoaXMpOwoKYWNlLmRlZmluZSgiYWNlL2xpYi9vb3AiLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwoKZXhwb3J0cy5pbmhlcml0cyA9IGZ1bmN0aW9uKGN0b3IsIHN1cGVyQ3RvcikgewogICAgY3Rvci5zdXBlcl8gPSBzdXBlckN0b3I7CiAgICBjdG9yLnByb3RvdHlwZSA9IE9iamVjdC5jcmVhdGUoc3VwZXJDdG9yLnByb3RvdHlwZSwgewogICAgICAgIGNvbnN0cnVjdG9yOiB7CiAgICAgICAgICAgIHZhbHVlOiBjdG9yLAogICAgICAgICAgICBlbnVtZXJhYmxlOiBmYWxzZSwKICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQogICAgICAgIH0KICAgIH0pOwp9OwoKZXhwb3J0cy5taXhpbiA9IGZ1bmN0aW9uKG9iaiwgbWl4aW4pIHsKICAgIGZvciAodmFyIGtleSBpbiBtaXhpbikgewogICAgICAgIG9ialtrZXldID0gbWl4aW5ba2V5XTsKICAgIH0KICAgIHJldHVybiBvYmo7Cn07CgpleHBvcnRzLmltcGxlbWVudCA9IGZ1bmN0aW9uKHByb3RvLCBtaXhpbikgewogICAgZXhwb3J0cy5taXhpbihwcm90bywgbWl4aW4pOwp9OwoKfSk7CgphY2UuZGVmaW5lKCJhY2UvcmFuZ2UiLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwp2YXIgY29tcGFyZVBvaW50cyA9IGZ1bmN0aW9uKHAxLCBwMikgewogICAgcmV0dXJuIHAxLnJvdyAtIHAyLnJvdyB8fCBwMS5jb2x1bW4gLSBwMi5jb2x1bW47Cn07CnZhciBSYW5nZSA9IGZ1bmN0aW9uKHN0YXJ0Um93LCBzdGFydENvbHVtbiwgZW5kUm93LCBlbmRDb2x1bW4pIHsKICAgIHRoaXMuc3RhcnQgPSB7CiAgICAgICAgcm93OiBzdGFydFJvdywKICAgICAgICBjb2x1bW46IHN0YXJ0Q29sdW1uCiAgICB9OwoKICAgIHRoaXMuZW5kID0gewogICAgICAgIHJvdzogZW5kUm93LAogICAgICAgIGNvbHVtbjogZW5kQ29sdW1uCiAgICB9Owp9OwoKKGZ1bmN0aW9uKCkgewogICAgdGhpcy5pc0VxdWFsID0gZnVuY3Rpb24ocmFuZ2UpIHsKICAgICAgICByZXR1cm4gdGhpcy5zdGFydC5yb3cgPT09IHJhbmdlLnN0YXJ0LnJvdyAmJgogICAgICAgICAgICB0aGlzLmVuZC5yb3cgPT09IHJhbmdlLmVuZC5yb3cgJiYKICAgICAgICAgICAgdGhpcy5zdGFydC5jb2x1bW4gPT09IHJhbmdlLnN0YXJ0LmNvbHVtbiAmJgogICAgICAgICAgICB0aGlzLmVuZC5jb2x1bW4gPT09IHJhbmdlLmVuZC5jb2x1bW47CiAgICB9OwogICAgdGhpcy50b1N0cmluZyA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiAoIlJhbmdlOiBbIiArIHRoaXMuc3RhcnQucm93ICsgIi8iICsgdGhpcy5zdGFydC5jb2x1bW4gKwogICAgICAgICAgICAiXSAtPiBbIiArIHRoaXMuZW5kLnJvdyArICIvIiArIHRoaXMuZW5kLmNvbHVtbiArICJdIik7CiAgICB9OwoKICAgIHRoaXMuY29udGFpbnMgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIHJldHVybiB0aGlzLmNvbXBhcmUocm93LCBjb2x1bW4pID09IDA7CiAgICB9OwogICAgdGhpcy5jb21wYXJlUmFuZ2UgPSBmdW5jdGlvbihyYW5nZSkgewogICAgICAgIHZhciBjbXAsCiAgICAgICAgICAgIGVuZCA9IHJhbmdlLmVuZCwKICAgICAgICAgICAgc3RhcnQgPSByYW5nZS5zdGFydDsKCiAgICAgICAgY21wID0gdGhpcy5jb21wYXJlKGVuZC5yb3csIGVuZC5jb2x1bW4pOwogICAgICAgIGlmIChjbXAgPT0gMSkgewogICAgICAgICAgICBjbXAgPSB0aGlzLmNvbXBhcmUoc3RhcnQucm93LCBzdGFydC5jb2x1bW4pOwogICAgICAgICAgICBpZiAoY21wID09IDEpIHsKICAgICAgICAgICAgICAgIHJldHVybiAyOwogICAgICAgICAgICB9IGVsc2UgaWYgKGNtcCA9PSAwKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gMTsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiAwOwogICAgICAgICAgICB9CiAgICAgICAgfSBlbHNlIGlmIChjbXAgPT0gLTEpIHsKICAgICAgICAgICAgcmV0dXJuIC0yOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIGNtcCA9IHRoaXMuY29tcGFyZShzdGFydC5yb3csIHN0YXJ0LmNvbHVtbik7CiAgICAgICAgICAgIGlmIChjbXAgPT0gLTEpIHsKICAgICAgICAgICAgICAgIHJldHVybiAtMTsKICAgICAgICAgICAgfSBlbHNlIGlmIChjbXAgPT0gMSkgewogICAgICAgICAgICAgICAgcmV0dXJuIDQyOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgcmV0dXJuIDA7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9OwogICAgdGhpcy5jb21wYXJlUG9pbnQgPSBmdW5jdGlvbihwKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuY29tcGFyZShwLnJvdywgcC5jb2x1bW4pOwogICAgfTsKICAgIHRoaXMuY29udGFpbnNSYW5nZSA9IGZ1bmN0aW9uKHJhbmdlKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuY29tcGFyZVBvaW50KHJhbmdlLnN0YXJ0KSA9PSAwICYmIHRoaXMuY29tcGFyZVBvaW50KHJhbmdlLmVuZCkgPT0gMDsKICAgIH07CiAgICB0aGlzLmludGVyc2VjdHMgPSBmdW5jdGlvbihyYW5nZSkgewogICAgICAgIHZhciBjbXAgPSB0aGlzLmNvbXBhcmVSYW5nZShyYW5nZSk7CiAgICAgICAgcmV0dXJuIChjbXAgPT0gLTEgfHwgY21wID09IDAgfHwgY21wID09IDEpOwogICAgfTsKICAgIHRoaXMuaXNFbmQgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIHJldHVybiB0aGlzLmVuZC5yb3cgPT0gcm93ICYmIHRoaXMuZW5kLmNvbHVtbiA9PSBjb2x1bW47CiAgICB9OwogICAgdGhpcy5pc1N0YXJ0ID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICByZXR1cm4gdGhpcy5zdGFydC5yb3cgPT0gcm93ICYmIHRoaXMuc3RhcnQuY29sdW1uID09IGNvbHVtbjsKICAgIH07CiAgICB0aGlzLnNldFN0YXJ0ID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodHlwZW9mIHJvdyA9PSAib2JqZWN0IikgewogICAgICAgICAgICB0aGlzLnN0YXJ0LmNvbHVtbiA9IHJvdy5jb2x1bW47CiAgICAgICAgICAgIHRoaXMuc3RhcnQucm93ID0gcm93LnJvdzsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICB0aGlzLnN0YXJ0LnJvdyA9IHJvdzsKICAgICAgICAgICAgdGhpcy5zdGFydC5jb2x1bW4gPSBjb2x1bW47CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMuc2V0RW5kID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodHlwZW9mIHJvdyA9PSAib2JqZWN0IikgewogICAgICAgICAgICB0aGlzLmVuZC5jb2x1bW4gPSByb3cuY29sdW1uOwogICAgICAgICAgICB0aGlzLmVuZC5yb3cgPSByb3cucm93OwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIHRoaXMuZW5kLnJvdyA9IHJvdzsKICAgICAgICAgICAgdGhpcy5lbmQuY29sdW1uID0gY29sdW1uOwogICAgICAgIH0KICAgIH07CiAgICB0aGlzLmluc2lkZSA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgaWYgKHRoaXMuY29tcGFyZShyb3csIGNvbHVtbikgPT0gMCkgewogICAgICAgICAgICBpZiAodGhpcy5pc0VuZChyb3csIGNvbHVtbikgfHwgdGhpcy5pc1N0YXJ0KHJvdywgY29sdW1uKSkgewogICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOwogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgcmV0dXJuIGZhbHNlOwogICAgfTsKICAgIHRoaXMuaW5zaWRlU3RhcnQgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIGlmICh0aGlzLmNvbXBhcmUocm93LCBjb2x1bW4pID09IDApIHsKICAgICAgICAgICAgaWYgKHRoaXMuaXNFbmQocm93LCBjb2x1bW4pKSB7CiAgICAgICAgICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICByZXR1cm4gdHJ1ZTsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICByZXR1cm4gZmFsc2U7CiAgICB9OwogICAgdGhpcy5pbnNpZGVFbmQgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIGlmICh0aGlzLmNvbXBhcmUocm93LCBjb2x1bW4pID09IDApIHsKICAgICAgICAgICAgaWYgKHRoaXMuaXNTdGFydChyb3csIGNvbHVtbikpIHsKICAgICAgICAgICAgICAgIHJldHVybiBmYWxzZTsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiB0cnVlOwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgIHJldHVybiBmYWxzZTsKICAgIH07CiAgICB0aGlzLmNvbXBhcmUgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIGlmICghdGhpcy5pc011bHRpTGluZSgpKSB7CiAgICAgICAgICAgIGlmIChyb3cgPT09IHRoaXMuc3RhcnQucm93KSB7CiAgICAgICAgICAgICAgICByZXR1cm4gY29sdW1uIDwgdGhpcy5zdGFydC5jb2x1bW4gPyAtMSA6IChjb2x1bW4gPiB0aGlzLmVuZC5jb2x1bW4gPyAxIDogMCk7CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIGlmIChyb3cgPCB0aGlzLnN0YXJ0LnJvdykKICAgICAgICAgICAgcmV0dXJuIC0xOwoKICAgICAgICBpZiAocm93ID4gdGhpcy5lbmQucm93KQogICAgICAgICAgICByZXR1cm4gMTsKCiAgICAgICAgaWYgKHRoaXMuc3RhcnQucm93ID09PSByb3cpCiAgICAgICAgICAgIHJldHVybiBjb2x1bW4gPj0gdGhpcy5zdGFydC5jb2x1bW4gPyAwIDogLTE7CgogICAgICAgIGlmICh0aGlzLmVuZC5yb3cgPT09IHJvdykKICAgICAgICAgICAgcmV0dXJuIGNvbHVtbiA8PSB0aGlzLmVuZC5jb2x1bW4gPyAwIDogMTsKCiAgICAgICAgcmV0dXJuIDA7CiAgICB9OwogICAgdGhpcy5jb21wYXJlU3RhcnQgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIGlmICh0aGlzLnN0YXJ0LnJvdyA9PSByb3cgJiYgdGhpcy5zdGFydC5jb2x1bW4gPT0gY29sdW1uKSB7CiAgICAgICAgICAgIHJldHVybiAtMTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICByZXR1cm4gdGhpcy5jb21wYXJlKHJvdywgY29sdW1uKTsKICAgICAgICB9CiAgICB9OwogICAgdGhpcy5jb21wYXJlRW5kID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICBpZiAodGhpcy5lbmQucm93ID09IHJvdyAmJiB0aGlzLmVuZC5jb2x1bW4gPT0gY29sdW1uKSB7CiAgICAgICAgICAgIHJldHVybiAxOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIHJldHVybiB0aGlzLmNvbXBhcmUocm93LCBjb2x1bW4pOwogICAgICAgIH0KICAgIH07CiAgICB0aGlzLmNvbXBhcmVJbnNpZGUgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIGlmICh0aGlzLmVuZC5yb3cgPT0gcm93ICYmIHRoaXMuZW5kLmNvbHVtbiA9PSBjb2x1bW4pIHsKICAgICAgICAgICAgcmV0dXJuIDE7CiAgICAgICAgfSBlbHNlIGlmICh0aGlzLnN0YXJ0LnJvdyA9PSByb3cgJiYgdGhpcy5zdGFydC5jb2x1bW4gPT0gY29sdW1uKSB7CiAgICAgICAgICAgIHJldHVybiAtMTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICByZXR1cm4gdGhpcy5jb21wYXJlKHJvdywgY29sdW1uKTsKICAgICAgICB9CiAgICB9OwogICAgdGhpcy5jbGlwUm93cyA9IGZ1bmN0aW9uKGZpcnN0Um93LCBsYXN0Um93KSB7CiAgICAgICAgaWYgKHRoaXMuZW5kLnJvdyA+IGxhc3RSb3cpCiAgICAgICAgICAgIHZhciBlbmQgPSB7cm93OiBsYXN0Um93ICsgMSwgY29sdW1uOiAwfTsKICAgICAgICBlbHNlIGlmICh0aGlzLmVuZC5yb3cgPCBmaXJzdFJvdykKICAgICAgICAgICAgdmFyIGVuZCA9IHtyb3c6IGZpcnN0Um93LCBjb2x1bW46IDB9OwoKICAgICAgICBpZiAodGhpcy5zdGFydC5yb3cgPiBsYXN0Um93KQogICAgICAgICAgICB2YXIgc3RhcnQgPSB7cm93OiBsYXN0Um93ICsgMSwgY29sdW1uOiAwfTsKICAgICAgICBlbHNlIGlmICh0aGlzLnN0YXJ0LnJvdyA8IGZpcnN0Um93KQogICAgICAgICAgICB2YXIgc3RhcnQgPSB7cm93OiBmaXJzdFJvdywgY29sdW1uOiAwfTsKCiAgICAgICAgcmV0dXJuIFJhbmdlLmZyb21Qb2ludHMoc3RhcnQgfHwgdGhpcy5zdGFydCwgZW5kIHx8IHRoaXMuZW5kKTsKICAgIH07CiAgICB0aGlzLmV4dGVuZCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgdmFyIGNtcCA9IHRoaXMuY29tcGFyZShyb3csIGNvbHVtbik7CgogICAgICAgIGlmIChjbXAgPT0gMCkKICAgICAgICAgICAgcmV0dXJuIHRoaXM7CiAgICAgICAgZWxzZSBpZiAoY21wID09IC0xKQogICAgICAgICAgICB2YXIgc3RhcnQgPSB7cm93OiByb3csIGNvbHVtbjogY29sdW1ufTsKICAgICAgICBlbHNlCiAgICAgICAgICAgIHZhciBlbmQgPSB7cm93OiByb3csIGNvbHVtbjogY29sdW1ufTsKCiAgICAgICAgcmV0dXJuIFJhbmdlLmZyb21Qb2ludHMoc3RhcnQgfHwgdGhpcy5zdGFydCwgZW5kIHx8IHRoaXMuZW5kKTsKICAgIH07CgogICAgdGhpcy5pc0VtcHR5ID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuICh0aGlzLnN0YXJ0LnJvdyA9PT0gdGhpcy5lbmQucm93ICYmIHRoaXMuc3RhcnQuY29sdW1uID09PSB0aGlzLmVuZC5jb2x1bW4pOwogICAgfTsKICAgIHRoaXMuaXNNdWx0aUxpbmUgPSBmdW5jdGlvbigpIHsKICAgICAgICByZXR1cm4gKHRoaXMuc3RhcnQucm93ICE9PSB0aGlzLmVuZC5yb3cpOwogICAgfTsKICAgIHRoaXMuY2xvbmUgPSBmdW5jdGlvbigpIHsKICAgICAgICByZXR1cm4gUmFuZ2UuZnJvbVBvaW50cyh0aGlzLnN0YXJ0LCB0aGlzLmVuZCk7CiAgICB9OwogICAgdGhpcy5jb2xsYXBzZVJvd3MgPSBmdW5jdGlvbigpIHsKICAgICAgICBpZiAodGhpcy5lbmQuY29sdW1uID09IDApCiAgICAgICAgICAgIHJldHVybiBuZXcgUmFuZ2UodGhpcy5zdGFydC5yb3csIDAsIE1hdGgubWF4KHRoaXMuc3RhcnQucm93LCB0aGlzLmVuZC5yb3ctMSksIDApOwogICAgICAgIGVsc2UKICAgICAgICAgICAgcmV0dXJuIG5ldyBSYW5nZSh0aGlzLnN0YXJ0LnJvdywgMCwgdGhpcy5lbmQucm93LCAwKTsKICAgIH07CiAgICB0aGlzLnRvU2NyZWVuUmFuZ2UgPSBmdW5jdGlvbihzZXNzaW9uKSB7CiAgICAgICAgdmFyIHNjcmVlblBvc1N0YXJ0ID0gc2Vzc2lvbi5kb2N1bWVudFRvU2NyZWVuUG9zaXRpb24odGhpcy5zdGFydCk7CiAgICAgICAgdmFyIHNjcmVlblBvc0VuZCA9IHNlc3Npb24uZG9jdW1lbnRUb1NjcmVlblBvc2l0aW9uKHRoaXMuZW5kKTsKCiAgICAgICAgcmV0dXJuIG5ldyBSYW5nZSgKICAgICAgICAgICAgc2NyZWVuUG9zU3RhcnQucm93LCBzY3JlZW5Qb3NTdGFydC5jb2x1bW4sCiAgICAgICAgICAgIHNjcmVlblBvc0VuZC5yb3csIHNjcmVlblBvc0VuZC5jb2x1bW4KICAgICAgICApOwogICAgfTsKICAgIHRoaXMubW92ZUJ5ID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICB0aGlzLnN0YXJ0LnJvdyArPSByb3c7CiAgICAgICAgdGhpcy5zdGFydC5jb2x1bW4gKz0gY29sdW1uOwogICAgICAgIHRoaXMuZW5kLnJvdyArPSByb3c7CiAgICAgICAgdGhpcy5lbmQuY29sdW1uICs9IGNvbHVtbjsKICAgIH07Cgp9KS5jYWxsKFJhbmdlLnByb3RvdHlwZSk7ClJhbmdlLmZyb21Qb2ludHMgPSBmdW5jdGlvbihzdGFydCwgZW5kKSB7CiAgICByZXR1cm4gbmV3IFJhbmdlKHN0YXJ0LnJvdywgc3RhcnQuY29sdW1uLCBlbmQucm93LCBlbmQuY29sdW1uKTsKfTsKUmFuZ2UuY29tcGFyZVBvaW50cyA9IGNvbXBhcmVQb2ludHM7CgpSYW5nZS5jb21wYXJlUG9pbnRzID0gZnVuY3Rpb24ocDEsIHAyKSB7CiAgICByZXR1cm4gcDEucm93IC0gcDIucm93IHx8IHAxLmNvbHVtbiAtIHAyLmNvbHVtbjsKfTsKCgpleHBvcnRzLlJhbmdlID0gUmFuZ2U7Cn0pOwoKYWNlLmRlZmluZSgiYWNlL2FwcGx5X2RlbHRhIixbXSwgZnVuY3Rpb24ocmVxdWlyZSwgZXhwb3J0cywgbW9kdWxlKSB7CiJ1c2Ugc3RyaWN0IjsKCmZ1bmN0aW9uIHRocm93RGVsdGFFcnJvcihkZWx0YSwgZXJyb3JUZXh0KXsKICAgIGNvbnNvbGUubG9nKCJJbnZhbGlkIERlbHRhOiIsIGRlbHRhKTsKICAgIHRocm93ICJJbnZhbGlkIERlbHRhOiAiICsgZXJyb3JUZXh0Owp9CgpmdW5jdGlvbiBwb3NpdGlvbkluRG9jdW1lbnQoZG9jTGluZXMsIHBvc2l0aW9uKSB7CiAgICByZXR1cm4gcG9zaXRpb24ucm93ICAgID49IDAgJiYgcG9zaXRpb24ucm93ICAgIDwgIGRvY0xpbmVzLmxlbmd0aCAmJgogICAgICAgICAgIHBvc2l0aW9uLmNvbHVtbiA+PSAwICYmIHBvc2l0aW9uLmNvbHVtbiA8PSBkb2NMaW5lc1twb3NpdGlvbi5yb3ddLmxlbmd0aDsKfQoKZnVuY3Rpb24gdmFsaWRhdGVEZWx0YShkb2NMaW5lcywgZGVsdGEpIHsKICAgIGlmIChkZWx0YS5hY3Rpb24gIT0gImluc2VydCIgJiYgZGVsdGEuYWN0aW9uICE9ICJyZW1vdmUiKQogICAgICAgIHRocm93RGVsdGFFcnJvcihkZWx0YSwgImRlbHRhLmFjdGlvbiBtdXN0IGJlICdpbnNlcnQnIG9yICdyZW1vdmUnIik7CiAgICBpZiAoIShkZWx0YS5saW5lcyBpbnN0YW5jZW9mIEFycmF5KSkKICAgICAgICB0aHJvd0RlbHRhRXJyb3IoZGVsdGEsICJkZWx0YS5saW5lcyBtdXN0IGJlIGFuIEFycmF5Iik7CiAgICBpZiAoIWRlbHRhLnN0YXJ0IHx8ICFkZWx0YS5lbmQpCiAgICAgICB0aHJvd0RlbHRhRXJyb3IoZGVsdGEsICJkZWx0YS5zdGFydC9lbmQgbXVzdCBiZSBhbiBwcmVzZW50Iik7CiAgICB2YXIgc3RhcnQgPSBkZWx0YS5zdGFydDsKICAgIGlmICghcG9zaXRpb25JbkRvY3VtZW50KGRvY0xpbmVzLCBkZWx0YS5zdGFydCkpCiAgICAgICAgdGhyb3dEZWx0YUVycm9yKGRlbHRhLCAiZGVsdGEuc3RhcnQgbXVzdCBiZSBjb250YWluZWQgaW4gZG9jdW1lbnQiKTsKICAgIHZhciBlbmQgPSBkZWx0YS5lbmQ7CiAgICBpZiAoZGVsdGEuYWN0aW9uID09ICJyZW1vdmUiICYmICFwb3NpdGlvbkluRG9jdW1lbnQoZG9jTGluZXMsIGVuZCkpCiAgICAgICAgdGhyb3dEZWx0YUVycm9yKGRlbHRhLCAiZGVsdGEuZW5kIG11c3QgY29udGFpbmVkIGluIGRvY3VtZW50IGZvciAncmVtb3ZlJyBhY3Rpb25zIik7CiAgICB2YXIgbnVtUmFuZ2VSb3dzID0gZW5kLnJvdyAtIHN0YXJ0LnJvdzsKICAgIHZhciBudW1SYW5nZUxhc3RMaW5lQ2hhcnMgPSAoZW5kLmNvbHVtbiAtIChudW1SYW5nZVJvd3MgPT0gMCA/IHN0YXJ0LmNvbHVtbiA6IDApKTsKICAgIGlmIChudW1SYW5nZVJvd3MgIT0gZGVsdGEubGluZXMubGVuZ3RoIC0gMSB8fCBkZWx0YS5saW5lc1tudW1SYW5nZVJvd3NdLmxlbmd0aCAhPSBudW1SYW5nZUxhc3RMaW5lQ2hhcnMpCiAgICAgICAgdGhyb3dEZWx0YUVycm9yKGRlbHRhLCAiZGVsdGEucmFuZ2UgbXVzdCBtYXRjaCBkZWx0YSBsaW5lcyIpOwp9CgpleHBvcnRzLmFwcGx5RGVsdGEgPSBmdW5jdGlvbihkb2NMaW5lcywgZGVsdGEsIGRvTm90VmFsaWRhdGUpIHsKICAgIAogICAgdmFyIHJvdyA9IGRlbHRhLnN0YXJ0LnJvdzsKICAgIHZhciBzdGFydENvbHVtbiA9IGRlbHRhLnN0YXJ0LmNvbHVtbjsKICAgIHZhciBsaW5lID0gZG9jTGluZXNbcm93XSB8fCAiIjsKICAgIHN3aXRjaCAoZGVsdGEuYWN0aW9uKSB7CiAgICAgICAgY2FzZSAiaW5zZXJ0IjoKICAgICAgICAgICAgdmFyIGxpbmVzID0gZGVsdGEubGluZXM7CiAgICAgICAgICAgIGlmIChsaW5lcy5sZW5ndGggPT09IDEpIHsKICAgICAgICAgICAgICAgIGRvY0xpbmVzW3Jvd10gPSBsaW5lLnN1YnN0cmluZygwLCBzdGFydENvbHVtbikgKyBkZWx0YS5saW5lc1swXSArIGxpbmUuc3Vic3RyaW5nKHN0YXJ0Q29sdW1uKTsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHZhciBhcmdzID0gW3JvdywgMV0uY29uY2F0KGRlbHRhLmxpbmVzKTsKICAgICAgICAgICAgICAgIGRvY0xpbmVzLnNwbGljZS5hcHBseShkb2NMaW5lcywgYXJncyk7CiAgICAgICAgICAgICAgICBkb2NMaW5lc1tyb3ddID0gbGluZS5zdWJzdHJpbmcoMCwgc3RhcnRDb2x1bW4pICsgZG9jTGluZXNbcm93XTsKICAgICAgICAgICAgICAgIGRvY0xpbmVzW3JvdyArIGRlbHRhLmxpbmVzLmxlbmd0aCAtIDFdICs9IGxpbmUuc3Vic3RyaW5nKHN0YXJ0Q29sdW1uKTsKICAgICAgICAgICAgfQogICAgICAgICAgICBicmVhazsKICAgICAgICBjYXNlICJyZW1vdmUiOgogICAgICAgICAgICB2YXIgZW5kQ29sdW1uID0gZGVsdGEuZW5kLmNvbHVtbjsKICAgICAgICAgICAgdmFyIGVuZFJvdyA9IGRlbHRhLmVuZC5yb3c7CiAgICAgICAgICAgIGlmIChyb3cgPT09IGVuZFJvdykgewogICAgICAgICAgICAgICAgZG9jTGluZXNbcm93XSA9IGxpbmUuc3Vic3RyaW5nKDAsIHN0YXJ0Q29sdW1uKSArIGxpbmUuc3Vic3RyaW5nKGVuZENvbHVtbik7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICBkb2NMaW5lcy5zcGxpY2UoCiAgICAgICAgICAgICAgICAgICAgcm93LCBlbmRSb3cgLSByb3cgKyAxLAogICAgICAgICAgICAgICAgICAgIGxpbmUuc3Vic3RyaW5nKDAsIHN0YXJ0Q29sdW1uKSArIGRvY0xpbmVzW2VuZFJvd10uc3Vic3RyaW5nKGVuZENvbHVtbikKICAgICAgICAgICAgICAgICk7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgYnJlYWs7CiAgICB9Cn07Cn0pOwoKYWNlLmRlZmluZSgiYWNlL2xpYi9ldmVudF9lbWl0dGVyIixbXSwgZnVuY3Rpb24ocmVxdWlyZSwgZXhwb3J0cywgbW9kdWxlKSB7CiJ1c2Ugc3RyaWN0IjsKCnZhciBFdmVudEVtaXR0ZXIgPSB7fTsKdmFyIHN0b3BQcm9wYWdhdGlvbiA9IGZ1bmN0aW9uKCkgeyB0aGlzLnByb3BhZ2F0aW9uU3RvcHBlZCA9IHRydWU7IH07CnZhciBwcmV2ZW50RGVmYXVsdCA9IGZ1bmN0aW9uKCkgeyB0aGlzLmRlZmF1bHRQcmV2ZW50ZWQgPSB0cnVlOyB9OwoKRXZlbnRFbWl0dGVyLl9lbWl0ID0KRXZlbnRFbWl0dGVyLl9kaXNwYXRjaEV2ZW50ID0gZnVuY3Rpb24oZXZlbnROYW1lLCBlKSB7CiAgICB0aGlzLl9ldmVudFJlZ2lzdHJ5IHx8ICh0aGlzLl9ldmVudFJlZ2lzdHJ5ID0ge30pOwogICAgdGhpcy5fZGVmYXVsdEhhbmRsZXJzIHx8ICh0aGlzLl9kZWZhdWx0SGFuZGxlcnMgPSB7fSk7CgogICAgdmFyIGxpc3RlbmVycyA9IHRoaXMuX2V2ZW50UmVnaXN0cnlbZXZlbnROYW1lXSB8fCBbXTsKICAgIHZhciBkZWZhdWx0SGFuZGxlciA9IHRoaXMuX2RlZmF1bHRIYW5kbGVyc1tldmVudE5hbWVdOwogICAgaWYgKCFsaXN0ZW5lcnMubGVuZ3RoICYmICFkZWZhdWx0SGFuZGxlcikKICAgICAgICByZXR1cm47CgogICAgaWYgKHR5cGVvZiBlICE9ICJvYmplY3QiIHx8ICFlKQogICAgICAgIGUgPSB7fTsKCiAgICBpZiAoIWUudHlwZSkKICAgICAgICBlLnR5cGUgPSBldmVudE5hbWU7CiAgICBpZiAoIWUuc3RvcFByb3BhZ2F0aW9uKQogICAgICAgIGUuc3RvcFByb3BhZ2F0aW9uID0gc3RvcFByb3BhZ2F0aW9uOwogICAgaWYgKCFlLnByZXZlbnREZWZhdWx0KQogICAgICAgIGUucHJldmVudERlZmF1bHQgPSBwcmV2ZW50RGVmYXVsdDsKCiAgICBsaXN0ZW5lcnMgPSBsaXN0ZW5lcnMuc2xpY2UoKTsKICAgIGZvciAodmFyIGk9MDsgaTxsaXN0ZW5lcnMubGVuZ3RoOyBpKyspIHsKICAgICAgICBsaXN0ZW5lcnNbaV0oZSwgdGhpcyk7CiAgICAgICAgaWYgKGUucHJvcGFnYXRpb25TdG9wcGVkKQogICAgICAgICAgICBicmVhazsKICAgIH0KICAgIAogICAgaWYgKGRlZmF1bHRIYW5kbGVyICYmICFlLmRlZmF1bHRQcmV2ZW50ZWQpCiAgICAgICAgcmV0dXJuIGRlZmF1bHRIYW5kbGVyKGUsIHRoaXMpOwp9OwoKCkV2ZW50RW1pdHRlci5fc2lnbmFsID0gZnVuY3Rpb24oZXZlbnROYW1lLCBlKSB7CiAgICB2YXIgbGlzdGVuZXJzID0gKHRoaXMuX2V2ZW50UmVnaXN0cnkgfHwge30pW2V2ZW50TmFtZV07CiAgICBpZiAoIWxpc3RlbmVycykKICAgICAgICByZXR1cm47CiAgICBsaXN0ZW5lcnMgPSBsaXN0ZW5lcnMuc2xpY2UoKTsKICAgIGZvciAodmFyIGk9MDsgaTxsaXN0ZW5lcnMubGVuZ3RoOyBpKyspCiAgICAgICAgbGlzdGVuZXJzW2ldKGUsIHRoaXMpOwp9OwoKRXZlbnRFbWl0dGVyLm9uY2UgPSBmdW5jdGlvbihldmVudE5hbWUsIGNhbGxiYWNrKSB7CiAgICB2YXIgX3NlbGYgPSB0aGlzOwogICAgdGhpcy5vbihldmVudE5hbWUsIGZ1bmN0aW9uIG5ld0NhbGxiYWNrKCkgewogICAgICAgIF9zZWxmLm9mZihldmVudE5hbWUsIG5ld0NhbGxiYWNrKTsKICAgICAgICBjYWxsYmFjay5hcHBseShudWxsLCBhcmd1bWVudHMpOwogICAgfSk7CiAgICBpZiAoIWNhbGxiYWNrKSB7CiAgICAgICAgcmV0dXJuIG5ldyBQcm9taXNlKGZ1bmN0aW9uKHJlc29sdmUpIHsKICAgICAgICAgICAgY2FsbGJhY2sgPSByZXNvbHZlOwogICAgICAgIH0pOwogICAgfQp9OwoKCkV2ZW50RW1pdHRlci5zZXREZWZhdWx0SGFuZGxlciA9IGZ1bmN0aW9uKGV2ZW50TmFtZSwgY2FsbGJhY2spIHsKICAgIHZhciBoYW5kbGVycyA9IHRoaXMuX2RlZmF1bHRIYW5kbGVyczsKICAgIGlmICghaGFuZGxlcnMpCiAgICAgICAgaGFuZGxlcnMgPSB0aGlzLl9kZWZhdWx0SGFuZGxlcnMgPSB7X2Rpc2FibGVkXzoge319OwogICAgCiAgICBpZiAoaGFuZGxlcnNbZXZlbnROYW1lXSkgewogICAgICAgIHZhciBvbGQgPSBoYW5kbGVyc1tldmVudE5hbWVdOwogICAgICAgIHZhciBkaXNhYmxlZCA9IGhhbmRsZXJzLl9kaXNhYmxlZF9bZXZlbnROYW1lXTsKICAgICAgICBpZiAoIWRpc2FibGVkKQogICAgICAgICAgICBoYW5kbGVycy5fZGlzYWJsZWRfW2V2ZW50TmFtZV0gPSBkaXNhYmxlZCA9IFtdOwogICAgICAgIGRpc2FibGVkLnB1c2gob2xkKTsKICAgICAgICB2YXIgaSA9IGRpc2FibGVkLmluZGV4T2YoY2FsbGJhY2spOwogICAgICAgIGlmIChpICE9IC0xKSAKICAgICAgICAgICAgZGlzYWJsZWQuc3BsaWNlKGksIDEpOwogICAgfQogICAgaGFuZGxlcnNbZXZlbnROYW1lXSA9IGNhbGxiYWNrOwp9OwpFdmVudEVtaXR0ZXIucmVtb3ZlRGVmYXVsdEhhbmRsZXIgPSBmdW5jdGlvbihldmVudE5hbWUsIGNhbGxiYWNrKSB7CiAgICB2YXIgaGFuZGxlcnMgPSB0aGlzLl9kZWZhdWx0SGFuZGxlcnM7CiAgICBpZiAoIWhhbmRsZXJzKQogICAgICAgIHJldHVybjsKICAgIHZhciBkaXNhYmxlZCA9IGhhbmRsZXJzLl9kaXNhYmxlZF9bZXZlbnROYW1lXTsKICAgIAogICAgaWYgKGhhbmRsZXJzW2V2ZW50TmFtZV0gPT0gY2FsbGJhY2spIHsKICAgICAgICBpZiAoZGlzYWJsZWQpCiAgICAgICAgICAgIHRoaXMuc2V0RGVmYXVsdEhhbmRsZXIoZXZlbnROYW1lLCBkaXNhYmxlZC5wb3AoKSk7CiAgICB9IGVsc2UgaWYgKGRpc2FibGVkKSB7CiAgICAgICAgdmFyIGkgPSBkaXNhYmxlZC5pbmRleE9mKGNhbGxiYWNrKTsKICAgICAgICBpZiAoaSAhPSAtMSkKICAgICAgICAgICAgZGlzYWJsZWQuc3BsaWNlKGksIDEpOwogICAgfQp9OwoKRXZlbnRFbWl0dGVyLm9uID0KRXZlbnRFbWl0dGVyLmFkZEV2ZW50TGlzdGVuZXIgPSBmdW5jdGlvbihldmVudE5hbWUsIGNhbGxiYWNrLCBjYXB0dXJpbmcpIHsKICAgIHRoaXMuX2V2ZW50UmVnaXN0cnkgPSB0aGlzLl9ldmVudFJlZ2lzdHJ5IHx8IHt9OwoKICAgIHZhciBsaXN0ZW5lcnMgPSB0aGlzLl9ldmVudFJlZ2lzdHJ5W2V2ZW50TmFtZV07CiAgICBpZiAoIWxpc3RlbmVycykKICAgICAgICBsaXN0ZW5lcnMgPSB0aGlzLl9ldmVudFJlZ2lzdHJ5W2V2ZW50TmFtZV0gPSBbXTsKCiAgICBpZiAobGlzdGVuZXJzLmluZGV4T2YoY2FsbGJhY2spID09IC0xKQogICAgICAgIGxpc3RlbmVyc1tjYXB0dXJpbmcgPyAidW5zaGlmdCIgOiAicHVzaCJdKGNhbGxiYWNrKTsKICAgIHJldHVybiBjYWxsYmFjazsKfTsKCkV2ZW50RW1pdHRlci5vZmYgPQpFdmVudEVtaXR0ZXIucmVtb3ZlTGlzdGVuZXIgPQpFdmVudEVtaXR0ZXIucmVtb3ZlRXZlbnRMaXN0ZW5lciA9IGZ1bmN0aW9uKGV2ZW50TmFtZSwgY2FsbGJhY2spIHsKICAgIHRoaXMuX2V2ZW50UmVnaXN0cnkgPSB0aGlzLl9ldmVudFJlZ2lzdHJ5IHx8IHt9OwoKICAgIHZhciBsaXN0ZW5lcnMgPSB0aGlzLl9ldmVudFJlZ2lzdHJ5W2V2ZW50TmFtZV07CiAgICBpZiAoIWxpc3RlbmVycykKICAgICAgICByZXR1cm47CgogICAgdmFyIGluZGV4ID0gbGlzdGVuZXJzLmluZGV4T2YoY2FsbGJhY2spOwogICAgaWYgKGluZGV4ICE9PSAtMSkKICAgICAgICBsaXN0ZW5lcnMuc3BsaWNlKGluZGV4LCAxKTsKfTsKCkV2ZW50RW1pdHRlci5yZW1vdmVBbGxMaXN0ZW5lcnMgPSBmdW5jdGlvbihldmVudE5hbWUpIHsKICAgIGlmICghZXZlbnROYW1lKSB0aGlzLl9ldmVudFJlZ2lzdHJ5ID0gdGhpcy5fZGVmYXVsdEhhbmRsZXJzID0gdW5kZWZpbmVkOwogICAgaWYgKHRoaXMuX2V2ZW50UmVnaXN0cnkpIHRoaXMuX2V2ZW50UmVnaXN0cnlbZXZlbnROYW1lXSA9IHVuZGVmaW5lZDsKICAgIGlmICh0aGlzLl9kZWZhdWx0SGFuZGxlcnMpIHRoaXMuX2RlZmF1bHRIYW5kbGVyc1tldmVudE5hbWVdID0gdW5kZWZpbmVkOwp9OwoKZXhwb3J0cy5FdmVudEVtaXR0ZXIgPSBFdmVudEVtaXR0ZXI7Cgp9KTsKCmFjZS5kZWZpbmUoImFjZS9hbmNob3IiLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwoKdmFyIG9vcCA9IHJlcXVpcmUoIi4vbGliL29vcCIpOwp2YXIgRXZlbnRFbWl0dGVyID0gcmVxdWlyZSgiLi9saWIvZXZlbnRfZW1pdHRlciIpLkV2ZW50RW1pdHRlcjsKCnZhciBBbmNob3IgPSBleHBvcnRzLkFuY2hvciA9IGZ1bmN0aW9uKGRvYywgcm93LCBjb2x1bW4pIHsKICAgIHRoaXMuJG9uQ2hhbmdlID0gdGhpcy5vbkNoYW5nZS5iaW5kKHRoaXMpOwogICAgdGhpcy5hdHRhY2goZG9jKTsKICAgIAogICAgaWYgKHR5cGVvZiBjb2x1bW4gPT0gInVuZGVmaW5lZCIpCiAgICAgICAgdGhpcy5zZXRQb3NpdGlvbihyb3cucm93LCByb3cuY29sdW1uKTsKICAgIGVsc2UKICAgICAgICB0aGlzLnNldFBvc2l0aW9uKHJvdywgY29sdW1uKTsKfTsKCihmdW5jdGlvbigpIHsKCiAgICBvb3AuaW1wbGVtZW50KHRoaXMsIEV2ZW50RW1pdHRlcik7CiAgICB0aGlzLmdldFBvc2l0aW9uID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGNsaXBQb3NpdGlvblRvRG9jdW1lbnQodGhpcy5yb3csIHRoaXMuY29sdW1uKTsKICAgIH07CiAgICB0aGlzLmdldERvY3VtZW50ID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuZG9jdW1lbnQ7CiAgICB9OwogICAgdGhpcy4kaW5zZXJ0UmlnaHQgPSBmYWxzZTsKICAgIHRoaXMub25DaGFuZ2UgPSBmdW5jdGlvbihkZWx0YSkgewogICAgICAgIGlmIChkZWx0YS5zdGFydC5yb3cgPT0gZGVsdGEuZW5kLnJvdyAmJiBkZWx0YS5zdGFydC5yb3cgIT0gdGhpcy5yb3cpCiAgICAgICAgICAgIHJldHVybjsKCiAgICAgICAgaWYgKGRlbHRhLnN0YXJ0LnJvdyA+IHRoaXMucm93KQogICAgICAgICAgICByZXR1cm47CiAgICAgICAgICAgIAogICAgICAgIHZhciBwb2ludCA9ICRnZXRUcmFuc2Zvcm1lZFBvaW50KGRlbHRhLCB7cm93OiB0aGlzLnJvdywgY29sdW1uOiB0aGlzLmNvbHVtbn0sIHRoaXMuJGluc2VydFJpZ2h0KTsKICAgICAgICB0aGlzLnNldFBvc2l0aW9uKHBvaW50LnJvdywgcG9pbnQuY29sdW1uLCB0cnVlKTsKICAgIH07CiAgICAKICAgIGZ1bmN0aW9uICRwb2ludHNJbk9yZGVyKHBvaW50MSwgcG9pbnQyLCBlcXVhbFBvaW50c0luT3JkZXIpIHsKICAgICAgICB2YXIgYkNvbElzQWZ0ZXIgPSBlcXVhbFBvaW50c0luT3JkZXIgPyBwb2ludDEuY29sdW1uIDw9IHBvaW50Mi5jb2x1bW4gOiBwb2ludDEuY29sdW1uIDwgcG9pbnQyLmNvbHVtbjsKICAgICAgICByZXR1cm4gKHBvaW50MS5yb3cgPCBwb2ludDIucm93KSB8fCAocG9pbnQxLnJvdyA9PSBwb2ludDIucm93ICYmIGJDb2xJc0FmdGVyKTsKICAgIH0KICAgICAgICAgICAgCiAgICBmdW5jdGlvbiAkZ2V0VHJhbnNmb3JtZWRQb2ludChkZWx0YSwgcG9pbnQsIG1vdmVJZkVxdWFsKSB7CiAgICAgICAgdmFyIGRlbHRhSXNJbnNlcnQgPSBkZWx0YS5hY3Rpb24gPT0gImluc2VydCI7CiAgICAgICAgdmFyIGRlbHRhUm93U2hpZnQgPSAoZGVsdGFJc0luc2VydCA/IDEgOiAtMSkgKiAoZGVsdGEuZW5kLnJvdyAgICAtIGRlbHRhLnN0YXJ0LnJvdyk7CiAgICAgICAgdmFyIGRlbHRhQ29sU2hpZnQgPSAoZGVsdGFJc0luc2VydCA/IDEgOiAtMSkgKiAoZGVsdGEuZW5kLmNvbHVtbiAtIGRlbHRhLnN0YXJ0LmNvbHVtbik7CiAgICAgICAgdmFyIGRlbHRhU3RhcnQgPSBkZWx0YS5zdGFydDsKICAgICAgICB2YXIgZGVsdGFFbmQgPSBkZWx0YUlzSW5zZXJ0ID8gZGVsdGFTdGFydCA6IGRlbHRhLmVuZDsgLy8gQ29sbGFwc2UgaW5zZXJ0IHJhbmdlLgogICAgICAgIGlmICgkcG9pbnRzSW5PcmRlcihwb2ludCwgZGVsdGFTdGFydCwgbW92ZUlmRXF1YWwpKSB7CiAgICAgICAgICAgIHJldHVybiB7CiAgICAgICAgICAgICAgICByb3c6IHBvaW50LnJvdywKICAgICAgICAgICAgICAgIGNvbHVtbjogcG9pbnQuY29sdW1uCiAgICAgICAgICAgIH07CiAgICAgICAgfQogICAgICAgIGlmICgkcG9pbnRzSW5PcmRlcihkZWx0YUVuZCwgcG9pbnQsICFtb3ZlSWZFcXVhbCkpIHsKICAgICAgICAgICAgcmV0dXJuIHsKICAgICAgICAgICAgICAgIHJvdzogcG9pbnQucm93ICsgZGVsdGFSb3dTaGlmdCwKICAgICAgICAgICAgICAgIGNvbHVtbjogcG9pbnQuY29sdW1uICsgKHBvaW50LnJvdyA9PSBkZWx0YUVuZC5yb3cgPyBkZWx0YUNvbFNoaWZ0IDogMCkKICAgICAgICAgICAgfTsKICAgICAgICB9CiAgICAgICAgCiAgICAgICAgcmV0dXJuIHsKICAgICAgICAgICAgcm93OiBkZWx0YVN0YXJ0LnJvdywKICAgICAgICAgICAgY29sdW1uOiBkZWx0YVN0YXJ0LmNvbHVtbgogICAgICAgIH07CiAgICB9CiAgICB0aGlzLnNldFBvc2l0aW9uID0gZnVuY3Rpb24ocm93LCBjb2x1bW4sIG5vQ2xpcCkgewogICAgICAgIHZhciBwb3M7CiAgICAgICAgaWYgKG5vQ2xpcCkgewogICAgICAgICAgICBwb3MgPSB7CiAgICAgICAgICAgICAgICByb3c6IHJvdywKICAgICAgICAgICAgICAgIGNvbHVtbjogY29sdW1uCiAgICAgICAgICAgIH07CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgcG9zID0gdGhpcy4kY2xpcFBvc2l0aW9uVG9Eb2N1bWVudChyb3csIGNvbHVtbik7CiAgICAgICAgfQoKICAgICAgICBpZiAodGhpcy5yb3cgPT0gcG9zLnJvdyAmJiB0aGlzLmNvbHVtbiA9PSBwb3MuY29sdW1uKQogICAgICAgICAgICByZXR1cm47CgogICAgICAgIHZhciBvbGQgPSB7CiAgICAgICAgICAgIHJvdzogdGhpcy5yb3csCiAgICAgICAgICAgIGNvbHVtbjogdGhpcy5jb2x1bW4KICAgICAgICB9OwoKICAgICAgICB0aGlzLnJvdyA9IHBvcy5yb3c7CiAgICAgICAgdGhpcy5jb2x1bW4gPSBwb3MuY29sdW1uOwogICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlIiwgewogICAgICAgICAgICBvbGQ6IG9sZCwKICAgICAgICAgICAgdmFsdWU6IHBvcwogICAgICAgIH0pOwogICAgfTsKICAgIHRoaXMuZGV0YWNoID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdGhpcy5kb2N1bWVudC5vZmYoImNoYW5nZSIsIHRoaXMuJG9uQ2hhbmdlKTsKICAgIH07CiAgICB0aGlzLmF0dGFjaCA9IGZ1bmN0aW9uKGRvYykgewogICAgICAgIHRoaXMuZG9jdW1lbnQgPSBkb2MgfHwgdGhpcy5kb2N1bWVudDsKICAgICAgICB0aGlzLmRvY3VtZW50Lm9uKCJjaGFuZ2UiLCB0aGlzLiRvbkNoYW5nZSk7CiAgICB9OwogICAgdGhpcy4kY2xpcFBvc2l0aW9uVG9Eb2N1bWVudCA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgdmFyIHBvcyA9IHt9OwoKICAgICAgICBpZiAocm93ID49IHRoaXMuZG9jdW1lbnQuZ2V0TGVuZ3RoKCkpIHsKICAgICAgICAgICAgcG9zLnJvdyA9IE1hdGgubWF4KDAsIHRoaXMuZG9jdW1lbnQuZ2V0TGVuZ3RoKCkgLSAxKTsKICAgICAgICAgICAgcG9zLmNvbHVtbiA9IHRoaXMuZG9jdW1lbnQuZ2V0TGluZShwb3Mucm93KS5sZW5ndGg7CiAgICAgICAgfQogICAgICAgIGVsc2UgaWYgKHJvdyA8IDApIHsKICAgICAgICAgICAgcG9zLnJvdyA9IDA7CiAgICAgICAgICAgIHBvcy5jb2x1bW4gPSAwOwogICAgICAgIH0KICAgICAgICBlbHNlIHsKICAgICAgICAgICAgcG9zLnJvdyA9IHJvdzsKICAgICAgICAgICAgcG9zLmNvbHVtbiA9IE1hdGgubWluKHRoaXMuZG9jdW1lbnQuZ2V0TGluZShwb3Mucm93KS5sZW5ndGgsIE1hdGgubWF4KDAsIGNvbHVtbikpOwogICAgICAgIH0KCiAgICAgICAgaWYgKGNvbHVtbiA8IDApCiAgICAgICAgICAgIHBvcy5jb2x1bW4gPSAwOwoKICAgICAgICByZXR1cm4gcG9zOwogICAgfTsKCn0pLmNhbGwoQW5jaG9yLnByb3RvdHlwZSk7Cgp9KTsKCmFjZS5kZWZpbmUoImFjZS9kb2N1bWVudCIsW10sIGZ1bmN0aW9uKHJlcXVpcmUsIGV4cG9ydHMsIG1vZHVsZSkgewoidXNlIHN0cmljdCI7Cgp2YXIgb29wID0gcmVxdWlyZSgiLi9saWIvb29wIik7CnZhciBhcHBseURlbHRhID0gcmVxdWlyZSgiLi9hcHBseV9kZWx0YSIpLmFwcGx5RGVsdGE7CnZhciBFdmVudEVtaXR0ZXIgPSByZXF1aXJlKCIuL2xpYi9ldmVudF9lbWl0dGVyIikuRXZlbnRFbWl0dGVyOwp2YXIgUmFuZ2UgPSByZXF1aXJlKCIuL3JhbmdlIikuUmFuZ2U7CnZhciBBbmNob3IgPSByZXF1aXJlKCIuL2FuY2hvciIpLkFuY2hvcjsKCnZhciBEb2N1bWVudCA9IGZ1bmN0aW9uKHRleHRPckxpbmVzKSB7CiAgICB0aGlzLiRsaW5lcyA9IFsiIl07CiAgICBpZiAodGV4dE9yTGluZXMubGVuZ3RoID09PSAwKSB7CiAgICAgICAgdGhpcy4kbGluZXMgPSBbIiJdOwogICAgfSBlbHNlIGlmIChBcnJheS5pc0FycmF5KHRleHRPckxpbmVzKSkgewogICAgICAgIHRoaXMuaW5zZXJ0TWVyZ2VkTGluZXMoe3JvdzogMCwgY29sdW1uOiAwfSwgdGV4dE9yTGluZXMpOwogICAgfSBlbHNlIHsKICAgICAgICB0aGlzLmluc2VydCh7cm93OiAwLCBjb2x1bW46MH0sIHRleHRPckxpbmVzKTsKICAgIH0KfTsKCihmdW5jdGlvbigpIHsKCiAgICBvb3AuaW1wbGVtZW50KHRoaXMsIEV2ZW50RW1pdHRlcik7CiAgICB0aGlzLnNldFZhbHVlID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgIHZhciBsZW4gPSB0aGlzLmdldExlbmd0aCgpIC0gMTsKICAgICAgICB0aGlzLnJlbW92ZShuZXcgUmFuZ2UoMCwgMCwgbGVuLCB0aGlzLmdldExpbmUobGVuKS5sZW5ndGgpKTsKICAgICAgICB0aGlzLmluc2VydCh7cm93OiAwLCBjb2x1bW46IDB9LCB0ZXh0KTsKICAgIH07CiAgICB0aGlzLmdldFZhbHVlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuZ2V0QWxsTGluZXMoKS5qb2luKHRoaXMuZ2V0TmV3TGluZUNoYXJhY3RlcigpKTsKICAgIH07CiAgICB0aGlzLmNyZWF0ZUFuY2hvciA9IGZ1bmN0aW9uKHJvdywgY29sdW1uKSB7CiAgICAgICAgcmV0dXJuIG5ldyBBbmNob3IodGhpcywgcm93LCBjb2x1bW4pOwogICAgfTsKICAgIGlmICgiYWFhIi5zcGxpdCgvYS8pLmxlbmd0aCA9PT0gMCkgewogICAgICAgIHRoaXMuJHNwbGl0ID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgICAgICByZXR1cm4gdGV4dC5yZXBsYWNlKC9cclxufFxyL2csICJcbiIpLnNwbGl0KCJcbiIpOwogICAgICAgIH07CiAgICB9IGVsc2UgewogICAgICAgIHRoaXMuJHNwbGl0ID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgICAgICByZXR1cm4gdGV4dC5zcGxpdCgvXHJcbnxccnxcbi8pOwogICAgICAgIH07CiAgICB9CgoKICAgIHRoaXMuJGRldGVjdE5ld0xpbmUgPSBmdW5jdGlvbih0ZXh0KSB7CiAgICAgICAgdmFyIG1hdGNoID0gdGV4dC5tYXRjaCgvXi4qPyhcclxufFxyfFxuKS9tKTsKICAgICAgICB0aGlzLiRhdXRvTmV3TGluZSA9IG1hdGNoID8gbWF0Y2hbMV0gOiAiXG4iOwogICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlTmV3TGluZU1vZGUiKTsKICAgIH07CiAgICB0aGlzLmdldE5ld0xpbmVDaGFyYWN0ZXIgPSBmdW5jdGlvbigpIHsKICAgICAgICBzd2l0Y2ggKHRoaXMuJG5ld0xpbmVNb2RlKSB7CiAgICAgICAgICBjYXNlICJ3aW5kb3dzIjoKICAgICAgICAgICAgcmV0dXJuICJcclxuIjsKICAgICAgICAgIGNhc2UgInVuaXgiOgogICAgICAgICAgICByZXR1cm4gIlxuIjsKICAgICAgICAgIGRlZmF1bHQ6CiAgICAgICAgICAgIHJldHVybiB0aGlzLiRhdXRvTmV3TGluZSB8fCAiXG4iOwogICAgICAgIH0KICAgIH07CgogICAgdGhpcy4kYXV0b05ld0xpbmUgPSAiIjsKICAgIHRoaXMuJG5ld0xpbmVNb2RlID0gImF1dG8iOwogICAgdGhpcy5zZXROZXdMaW5lTW9kZSA9IGZ1bmN0aW9uKG5ld0xpbmVNb2RlKSB7CiAgICAgICAgaWYgKHRoaXMuJG5ld0xpbmVNb2RlID09PSBuZXdMaW5lTW9kZSkKICAgICAgICAgICAgcmV0dXJuOwoKICAgICAgICB0aGlzLiRuZXdMaW5lTW9kZSA9IG5ld0xpbmVNb2RlOwogICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlTmV3TGluZU1vZGUiKTsKICAgIH07CiAgICB0aGlzLmdldE5ld0xpbmVNb2RlID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJG5ld0xpbmVNb2RlOwogICAgfTsKICAgIHRoaXMuaXNOZXdMaW5lID0gZnVuY3Rpb24odGV4dCkgewogICAgICAgIHJldHVybiAodGV4dCA9PSAiXHJcbiIgfHwgdGV4dCA9PSAiXHIiIHx8IHRleHQgPT0gIlxuIik7CiAgICB9OwogICAgdGhpcy5nZXRMaW5lID0gZnVuY3Rpb24ocm93KSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGxpbmVzW3Jvd10gfHwgIiI7CiAgICB9OwogICAgdGhpcy5nZXRMaW5lcyA9IGZ1bmN0aW9uKGZpcnN0Um93LCBsYXN0Um93KSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGxpbmVzLnNsaWNlKGZpcnN0Um93LCBsYXN0Um93ICsgMSk7CiAgICB9OwogICAgdGhpcy5nZXRBbGxMaW5lcyA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiB0aGlzLmdldExpbmVzKDAsIHRoaXMuZ2V0TGVuZ3RoKCkpOwogICAgfTsKICAgIHRoaXMuZ2V0TGVuZ3RoID0gZnVuY3Rpb24oKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuJGxpbmVzLmxlbmd0aDsKICAgIH07CiAgICB0aGlzLmdldFRleHRSYW5nZSA9IGZ1bmN0aW9uKHJhbmdlKSB7CiAgICAgICAgcmV0dXJuIHRoaXMuZ2V0TGluZXNGb3JSYW5nZShyYW5nZSkuam9pbih0aGlzLmdldE5ld0xpbmVDaGFyYWN0ZXIoKSk7CiAgICB9OwogICAgdGhpcy5nZXRMaW5lc0ZvclJhbmdlID0gZnVuY3Rpb24ocmFuZ2UpIHsKICAgICAgICB2YXIgbGluZXM7CiAgICAgICAgaWYgKHJhbmdlLnN0YXJ0LnJvdyA9PT0gcmFuZ2UuZW5kLnJvdykgewogICAgICAgICAgICBsaW5lcyA9IFt0aGlzLmdldExpbmUocmFuZ2Uuc3RhcnQucm93KS5zdWJzdHJpbmcocmFuZ2Uuc3RhcnQuY29sdW1uLCByYW5nZS5lbmQuY29sdW1uKV07CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgbGluZXMgPSB0aGlzLmdldExpbmVzKHJhbmdlLnN0YXJ0LnJvdywgcmFuZ2UuZW5kLnJvdyk7CiAgICAgICAgICAgIGxpbmVzWzBdID0gKGxpbmVzWzBdIHx8ICIiKS5zdWJzdHJpbmcocmFuZ2Uuc3RhcnQuY29sdW1uKTsKICAgICAgICAgICAgdmFyIGwgPSBsaW5lcy5sZW5ndGggLSAxOwogICAgICAgICAgICBpZiAocmFuZ2UuZW5kLnJvdyAtIHJhbmdlLnN0YXJ0LnJvdyA9PSBsKQogICAgICAgICAgICAgICAgbGluZXNbbF0gPSBsaW5lc1tsXS5zdWJzdHJpbmcoMCwgcmFuZ2UuZW5kLmNvbHVtbik7CiAgICAgICAgfQogICAgICAgIHJldHVybiBsaW5lczsKICAgIH07CiAgICB0aGlzLmluc2VydExpbmVzID0gZnVuY3Rpb24ocm93LCBsaW5lcykgewogICAgICAgIGNvbnNvbGUud2FybigiVXNlIG9mIGRvY3VtZW50Lmluc2VydExpbmVzIGlzIGRlcHJlY2F0ZWQuIFVzZSB0aGUgaW5zZXJ0RnVsbExpbmVzIG1ldGhvZCBpbnN0ZWFkLiIpOwogICAgICAgIHJldHVybiB0aGlzLmluc2VydEZ1bGxMaW5lcyhyb3csIGxpbmVzKTsKICAgIH07CiAgICB0aGlzLnJlbW92ZUxpbmVzID0gZnVuY3Rpb24oZmlyc3RSb3csIGxhc3RSb3cpIHsKICAgICAgICBjb25zb2xlLndhcm4oIlVzZSBvZiBkb2N1bWVudC5yZW1vdmVMaW5lcyBpcyBkZXByZWNhdGVkLiBVc2UgdGhlIHJlbW92ZUZ1bGxMaW5lcyBtZXRob2QgaW5zdGVhZC4iKTsKICAgICAgICByZXR1cm4gdGhpcy5yZW1vdmVGdWxsTGluZXMoZmlyc3RSb3csIGxhc3RSb3cpOwogICAgfTsKICAgIHRoaXMuaW5zZXJ0TmV3TGluZSA9IGZ1bmN0aW9uKHBvc2l0aW9uKSB7CiAgICAgICAgY29uc29sZS53YXJuKCJVc2Ugb2YgZG9jdW1lbnQuaW5zZXJ0TmV3TGluZSBpcyBkZXByZWNhdGVkLiBVc2UgaW5zZXJ0TWVyZ2VkTGluZXMocG9zaXRpb24sIFsnJywgJyddKSBpbnN0ZWFkLiIpOwogICAgICAgIHJldHVybiB0aGlzLmluc2VydE1lcmdlZExpbmVzKHBvc2l0aW9uLCBbIiIsICIiXSk7CiAgICB9OwogICAgdGhpcy5pbnNlcnQgPSBmdW5jdGlvbihwb3NpdGlvbiwgdGV4dCkgewogICAgICAgIGlmICh0aGlzLmdldExlbmd0aCgpIDw9IDEpCiAgICAgICAgICAgIHRoaXMuJGRldGVjdE5ld0xpbmUodGV4dCk7CiAgICAgICAgCiAgICAgICAgcmV0dXJuIHRoaXMuaW5zZXJ0TWVyZ2VkTGluZXMocG9zaXRpb24sIHRoaXMuJHNwbGl0KHRleHQpKTsKICAgIH07CiAgICB0aGlzLmluc2VydEluTGluZSA9IGZ1bmN0aW9uKHBvc2l0aW9uLCB0ZXh0KSB7CiAgICAgICAgdmFyIHN0YXJ0ID0gdGhpcy5jbGlwcGVkUG9zKHBvc2l0aW9uLnJvdywgcG9zaXRpb24uY29sdW1uKTsKICAgICAgICB2YXIgZW5kID0gdGhpcy5wb3MocG9zaXRpb24ucm93LCBwb3NpdGlvbi5jb2x1bW4gKyB0ZXh0Lmxlbmd0aCk7CiAgICAgICAgCiAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgc3RhcnQ6IHN0YXJ0LAogICAgICAgICAgICBlbmQ6IGVuZCwKICAgICAgICAgICAgYWN0aW9uOiAiaW5zZXJ0IiwKICAgICAgICAgICAgbGluZXM6IFt0ZXh0XQogICAgICAgIH0sIHRydWUpOwogICAgICAgIAogICAgICAgIHJldHVybiB0aGlzLmNsb25lUG9zKGVuZCk7CiAgICB9OwogICAgCiAgICB0aGlzLmNsaXBwZWRQb3MgPSBmdW5jdGlvbihyb3csIGNvbHVtbikgewogICAgICAgIHZhciBsZW5ndGggPSB0aGlzLmdldExlbmd0aCgpOwogICAgICAgIGlmIChyb3cgPT09IHVuZGVmaW5lZCkgewogICAgICAgICAgICByb3cgPSBsZW5ndGg7CiAgICAgICAgfSBlbHNlIGlmIChyb3cgPCAwKSB7CiAgICAgICAgICAgIHJvdyA9IDA7CiAgICAgICAgfSBlbHNlIGlmIChyb3cgPj0gbGVuZ3RoKSB7CiAgICAgICAgICAgIHJvdyA9IGxlbmd0aCAtIDE7CiAgICAgICAgICAgIGNvbHVtbiA9IHVuZGVmaW5lZDsKICAgICAgICB9CiAgICAgICAgdmFyIGxpbmUgPSB0aGlzLmdldExpbmUocm93KTsKICAgICAgICBpZiAoY29sdW1uID09IHVuZGVmaW5lZCkKICAgICAgICAgICAgY29sdW1uID0gbGluZS5sZW5ndGg7CiAgICAgICAgY29sdW1uID0gTWF0aC5taW4oTWF0aC5tYXgoY29sdW1uLCAwKSwgbGluZS5sZW5ndGgpOwogICAgICAgIHJldHVybiB7cm93OiByb3csIGNvbHVtbjogY29sdW1ufTsKICAgIH07CiAgICAKICAgIHRoaXMuY2xvbmVQb3MgPSBmdW5jdGlvbihwb3MpIHsKICAgICAgICByZXR1cm4ge3JvdzogcG9zLnJvdywgY29sdW1uOiBwb3MuY29sdW1ufTsKICAgIH07CiAgICAKICAgIHRoaXMucG9zID0gZnVuY3Rpb24ocm93LCBjb2x1bW4pIHsKICAgICAgICByZXR1cm4ge3Jvdzogcm93LCBjb2x1bW46IGNvbHVtbn07CiAgICB9OwogICAgCiAgICB0aGlzLiRjbGlwUG9zaXRpb24gPSBmdW5jdGlvbihwb3NpdGlvbikgewogICAgICAgIHZhciBsZW5ndGggPSB0aGlzLmdldExlbmd0aCgpOwogICAgICAgIGlmIChwb3NpdGlvbi5yb3cgPj0gbGVuZ3RoKSB7CiAgICAgICAgICAgIHBvc2l0aW9uLnJvdyA9IE1hdGgubWF4KDAsIGxlbmd0aCAtIDEpOwogICAgICAgICAgICBwb3NpdGlvbi5jb2x1bW4gPSB0aGlzLmdldExpbmUobGVuZ3RoIC0gMSkubGVuZ3RoOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIHBvc2l0aW9uLnJvdyA9IE1hdGgubWF4KDAsIHBvc2l0aW9uLnJvdyk7CiAgICAgICAgICAgIHBvc2l0aW9uLmNvbHVtbiA9IE1hdGgubWluKE1hdGgubWF4KHBvc2l0aW9uLmNvbHVtbiwgMCksIHRoaXMuZ2V0TGluZShwb3NpdGlvbi5yb3cpLmxlbmd0aCk7CiAgICAgICAgfQogICAgICAgIHJldHVybiBwb3NpdGlvbjsKICAgIH07CiAgICB0aGlzLmluc2VydEZ1bGxMaW5lcyA9IGZ1bmN0aW9uKHJvdywgbGluZXMpIHsKICAgICAgICByb3cgPSBNYXRoLm1pbihNYXRoLm1heChyb3csIDApLCB0aGlzLmdldExlbmd0aCgpKTsKICAgICAgICB2YXIgY29sdW1uID0gMDsKICAgICAgICBpZiAocm93IDwgdGhpcy5nZXRMZW5ndGgoKSkgewogICAgICAgICAgICBsaW5lcyA9IGxpbmVzLmNvbmNhdChbIiJdKTsKICAgICAgICAgICAgY29sdW1uID0gMDsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBsaW5lcyA9IFsiIl0uY29uY2F0KGxpbmVzKTsKICAgICAgICAgICAgcm93LS07CiAgICAgICAgICAgIGNvbHVtbiA9IHRoaXMuJGxpbmVzW3Jvd10ubGVuZ3RoOwogICAgICAgIH0KICAgICAgICB0aGlzLmluc2VydE1lcmdlZExpbmVzKHtyb3c6IHJvdywgY29sdW1uOiBjb2x1bW59LCBsaW5lcyk7CiAgICB9OyAgICAKICAgIHRoaXMuaW5zZXJ0TWVyZ2VkTGluZXMgPSBmdW5jdGlvbihwb3NpdGlvbiwgbGluZXMpIHsKICAgICAgICB2YXIgc3RhcnQgPSB0aGlzLmNsaXBwZWRQb3MocG9zaXRpb24ucm93LCBwb3NpdGlvbi5jb2x1bW4pOwogICAgICAgIHZhciBlbmQgPSB7CiAgICAgICAgICAgIHJvdzogc3RhcnQucm93ICsgbGluZXMubGVuZ3RoIC0gMSwKICAgICAgICAgICAgY29sdW1uOiAobGluZXMubGVuZ3RoID09IDEgPyBzdGFydC5jb2x1bW4gOiAwKSArIGxpbmVzW2xpbmVzLmxlbmd0aCAtIDFdLmxlbmd0aAogICAgICAgIH07CiAgICAgICAgCiAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgc3RhcnQ6IHN0YXJ0LAogICAgICAgICAgICBlbmQ6IGVuZCwKICAgICAgICAgICAgYWN0aW9uOiAiaW5zZXJ0IiwKICAgICAgICAgICAgbGluZXM6IGxpbmVzCiAgICAgICAgfSk7CiAgICAgICAgCiAgICAgICAgcmV0dXJuIHRoaXMuY2xvbmVQb3MoZW5kKTsKICAgIH07CiAgICB0aGlzLnJlbW92ZSA9IGZ1bmN0aW9uKHJhbmdlKSB7CiAgICAgICAgdmFyIHN0YXJ0ID0gdGhpcy5jbGlwcGVkUG9zKHJhbmdlLnN0YXJ0LnJvdywgcmFuZ2Uuc3RhcnQuY29sdW1uKTsKICAgICAgICB2YXIgZW5kID0gdGhpcy5jbGlwcGVkUG9zKHJhbmdlLmVuZC5yb3csIHJhbmdlLmVuZC5jb2x1bW4pOwogICAgICAgIHRoaXMuYXBwbHlEZWx0YSh7CiAgICAgICAgICAgIHN0YXJ0OiBzdGFydCwKICAgICAgICAgICAgZW5kOiBlbmQsCiAgICAgICAgICAgIGFjdGlvbjogInJlbW92ZSIsCiAgICAgICAgICAgIGxpbmVzOiB0aGlzLmdldExpbmVzRm9yUmFuZ2Uoe3N0YXJ0OiBzdGFydCwgZW5kOiBlbmR9KQogICAgICAgIH0pOwogICAgICAgIHJldHVybiB0aGlzLmNsb25lUG9zKHN0YXJ0KTsKICAgIH07CiAgICB0aGlzLnJlbW92ZUluTGluZSA9IGZ1bmN0aW9uKHJvdywgc3RhcnRDb2x1bW4sIGVuZENvbHVtbikgewogICAgICAgIHZhciBzdGFydCA9IHRoaXMuY2xpcHBlZFBvcyhyb3csIHN0YXJ0Q29sdW1uKTsKICAgICAgICB2YXIgZW5kID0gdGhpcy5jbGlwcGVkUG9zKHJvdywgZW5kQ29sdW1uKTsKICAgICAgICAKICAgICAgICB0aGlzLmFwcGx5RGVsdGEoewogICAgICAgICAgICBzdGFydDogc3RhcnQsCiAgICAgICAgICAgIGVuZDogZW5kLAogICAgICAgICAgICBhY3Rpb246ICJyZW1vdmUiLAogICAgICAgICAgICBsaW5lczogdGhpcy5nZXRMaW5lc0ZvclJhbmdlKHtzdGFydDogc3RhcnQsIGVuZDogZW5kfSkKICAgICAgICB9LCB0cnVlKTsKICAgICAgICAKICAgICAgICByZXR1cm4gdGhpcy5jbG9uZVBvcyhzdGFydCk7CiAgICB9OwogICAgdGhpcy5yZW1vdmVGdWxsTGluZXMgPSBmdW5jdGlvbihmaXJzdFJvdywgbGFzdFJvdykgewogICAgICAgIGZpcnN0Um93ID0gTWF0aC5taW4oTWF0aC5tYXgoMCwgZmlyc3RSb3cpLCB0aGlzLmdldExlbmd0aCgpIC0gMSk7CiAgICAgICAgbGFzdFJvdyAgPSBNYXRoLm1pbihNYXRoLm1heCgwLCBsYXN0Um93ICksIHRoaXMuZ2V0TGVuZ3RoKCkgLSAxKTsKICAgICAgICB2YXIgZGVsZXRlRmlyc3ROZXdMaW5lID0gbGFzdFJvdyA9PSB0aGlzLmdldExlbmd0aCgpIC0gMSAmJiBmaXJzdFJvdyA+IDA7CiAgICAgICAgdmFyIGRlbGV0ZUxhc3ROZXdMaW5lICA9IGxhc3RSb3cgIDwgdGhpcy5nZXRMZW5ndGgoKSAtIDE7CiAgICAgICAgdmFyIHN0YXJ0Um93ID0gKCBkZWxldGVGaXJzdE5ld0xpbmUgPyBmaXJzdFJvdyAtIDEgICAgICAgICAgICAgICAgICA6IGZpcnN0Um93ICAgICAgICAgICAgICAgICAgICApOwogICAgICAgIHZhciBzdGFydENvbCA9ICggZGVsZXRlRmlyc3ROZXdMaW5lID8gdGhpcy5nZXRMaW5lKHN0YXJ0Um93KS5sZW5ndGggOiAwICAgICAgICAgICAgICAgICAgICAgICAgICAgKTsKICAgICAgICB2YXIgZW5kUm93ICAgPSAoIGRlbGV0ZUxhc3ROZXdMaW5lICA/IGxhc3RSb3cgKyAxICAgICAgICAgICAgICAgICAgIDogbGFzdFJvdyAgICAgICAgICAgICAgICAgICAgICk7CiAgICAgICAgdmFyIGVuZENvbCAgID0gKCBkZWxldGVMYXN0TmV3TGluZSAgPyAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICA6IHRoaXMuZ2V0TGluZShlbmRSb3cpLmxlbmd0aCApOyAKICAgICAgICB2YXIgcmFuZ2UgPSBuZXcgUmFuZ2Uoc3RhcnRSb3csIHN0YXJ0Q29sLCBlbmRSb3csIGVuZENvbCk7CiAgICAgICAgdmFyIGRlbGV0ZWRMaW5lcyA9IHRoaXMuJGxpbmVzLnNsaWNlKGZpcnN0Um93LCBsYXN0Um93ICsgMSk7CiAgICAgICAgCiAgICAgICAgdGhpcy5hcHBseURlbHRhKHsKICAgICAgICAgICAgc3RhcnQ6IHJhbmdlLnN0YXJ0LAogICAgICAgICAgICBlbmQ6IHJhbmdlLmVuZCwKICAgICAgICAgICAgYWN0aW9uOiAicmVtb3ZlIiwKICAgICAgICAgICAgbGluZXM6IHRoaXMuZ2V0TGluZXNGb3JSYW5nZShyYW5nZSkKICAgICAgICB9KTsKICAgICAgICByZXR1cm4gZGVsZXRlZExpbmVzOwogICAgfTsKICAgIHRoaXMucmVtb3ZlTmV3TGluZSA9IGZ1bmN0aW9uKHJvdykgewogICAgICAgIGlmIChyb3cgPCB0aGlzLmdldExlbmd0aCgpIC0gMSAmJiByb3cgPj0gMCkgewogICAgICAgICAgICB0aGlzLmFwcGx5RGVsdGEoewogICAgICAgICAgICAgICAgc3RhcnQ6IHRoaXMucG9zKHJvdywgdGhpcy5nZXRMaW5lKHJvdykubGVuZ3RoKSwKICAgICAgICAgICAgICAgIGVuZDogdGhpcy5wb3Mocm93ICsgMSwgMCksCiAgICAgICAgICAgICAgICBhY3Rpb246ICJyZW1vdmUiLAogICAgICAgICAgICAgICAgbGluZXM6IFsiIiwgIiJdCiAgICAgICAgICAgIH0pOwogICAgICAgIH0KICAgIH07CiAgICB0aGlzLnJlcGxhY2UgPSBmdW5jdGlvbihyYW5nZSwgdGV4dCkgewogICAgICAgIGlmICghKHJhbmdlIGluc3RhbmNlb2YgUmFuZ2UpKQogICAgICAgICAgICByYW5nZSA9IFJhbmdlLmZyb21Qb2ludHMocmFuZ2Uuc3RhcnQsIHJhbmdlLmVuZCk7CiAgICAgICAgaWYgKHRleHQubGVuZ3RoID09PSAwICYmIHJhbmdlLmlzRW1wdHkoKSkKICAgICAgICAgICAgcmV0dXJuIHJhbmdlLnN0YXJ0OwogICAgICAgIGlmICh0ZXh0ID09IHRoaXMuZ2V0VGV4dFJhbmdlKHJhbmdlKSkKICAgICAgICAgICAgcmV0dXJuIHJhbmdlLmVuZDsKCiAgICAgICAgdGhpcy5yZW1vdmUocmFuZ2UpOwogICAgICAgIHZhciBlbmQ7CiAgICAgICAgaWYgKHRleHQpIHsKICAgICAgICAgICAgZW5kID0gdGhpcy5pbnNlcnQocmFuZ2Uuc3RhcnQsIHRleHQpOwogICAgICAgIH0KICAgICAgICBlbHNlIHsKICAgICAgICAgICAgZW5kID0gcmFuZ2Uuc3RhcnQ7CiAgICAgICAgfQogICAgICAgIAogICAgICAgIHJldHVybiBlbmQ7CiAgICB9OwogICAgdGhpcy5hcHBseURlbHRhcyA9IGZ1bmN0aW9uKGRlbHRhcykgewogICAgICAgIGZvciAodmFyIGk9MDsgaTxkZWx0YXMubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgdGhpcy5hcHBseURlbHRhKGRlbHRhc1tpXSk7CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMucmV2ZXJ0RGVsdGFzID0gZnVuY3Rpb24oZGVsdGFzKSB7CiAgICAgICAgZm9yICh2YXIgaT1kZWx0YXMubGVuZ3RoLTE7IGk+PTA7IGktLSkgewogICAgICAgICAgICB0aGlzLnJldmVydERlbHRhKGRlbHRhc1tpXSk7CiAgICAgICAgfQogICAgfTsKICAgIHRoaXMuYXBwbHlEZWx0YSA9IGZ1bmN0aW9uKGRlbHRhLCBkb05vdFZhbGlkYXRlKSB7CiAgICAgICAgdmFyIGlzSW5zZXJ0ID0gZGVsdGEuYWN0aW9uID09ICJpbnNlcnQiOwogICAgICAgIGlmIChpc0luc2VydCA/IGRlbHRhLmxpbmVzLmxlbmd0aCA8PSAxICYmICFkZWx0YS5saW5lc1swXQogICAgICAgICAgICA6ICFSYW5nZS5jb21wYXJlUG9pbnRzKGRlbHRhLnN0YXJ0LCBkZWx0YS5lbmQpKSB7CiAgICAgICAgICAgIHJldHVybjsKICAgICAgICB9CiAgICAgICAgCiAgICAgICAgaWYgKGlzSW5zZXJ0ICYmIGRlbHRhLmxpbmVzLmxlbmd0aCA+IDIwMDAwKSB7CiAgICAgICAgICAgIHRoaXMuJHNwbGl0QW5kYXBwbHlMYXJnZURlbHRhKGRlbHRhLCAyMDAwMCk7CiAgICAgICAgfQogICAgICAgIGVsc2UgewogICAgICAgICAgICBhcHBseURlbHRhKHRoaXMuJGxpbmVzLCBkZWx0YSwgZG9Ob3RWYWxpZGF0ZSk7CiAgICAgICAgICAgIHRoaXMuX3NpZ25hbCgiY2hhbmdlIiwgZGVsdGEpOwogICAgICAgIH0KICAgIH07CiAgICAKICAgIHRoaXMuJHNhZmVBcHBseURlbHRhID0gZnVuY3Rpb24oZGVsdGEpIHsKICAgICAgICB2YXIgZG9jTGVuZ3RoID0gdGhpcy4kbGluZXMubGVuZ3RoOwogICAgICAgIGlmICgKICAgICAgICAgICAgZGVsdGEuYWN0aW9uID09ICJyZW1vdmUiICYmIGRlbHRhLnN0YXJ0LnJvdyA8IGRvY0xlbmd0aCAmJiBkZWx0YS5lbmQucm93IDwgZG9jTGVuZ3RoCiAgICAgICAgICAgIHx8IGRlbHRhLmFjdGlvbiA9PSAiaW5zZXJ0IiAmJiBkZWx0YS5zdGFydC5yb3cgPD0gZG9jTGVuZ3RoCiAgICAgICAgKSB7CiAgICAgICAgICAgIHRoaXMuYXBwbHlEZWx0YShkZWx0YSk7CiAgICAgICAgfQogICAgfTsKICAgIAogICAgdGhpcy4kc3BsaXRBbmRhcHBseUxhcmdlRGVsdGEgPSBmdW5jdGlvbihkZWx0YSwgTUFYKSB7CiAgICAgICAgdmFyIGxpbmVzID0gZGVsdGEubGluZXM7CiAgICAgICAgdmFyIGwgPSBsaW5lcy5sZW5ndGggLSBNQVggKyAxOwogICAgICAgIHZhciByb3cgPSBkZWx0YS5zdGFydC5yb3c7IAogICAgICAgIHZhciBjb2x1bW4gPSBkZWx0YS5zdGFydC5jb2x1bW47CiAgICAgICAgZm9yICh2YXIgZnJvbSA9IDAsIHRvID0gMDsgZnJvbSA8IGw7IGZyb20gPSB0bykgewogICAgICAgICAgICB0byArPSBNQVggLSAxOwogICAgICAgICAgICB2YXIgY2h1bmsgPSBsaW5lcy5zbGljZShmcm9tLCB0byk7CiAgICAgICAgICAgIGNodW5rLnB1c2goIiIpOwogICAgICAgICAgICB0aGlzLmFwcGx5RGVsdGEoewogICAgICAgICAgICAgICAgc3RhcnQ6IHRoaXMucG9zKHJvdyArIGZyb20sIGNvbHVtbiksCiAgICAgICAgICAgICAgICBlbmQ6IHRoaXMucG9zKHJvdyArIHRvLCBjb2x1bW4gPSAwKSwKICAgICAgICAgICAgICAgIGFjdGlvbjogZGVsdGEuYWN0aW9uLAogICAgICAgICAgICAgICAgbGluZXM6IGNodW5rCiAgICAgICAgICAgIH0sIHRydWUpOwogICAgICAgIH0KICAgICAgICBkZWx0YS5saW5lcyA9IGxpbmVzLnNsaWNlKGZyb20pOwogICAgICAgIGRlbHRhLnN0YXJ0LnJvdyA9IHJvdyArIGZyb207CiAgICAgICAgZGVsdGEuc3RhcnQuY29sdW1uID0gY29sdW1uOwogICAgICAgIHRoaXMuYXBwbHlEZWx0YShkZWx0YSwgdHJ1ZSk7CiAgICB9OwogICAgdGhpcy5yZXZlcnREZWx0YSA9IGZ1bmN0aW9uKGRlbHRhKSB7CiAgICAgICAgdGhpcy4kc2FmZUFwcGx5RGVsdGEoewogICAgICAgICAgICBzdGFydDogdGhpcy5jbG9uZVBvcyhkZWx0YS5zdGFydCksCiAgICAgICAgICAgIGVuZDogdGhpcy5jbG9uZVBvcyhkZWx0YS5lbmQpLAogICAgICAgICAgICBhY3Rpb246IChkZWx0YS5hY3Rpb24gPT0gImluc2VydCIgPyAicmVtb3ZlIiA6ICJpbnNlcnQiKSwKICAgICAgICAgICAgbGluZXM6IGRlbHRhLmxpbmVzLnNsaWNlKCkKICAgICAgICB9KTsKICAgIH07CiAgICB0aGlzLmluZGV4VG9Qb3NpdGlvbiA9IGZ1bmN0aW9uKGluZGV4LCBzdGFydFJvdykgewogICAgICAgIHZhciBsaW5lcyA9IHRoaXMuJGxpbmVzIHx8IHRoaXMuZ2V0QWxsTGluZXMoKTsKICAgICAgICB2YXIgbmV3bGluZUxlbmd0aCA9IHRoaXMuZ2V0TmV3TGluZUNoYXJhY3RlcigpLmxlbmd0aDsKICAgICAgICBmb3IgKHZhciBpID0gc3RhcnRSb3cgfHwgMCwgbCA9IGxpbmVzLmxlbmd0aDsgaSA8IGw7IGkrKykgewogICAgICAgICAgICBpbmRleCAtPSBsaW5lc1tpXS5sZW5ndGggKyBuZXdsaW5lTGVuZ3RoOwogICAgICAgICAgICBpZiAoaW5kZXggPCAwKQogICAgICAgICAgICAgICAgcmV0dXJuIHtyb3c6IGksIGNvbHVtbjogaW5kZXggKyBsaW5lc1tpXS5sZW5ndGggKyBuZXdsaW5lTGVuZ3RofTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHtyb3c6IGwtMSwgY29sdW1uOiBpbmRleCArIGxpbmVzW2wtMV0ubGVuZ3RoICsgbmV3bGluZUxlbmd0aH07CiAgICB9OwogICAgdGhpcy5wb3NpdGlvblRvSW5kZXggPSBmdW5jdGlvbihwb3MsIHN0YXJ0Um93KSB7CiAgICAgICAgdmFyIGxpbmVzID0gdGhpcy4kbGluZXMgfHwgdGhpcy5nZXRBbGxMaW5lcygpOwogICAgICAgIHZhciBuZXdsaW5lTGVuZ3RoID0gdGhpcy5nZXROZXdMaW5lQ2hhcmFjdGVyKCkubGVuZ3RoOwogICAgICAgIHZhciBpbmRleCA9IDA7CiAgICAgICAgdmFyIHJvdyA9IE1hdGgubWluKHBvcy5yb3csIGxpbmVzLmxlbmd0aCk7CiAgICAgICAgZm9yICh2YXIgaSA9IHN0YXJ0Um93IHx8IDA7IGkgPCByb3c7ICsraSkKICAgICAgICAgICAgaW5kZXggKz0gbGluZXNbaV0ubGVuZ3RoICsgbmV3bGluZUxlbmd0aDsKCiAgICAgICAgcmV0dXJuIGluZGV4ICsgcG9zLmNvbHVtbjsKICAgIH07Cgp9KS5jYWxsKERvY3VtZW50LnByb3RvdHlwZSk7CgpleHBvcnRzLkRvY3VtZW50ID0gRG9jdW1lbnQ7Cn0pOwoKYWNlLmRlZmluZSgiYWNlL2xpYi9sYW5nIixbXSwgZnVuY3Rpb24ocmVxdWlyZSwgZXhwb3J0cywgbW9kdWxlKSB7CiJ1c2Ugc3RyaWN0IjsKCmV4cG9ydHMubGFzdCA9IGZ1bmN0aW9uKGEpIHsKICAgIHJldHVybiBhW2EubGVuZ3RoIC0gMV07Cn07CgpleHBvcnRzLnN0cmluZ1JldmVyc2UgPSBmdW5jdGlvbihzdHJpbmcpIHsKICAgIHJldHVybiBzdHJpbmcuc3BsaXQoIiIpLnJldmVyc2UoKS5qb2luKCIiKTsKfTsKCmV4cG9ydHMuc3RyaW5nUmVwZWF0ID0gZnVuY3Rpb24gKHN0cmluZywgY291bnQpIHsKICAgIHZhciByZXN1bHQgPSAnJzsKICAgIHdoaWxlIChjb3VudCA+IDApIHsKICAgICAgICBpZiAoY291bnQgJiAxKQogICAgICAgICAgICByZXN1bHQgKz0gc3RyaW5nOwoKICAgICAgICBpZiAoY291bnQgPj49IDEpCiAgICAgICAgICAgIHN0cmluZyArPSBzdHJpbmc7CiAgICB9CiAgICByZXR1cm4gcmVzdWx0Owp9OwoKdmFyIHRyaW1CZWdpblJlZ2V4cCA9IC9eXHNccyovOwp2YXIgdHJpbUVuZFJlZ2V4cCA9IC9cc1xzKiQvOwoKZXhwb3J0cy5zdHJpbmdUcmltTGVmdCA9IGZ1bmN0aW9uIChzdHJpbmcpIHsKICAgIHJldHVybiBzdHJpbmcucmVwbGFjZSh0cmltQmVnaW5SZWdleHAsICcnKTsKfTsKCmV4cG9ydHMuc3RyaW5nVHJpbVJpZ2h0ID0gZnVuY3Rpb24gKHN0cmluZykgewogICAgcmV0dXJuIHN0cmluZy5yZXBsYWNlKHRyaW1FbmRSZWdleHAsICcnKTsKfTsKCmV4cG9ydHMuY29weU9iamVjdCA9IGZ1bmN0aW9uKG9iaikgewogICAgdmFyIGNvcHkgPSB7fTsKICAgIGZvciAodmFyIGtleSBpbiBvYmopIHsKICAgICAgICBjb3B5W2tleV0gPSBvYmpba2V5XTsKICAgIH0KICAgIHJldHVybiBjb3B5Owp9OwoKZXhwb3J0cy5jb3B5QXJyYXkgPSBmdW5jdGlvbihhcnJheSl7CiAgICB2YXIgY29weSA9IFtdOwogICAgZm9yICh2YXIgaT0wLCBsPWFycmF5Lmxlbmd0aDsgaTxsOyBpKyspIHsKICAgICAgICBpZiAoYXJyYXlbaV0gJiYgdHlwZW9mIGFycmF5W2ldID09ICJvYmplY3QiKQogICAgICAgICAgICBjb3B5W2ldID0gdGhpcy5jb3B5T2JqZWN0KGFycmF5W2ldKTsKICAgICAgICBlbHNlIAogICAgICAgICAgICBjb3B5W2ldID0gYXJyYXlbaV07CiAgICB9CiAgICByZXR1cm4gY29weTsKfTsKCmV4cG9ydHMuZGVlcENvcHkgPSBmdW5jdGlvbiBkZWVwQ29weShvYmopIHsKICAgIGlmICh0eXBlb2Ygb2JqICE9PSAib2JqZWN0IiB8fCAhb2JqKQogICAgICAgIHJldHVybiBvYmo7CiAgICB2YXIgY29weTsKICAgIGlmIChBcnJheS5pc0FycmF5KG9iaikpIHsKICAgICAgICBjb3B5ID0gW107CiAgICAgICAgZm9yICh2YXIga2V5ID0gMDsga2V5IDwgb2JqLmxlbmd0aDsga2V5KyspIHsKICAgICAgICAgICAgY29weVtrZXldID0gZGVlcENvcHkob2JqW2tleV0pOwogICAgICAgIH0KICAgICAgICByZXR1cm4gY29weTsKICAgIH0KICAgIGlmIChPYmplY3QucHJvdG90eXBlLnRvU3RyaW5nLmNhbGwob2JqKSAhPT0gIltvYmplY3QgT2JqZWN0XSIpCiAgICAgICAgcmV0dXJuIG9iajsKICAgIAogICAgY29weSA9IHt9OwogICAgZm9yICh2YXIga2V5IGluIG9iaikKICAgICAgICBjb3B5W2tleV0gPSBkZWVwQ29weShvYmpba2V5XSk7CiAgICByZXR1cm4gY29weTsKfTsKCmV4cG9ydHMuYXJyYXlUb01hcCA9IGZ1bmN0aW9uKGFycikgewogICAgdmFyIG1hcCA9IHt9OwogICAgZm9yICh2YXIgaT0wOyBpPGFyci5sZW5ndGg7IGkrKykgewogICAgICAgIG1hcFthcnJbaV1dID0gMTsKICAgIH0KICAgIHJldHVybiBtYXA7Cgp9OwoKZXhwb3J0cy5jcmVhdGVNYXAgPSBmdW5jdGlvbihwcm9wcykgewogICAgdmFyIG1hcCA9IE9iamVjdC5jcmVhdGUobnVsbCk7CiAgICBmb3IgKHZhciBpIGluIHByb3BzKSB7CiAgICAgICAgbWFwW2ldID0gcHJvcHNbaV07CiAgICB9CiAgICByZXR1cm4gbWFwOwp9OwpleHBvcnRzLmFycmF5UmVtb3ZlID0gZnVuY3Rpb24oYXJyYXksIHZhbHVlKSB7CiAgZm9yICh2YXIgaSA9IDA7IGkgPD0gYXJyYXkubGVuZ3RoOyBpKyspIHsKICAgIGlmICh2YWx1ZSA9PT0gYXJyYXlbaV0pIHsKICAgICAgYXJyYXkuc3BsaWNlKGksIDEpOwogICAgfQogIH0KfTsKCmV4cG9ydHMuZXNjYXBlUmVnRXhwID0gZnVuY3Rpb24oc3RyKSB7CiAgICByZXR1cm4gc3RyLnJlcGxhY2UoLyhbLiorP14ke30oKXxbXF1cL1xcXSkvZywgJ1xcJDEnKTsKfTsKCmV4cG9ydHMuZXNjYXBlSFRNTCA9IGZ1bmN0aW9uKHN0cikgewogICAgcmV0dXJuICgiIiArIHN0cikucmVwbGFjZSgvJi9nLCAiJiMzODsiKS5yZXBsYWNlKC8iL2csICImIzM0OyIpLnJlcGxhY2UoLycvZywgIiYjMzk7IikucmVwbGFjZSgvPC9nLCAiJiM2MDsiKTsKfTsKCmV4cG9ydHMuZ2V0TWF0Y2hPZmZzZXRzID0gZnVuY3Rpb24oc3RyaW5nLCByZWdFeHApIHsKICAgIHZhciBtYXRjaGVzID0gW107CgogICAgc3RyaW5nLnJlcGxhY2UocmVnRXhwLCBmdW5jdGlvbihzdHIpIHsKICAgICAgICBtYXRjaGVzLnB1c2goewogICAgICAgICAgICBvZmZzZXQ6IGFyZ3VtZW50c1thcmd1bWVudHMubGVuZ3RoLTJdLAogICAgICAgICAgICBsZW5ndGg6IHN0ci5sZW5ndGgKICAgICAgICB9KTsKICAgIH0pOwoKICAgIHJldHVybiBtYXRjaGVzOwp9OwpleHBvcnRzLmRlZmVycmVkQ2FsbCA9IGZ1bmN0aW9uKGZjbikgewogICAgdmFyIHRpbWVyID0gbnVsbDsKICAgIHZhciBjYWxsYmFjayA9IGZ1bmN0aW9uKCkgewogICAgICAgIHRpbWVyID0gbnVsbDsKICAgICAgICBmY24oKTsKICAgIH07CgogICAgdmFyIGRlZmVycmVkID0gZnVuY3Rpb24odGltZW91dCkgewogICAgICAgIGRlZmVycmVkLmNhbmNlbCgpOwogICAgICAgIHRpbWVyID0gc2V0VGltZW91dChjYWxsYmFjaywgdGltZW91dCB8fCAwKTsKICAgICAgICByZXR1cm4gZGVmZXJyZWQ7CiAgICB9OwoKICAgIGRlZmVycmVkLnNjaGVkdWxlID0gZGVmZXJyZWQ7CgogICAgZGVmZXJyZWQuY2FsbCA9IGZ1bmN0aW9uKCkgewogICAgICAgIHRoaXMuY2FuY2VsKCk7CiAgICAgICAgZmNuKCk7CiAgICAgICAgcmV0dXJuIGRlZmVycmVkOwogICAgfTsKCiAgICBkZWZlcnJlZC5jYW5jZWwgPSBmdW5jdGlvbigpIHsKICAgICAgICBjbGVhclRpbWVvdXQodGltZXIpOwogICAgICAgIHRpbWVyID0gbnVsbDsKICAgICAgICByZXR1cm4gZGVmZXJyZWQ7CiAgICB9OwogICAgCiAgICBkZWZlcnJlZC5pc1BlbmRpbmcgPSBmdW5jdGlvbigpIHsKICAgICAgICByZXR1cm4gdGltZXI7CiAgICB9OwoKICAgIHJldHVybiBkZWZlcnJlZDsKfTsKCgpleHBvcnRzLmRlbGF5ZWRDYWxsID0gZnVuY3Rpb24oZmNuLCBkZWZhdWx0VGltZW91dCkgewogICAgdmFyIHRpbWVyID0gbnVsbDsKICAgIHZhciBjYWxsYmFjayA9IGZ1bmN0aW9uKCkgewogICAgICAgIHRpbWVyID0gbnVsbDsKICAgICAgICBmY24oKTsKICAgIH07CgogICAgdmFyIF9zZWxmID0gZnVuY3Rpb24odGltZW91dCkgewogICAgICAgIGlmICh0aW1lciA9PSBudWxsKQogICAgICAgICAgICB0aW1lciA9IHNldFRpbWVvdXQoY2FsbGJhY2ssIHRpbWVvdXQgfHwgZGVmYXVsdFRpbWVvdXQpOwogICAgfTsKCiAgICBfc2VsZi5kZWxheSA9IGZ1bmN0aW9uKHRpbWVvdXQpIHsKICAgICAgICB0aW1lciAmJiBjbGVhclRpbWVvdXQodGltZXIpOwogICAgICAgIHRpbWVyID0gc2V0VGltZW91dChjYWxsYmFjaywgdGltZW91dCB8fCBkZWZhdWx0VGltZW91dCk7CiAgICB9OwogICAgX3NlbGYuc2NoZWR1bGUgPSBfc2VsZjsKCiAgICBfc2VsZi5jYWxsID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdGhpcy5jYW5jZWwoKTsKICAgICAgICBmY24oKTsKICAgIH07CgogICAgX3NlbGYuY2FuY2VsID0gZnVuY3Rpb24oKSB7CiAgICAgICAgdGltZXIgJiYgY2xlYXJUaW1lb3V0KHRpbWVyKTsKICAgICAgICB0aW1lciA9IG51bGw7CiAgICB9OwoKICAgIF9zZWxmLmlzUGVuZGluZyA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiB0aW1lcjsKICAgIH07CgogICAgcmV0dXJuIF9zZWxmOwp9Owp9KTsKCmFjZS5kZWZpbmUoImFjZS93b3JrZXIvbWlycm9yIixbXSwgZnVuY3Rpb24ocmVxdWlyZSwgZXhwb3J0cywgbW9kdWxlKSB7CiJ1c2Ugc3RyaWN0IjsKCnZhciBSYW5nZSA9IHJlcXVpcmUoIi4uL3JhbmdlIikuUmFuZ2U7CnZhciBEb2N1bWVudCA9IHJlcXVpcmUoIi4uL2RvY3VtZW50IikuRG9jdW1lbnQ7CnZhciBsYW5nID0gcmVxdWlyZSgiLi4vbGliL2xhbmciKTsKICAgIAp2YXIgTWlycm9yID0gZXhwb3J0cy5NaXJyb3IgPSBmdW5jdGlvbihzZW5kZXIpIHsKICAgIHRoaXMuc2VuZGVyID0gc2VuZGVyOwogICAgdmFyIGRvYyA9IHRoaXMuZG9jID0gbmV3IERvY3VtZW50KCIiKTsKICAgIAogICAgdmFyIGRlZmVycmVkVXBkYXRlID0gdGhpcy5kZWZlcnJlZFVwZGF0ZSA9IGxhbmcuZGVsYXllZENhbGwodGhpcy5vblVwZGF0ZS5iaW5kKHRoaXMpKTsKICAgIAogICAgdmFyIF9zZWxmID0gdGhpczsKICAgIHNlbmRlci5vbigiY2hhbmdlIiwgZnVuY3Rpb24oZSkgewogICAgICAgIHZhciBkYXRhID0gZS5kYXRhOwogICAgICAgIGlmIChkYXRhWzBdLnN0YXJ0KSB7CiAgICAgICAgICAgIGRvYy5hcHBseURlbHRhcyhkYXRhKTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgICBmb3IgKHZhciBpID0gMDsgaSA8IGRhdGEubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgICAgICAgICAgIGlmIChBcnJheS5pc0FycmF5KGRhdGFbaSsxXSkpIHsKICAgICAgICAgICAgICAgICAgICB2YXIgZCA9IHthY3Rpb246ICJpbnNlcnQiLCBzdGFydDogZGF0YVtpXSwgbGluZXM6IGRhdGFbaSsxXX07CiAgICAgICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgICAgIHZhciBkID0ge2FjdGlvbjogInJlbW92ZSIsIHN0YXJ0OiBkYXRhW2ldLCBlbmQ6IGRhdGFbaSsxXX07CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICBkb2MuYXBwbHlEZWx0YShkLCB0cnVlKTsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICBpZiAoX3NlbGYuJHRpbWVvdXQpCiAgICAgICAgICAgIHJldHVybiBkZWZlcnJlZFVwZGF0ZS5zY2hlZHVsZShfc2VsZi4kdGltZW91dCk7CiAgICAgICAgX3NlbGYub25VcGRhdGUoKTsKICAgIH0pOwp9OwoKKGZ1bmN0aW9uKCkgewogICAgCiAgICB0aGlzLiR0aW1lb3V0ID0gNTAwOwogICAgCiAgICB0aGlzLnNldFRpbWVvdXQgPSBmdW5jdGlvbih0aW1lb3V0KSB7CiAgICAgICAgdGhpcy4kdGltZW91dCA9IHRpbWVvdXQ7CiAgICB9OwogICAgCiAgICB0aGlzLnNldFZhbHVlID0gZnVuY3Rpb24odmFsdWUpIHsKICAgICAgICB0aGlzLmRvYy5zZXRWYWx1ZSh2YWx1ZSk7CiAgICAgICAgdGhpcy5kZWZlcnJlZFVwZGF0ZS5zY2hlZHVsZSh0aGlzLiR0aW1lb3V0KTsKICAgIH07CiAgICAKICAgIHRoaXMuZ2V0VmFsdWUgPSBmdW5jdGlvbihjYWxsYmFja0lkKSB7CiAgICAgICAgdGhpcy5zZW5kZXIuY2FsbGJhY2sodGhpcy5kb2MuZ2V0VmFsdWUoKSwgY2FsbGJhY2tJZCk7CiAgICB9OwogICAgCiAgICB0aGlzLm9uVXBkYXRlID0gZnVuY3Rpb24oKSB7CiAgICB9OwogICAgCiAgICB0aGlzLmlzUGVuZGluZyA9IGZ1bmN0aW9uKCkgewogICAgICAgIHJldHVybiB0aGlzLmRlZmVycmVkVXBkYXRlLmlzUGVuZGluZygpOwogICAgfTsKICAgIAp9KS5jYWxsKE1pcnJvci5wcm90b3R5cGUpOwoKfSk7CgphY2UuZGVmaW5lKCJhY2UvbW9kZS9qc29uL2pzb25fcGFyc2UiLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwoKICAgIHZhciBhdCwgICAgIC8vIFRoZSBpbmRleCBvZiB0aGUgY3VycmVudCBjaGFyYWN0ZXIKICAgICAgICBjaCwgICAgIC8vIFRoZSBjdXJyZW50IGNoYXJhY3RlcgogICAgICAgIGVzY2FwZWUgPSB7CiAgICAgICAgICAgICciJzogICciJywKICAgICAgICAgICAgJ1xcJzogJ1xcJywKICAgICAgICAgICAgJy8nOiAgJy8nLAogICAgICAgICAgICBiOiAgICAnXGInLAogICAgICAgICAgICBmOiAgICAnXGYnLAogICAgICAgICAgICBuOiAgICAnXG4nLAogICAgICAgICAgICByOiAgICAnXHInLAogICAgICAgICAgICB0OiAgICAnXHQnCiAgICAgICAgfSwKICAgICAgICB0ZXh0LAoKICAgICAgICBlcnJvciA9IGZ1bmN0aW9uIChtKSB7CgogICAgICAgICAgICB0aHJvdyB7CiAgICAgICAgICAgICAgICBuYW1lOiAgICAnU3ludGF4RXJyb3InLAogICAgICAgICAgICAgICAgbWVzc2FnZTogbSwKICAgICAgICAgICAgICAgIGF0OiAgICAgIGF0LAogICAgICAgICAgICAgICAgdGV4dDogICAgdGV4dAogICAgICAgICAgICB9OwogICAgICAgIH0sCgogICAgICAgIG5leHQgPSBmdW5jdGlvbiAoYykgewoKICAgICAgICAgICAgaWYgKGMgJiYgYyAhPT0gY2gpIHsKICAgICAgICAgICAgICAgIGVycm9yKCJFeHBlY3RlZCAnIiArIGMgKyAiJyBpbnN0ZWFkIG9mICciICsgY2ggKyAiJyIpOwogICAgICAgICAgICB9CgogICAgICAgICAgICBjaCA9IHRleHQuY2hhckF0KGF0KTsKICAgICAgICAgICAgYXQgKz0gMTsKICAgICAgICAgICAgcmV0dXJuIGNoOwogICAgICAgIH0sCgogICAgICAgIG51bWJlciA9IGZ1bmN0aW9uICgpIHsKCiAgICAgICAgICAgIHZhciBudW1iZXIsCiAgICAgICAgICAgICAgICBzdHJpbmcgPSAnJzsKCiAgICAgICAgICAgIGlmIChjaCA9PT0gJy0nKSB7CiAgICAgICAgICAgICAgICBzdHJpbmcgPSAnLSc7CiAgICAgICAgICAgICAgICBuZXh0KCctJyk7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgd2hpbGUgKGNoID49ICcwJyAmJiBjaCA8PSAnOScpIHsKICAgICAgICAgICAgICAgIHN0cmluZyArPSBjaDsKICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAoY2ggPT09ICcuJykgewogICAgICAgICAgICAgICAgc3RyaW5nICs9ICcuJzsKICAgICAgICAgICAgICAgIHdoaWxlIChuZXh0KCkgJiYgY2ggPj0gJzAnICYmIGNoIDw9ICc5JykgewogICAgICAgICAgICAgICAgICAgIHN0cmluZyArPSBjaDsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAoY2ggPT09ICdlJyB8fCBjaCA9PT0gJ0UnKSB7CiAgICAgICAgICAgICAgICBzdHJpbmcgKz0gY2g7CiAgICAgICAgICAgICAgICBuZXh0KCk7CiAgICAgICAgICAgICAgICBpZiAoY2ggPT09ICctJyB8fCBjaCA9PT0gJysnKSB7CiAgICAgICAgICAgICAgICAgICAgc3RyaW5nICs9IGNoOwogICAgICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIHdoaWxlIChjaCA+PSAnMCcgJiYgY2ggPD0gJzknKSB7CiAgICAgICAgICAgICAgICAgICAgc3RyaW5nICs9IGNoOwogICAgICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBudW1iZXIgPSArc3RyaW5nOwogICAgICAgICAgICBpZiAoaXNOYU4obnVtYmVyKSkgewogICAgICAgICAgICAgICAgZXJyb3IoIkJhZCBudW1iZXIiKTsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHJldHVybiBudW1iZXI7CiAgICAgICAgICAgIH0KICAgICAgICB9LAoKICAgICAgICBzdHJpbmcgPSBmdW5jdGlvbiAoKSB7CgogICAgICAgICAgICB2YXIgaGV4LAogICAgICAgICAgICAgICAgaSwKICAgICAgICAgICAgICAgIHN0cmluZyA9ICcnLAogICAgICAgICAgICAgICAgdWZmZmY7CgogICAgICAgICAgICBpZiAoY2ggPT09ICciJykgewogICAgICAgICAgICAgICAgd2hpbGUgKG5leHQoKSkgewogICAgICAgICAgICAgICAgICAgIGlmIChjaCA9PT0gJyInKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHN0cmluZzsKICAgICAgICAgICAgICAgICAgICB9IGVsc2UgaWYgKGNoID09PSAnXFwnKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKGNoID09PSAndScpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHVmZmZmID0gMDsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZvciAoaSA9IDA7IGkgPCA0OyBpICs9IDEpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBoZXggPSBwYXJzZUludChuZXh0KCksIDE2KTsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZiAoIWlzRmluaXRlKGhleCkpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWs7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHVmZmZmID0gdWZmZmYgKiAxNiArIGhleDsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0cmluZyArPSBTdHJpbmcuZnJvbUNoYXJDb2RlKHVmZmZmKTsKICAgICAgICAgICAgICAgICAgICAgICAgfSBlbHNlIGlmICh0eXBlb2YgZXNjYXBlZVtjaF0gPT09ICdzdHJpbmcnKSB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzdHJpbmcgKz0gZXNjYXBlZVtjaF07CiAgICAgICAgICAgICAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBicmVhazsKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIH0gZWxzZSBpZiAoY2ggPT0gIlxuIiB8fCBjaCA9PSAiXHIiKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrOwogICAgICAgICAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHN0cmluZyArPSBjaDsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgICAgZXJyb3IoIkJhZCBzdHJpbmciKTsKICAgICAgICB9LAoKICAgICAgICB3aGl0ZSA9IGZ1bmN0aW9uICgpIHsKCiAgICAgICAgICAgIHdoaWxlIChjaCAmJiBjaCA8PSAnICcpIHsKICAgICAgICAgICAgICAgIG5leHQoKTsKICAgICAgICAgICAgfQogICAgICAgIH0sCgogICAgICAgIHdvcmQgPSBmdW5jdGlvbiAoKSB7CgogICAgICAgICAgICBzd2l0Y2ggKGNoKSB7CiAgICAgICAgICAgIGNhc2UgJ3QnOgogICAgICAgICAgICAgICAgbmV4dCgndCcpOwogICAgICAgICAgICAgICAgbmV4dCgncicpOwogICAgICAgICAgICAgICAgbmV4dCgndScpOwogICAgICAgICAgICAgICAgbmV4dCgnZScpOwogICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7CiAgICAgICAgICAgIGNhc2UgJ2YnOgogICAgICAgICAgICAgICAgbmV4dCgnZicpOwogICAgICAgICAgICAgICAgbmV4dCgnYScpOwogICAgICAgICAgICAgICAgbmV4dCgnbCcpOwogICAgICAgICAgICAgICAgbmV4dCgncycpOwogICAgICAgICAgICAgICAgbmV4dCgnZScpOwogICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOwogICAgICAgICAgICBjYXNlICduJzoKICAgICAgICAgICAgICAgIG5leHQoJ24nKTsKICAgICAgICAgICAgICAgIG5leHQoJ3UnKTsKICAgICAgICAgICAgICAgIG5leHQoJ2wnKTsKICAgICAgICAgICAgICAgIG5leHQoJ2wnKTsKICAgICAgICAgICAgICAgIHJldHVybiBudWxsOwogICAgICAgICAgICB9CiAgICAgICAgICAgIGVycm9yKCJVbmV4cGVjdGVkICciICsgY2ggKyAiJyIpOwogICAgICAgIH0sCgogICAgICAgIHZhbHVlLCAgLy8gUGxhY2UgaG9sZGVyIGZvciB0aGUgdmFsdWUgZnVuY3Rpb24uCgogICAgICAgIGFycmF5ID0gZnVuY3Rpb24gKCkgewoKICAgICAgICAgICAgdmFyIGFycmF5ID0gW107CgogICAgICAgICAgICBpZiAoY2ggPT09ICdbJykgewogICAgICAgICAgICAgICAgbmV4dCgnWycpOwogICAgICAgICAgICAgICAgd2hpdGUoKTsKICAgICAgICAgICAgICAgIGlmIChjaCA9PT0gJ10nKSB7CiAgICAgICAgICAgICAgICAgICAgbmV4dCgnXScpOwogICAgICAgICAgICAgICAgICAgIHJldHVybiBhcnJheTsgICAvLyBlbXB0eSBhcnJheQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgd2hpbGUgKGNoKSB7CiAgICAgICAgICAgICAgICAgICAgYXJyYXkucHVzaCh2YWx1ZSgpKTsKICAgICAgICAgICAgICAgICAgICB3aGl0ZSgpOwogICAgICAgICAgICAgICAgICAgIGlmIChjaCA9PT0gJ10nKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIG5leHQoJ10nKTsKICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGFycmF5OwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBuZXh0KCcsJyk7CiAgICAgICAgICAgICAgICAgICAgd2hpdGUoKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBlcnJvcigiQmFkIGFycmF5Iik7CiAgICAgICAgfSwKCiAgICAgICAgb2JqZWN0ID0gZnVuY3Rpb24gKCkgewoKICAgICAgICAgICAgdmFyIGtleSwKICAgICAgICAgICAgICAgIG9iamVjdCA9IHt9OwoKICAgICAgICAgICAgaWYgKGNoID09PSAneycpIHsKICAgICAgICAgICAgICAgIG5leHQoJ3snKTsKICAgICAgICAgICAgICAgIHdoaXRlKCk7CiAgICAgICAgICAgICAgICBpZiAoY2ggPT09ICd9JykgewogICAgICAgICAgICAgICAgICAgIG5leHQoJ30nKTsKICAgICAgICAgICAgICAgICAgICByZXR1cm4gb2JqZWN0OyAgIC8vIGVtcHR5IG9iamVjdAogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgd2hpbGUgKGNoKSB7CiAgICAgICAgICAgICAgICAgICAga2V5ID0gc3RyaW5nKCk7CiAgICAgICAgICAgICAgICAgICAgd2hpdGUoKTsKICAgICAgICAgICAgICAgICAgICBuZXh0KCc6Jyk7CiAgICAgICAgICAgICAgICAgICAgaWYgKE9iamVjdC5oYXNPd25Qcm9wZXJ0eS5jYWxsKG9iamVjdCwga2V5KSkgewogICAgICAgICAgICAgICAgICAgICAgICBlcnJvcignRHVwbGljYXRlIGtleSAiJyArIGtleSArICciJyk7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIG9iamVjdFtrZXldID0gdmFsdWUoKTsKICAgICAgICAgICAgICAgICAgICB3aGl0ZSgpOwogICAgICAgICAgICAgICAgICAgIGlmIChjaCA9PT0gJ30nKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIG5leHQoJ30nKTsKICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIG9iamVjdDsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgbmV4dCgnLCcpOwogICAgICAgICAgICAgICAgICAgIHdoaXRlKCk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgICAgZXJyb3IoIkJhZCBvYmplY3QiKTsKICAgICAgICB9OwoKICAgIHZhbHVlID0gZnVuY3Rpb24gKCkgewoKICAgICAgICB3aGl0ZSgpOwogICAgICAgIHN3aXRjaCAoY2gpIHsKICAgICAgICBjYXNlICd7JzoKICAgICAgICAgICAgcmV0dXJuIG9iamVjdCgpOwogICAgICAgIGNhc2UgJ1snOgogICAgICAgICAgICByZXR1cm4gYXJyYXkoKTsKICAgICAgICBjYXNlICciJzoKICAgICAgICAgICAgcmV0dXJuIHN0cmluZygpOwogICAgICAgIGNhc2UgJy0nOgogICAgICAgICAgICByZXR1cm4gbnVtYmVyKCk7CiAgICAgICAgZGVmYXVsdDoKICAgICAgICAgICAgcmV0dXJuIGNoID49ICcwJyAmJiBjaCA8PSAnOScgPyBudW1iZXIoKSA6IHdvcmQoKTsKICAgICAgICB9CiAgICB9OwoKICAgIHJldHVybiBmdW5jdGlvbiAoc291cmNlLCByZXZpdmVyKSB7CiAgICAgICAgdmFyIHJlc3VsdDsKCiAgICAgICAgdGV4dCA9IHNvdXJjZTsKICAgICAgICBhdCA9IDA7CiAgICAgICAgY2ggPSAnICc7CiAgICAgICAgcmVzdWx0ID0gdmFsdWUoKTsKICAgICAgICB3aGl0ZSgpOwogICAgICAgIGlmIChjaCkgewogICAgICAgICAgICBlcnJvcigiU3ludGF4IGVycm9yIik7CiAgICAgICAgfQoKICAgICAgICByZXR1cm4gdHlwZW9mIHJldml2ZXIgPT09ICdmdW5jdGlvbicgPyBmdW5jdGlvbiB3YWxrKGhvbGRlciwga2V5KSB7CiAgICAgICAgICAgIHZhciBrLCB2LCB2YWx1ZSA9IGhvbGRlcltrZXldOwogICAgICAgICAgICBpZiAodmFsdWUgJiYgdHlwZW9mIHZhbHVlID09PSAnb2JqZWN0JykgewogICAgICAgICAgICAgICAgZm9yIChrIGluIHZhbHVlKSB7CiAgICAgICAgICAgICAgICAgICAgaWYgKE9iamVjdC5oYXNPd25Qcm9wZXJ0eS5jYWxsKHZhbHVlLCBrKSkgewogICAgICAgICAgICAgICAgICAgICAgICB2ID0gd2Fsayh2YWx1ZSwgayk7CiAgICAgICAgICAgICAgICAgICAgICAgIGlmICh2ICE9PSB1bmRlZmluZWQpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHZhbHVlW2tdID0gdjsKICAgICAgICAgICAgICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGRlbGV0ZSB2YWx1ZVtrXTsKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICByZXR1cm4gcmV2aXZlci5jYWxsKGhvbGRlciwga2V5LCB2YWx1ZSk7CiAgICAgICAgfSh7Jyc6IHJlc3VsdH0sICcnKSA6IHJlc3VsdDsKICAgIH07Cn0pOwoKYWNlLmRlZmluZSgiYWNlL21vZGUvanNvbl93b3JrZXIiLFtdLCBmdW5jdGlvbihyZXF1aXJlLCBleHBvcnRzLCBtb2R1bGUpIHsKInVzZSBzdHJpY3QiOwoKdmFyIG9vcCA9IHJlcXVpcmUoIi4uL2xpYi9vb3AiKTsKdmFyIE1pcnJvciA9IHJlcXVpcmUoIi4uL3dvcmtlci9taXJyb3IiKS5NaXJyb3I7CnZhciBwYXJzZSA9IHJlcXVpcmUoIi4vanNvbi9qc29uX3BhcnNlIik7Cgp2YXIgSnNvbldvcmtlciA9IGV4cG9ydHMuSnNvbldvcmtlciA9IGZ1bmN0aW9uKHNlbmRlcikgewogICAgTWlycm9yLmNhbGwodGhpcywgc2VuZGVyKTsKICAgIHRoaXMuc2V0VGltZW91dCgyMDApOwp9OwoKb29wLmluaGVyaXRzKEpzb25Xb3JrZXIsIE1pcnJvcik7CgooZnVuY3Rpb24oKSB7CgogICAgdGhpcy5vblVwZGF0ZSA9IGZ1bmN0aW9uKCkgewogICAgICAgIHZhciB2YWx1ZSA9IHRoaXMuZG9jLmdldFZhbHVlKCk7CiAgICAgICAgdmFyIGVycm9ycyA9IFtdOwogICAgICAgIHRyeSB7CiAgICAgICAgICAgIGlmICh2YWx1ZSkKICAgICAgICAgICAgICAgIHBhcnNlKHZhbHVlKTsKICAgICAgICB9IGNhdGNoIChlKSB7CiAgICAgICAgICAgIHZhciBwb3MgPSB0aGlzLmRvYy5pbmRleFRvUG9zaXRpb24oZS5hdC0xKTsKICAgICAgICAgICAgZXJyb3JzLnB1c2goewogICAgICAgICAgICAgICAgcm93OiBwb3Mucm93LAogICAgICAgICAgICAgICAgY29sdW1uOiBwb3MuY29sdW1uLAogICAgICAgICAgICAgICAgdGV4dDogZS5tZXNzYWdlLAogICAgICAgICAgICAgICAgdHlwZTogImVycm9yIgogICAgICAgICAgICB9KTsKICAgICAgICB9CiAgICAgICAgdGhpcy5zZW5kZXIuZW1pdCgiYW5ub3RhdGUiLCBlcnJvcnMpOwogICAgfTsKCn0pLmNhbGwoSnNvbldvcmtlci5wcm90b3R5cGUpOwoKfSk7Cg==';
+
+/***/ }),
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*!
- * vanilla-picker v2.10.1
+ * vanilla-picker v2.11.0
  * https://vanilla-picker.js.org
  *
- * Copyright 2017-2019 Andreas Borgen (https://github.com/Sphinxxxx), Adam Brooks (https://github.com/dissimulate)
+ * Copyright 2017-2020 Andreas Borgen (https://github.com/Sphinxxxx), Adam Brooks (https://github.com/dissimulate)
  * Released under the ISC license.
  */
 (function (global, factory) {
@@ -36557,7 +35871,7 @@ module.exports = 'data:application/javascript;base64,Im5vIHVzZSBzdHJpY3QiOwohKGZ
   }
 
   var _style = document.createElement('style');
-  _style.textContent = '.picker_wrapper.no_alpha .picker_alpha{display:none}.picker_wrapper.no_editor .picker_editor{position:absolute;z-index:-1;opacity:0}.picker_wrapper.no_cancel .picker_cancel{display:none}.layout_default.picker_wrapper{display:-webkit-box;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;flex-flow:row wrap;-webkit-box-pack:justify;justify-content:space-between;-webkit-box-align:stretch;align-items:stretch;font-size:10px;width:25em;padding:.5em}.layout_default.picker_wrapper input,.layout_default.picker_wrapper button{font-size:1rem}.layout_default.picker_wrapper>*{margin:.5em}.layout_default.picker_wrapper::before{content:\'\';display:block;width:100%;height:0;-webkit-box-ordinal-group:2;order:1}.layout_default .picker_slider,.layout_default .picker_selector{padding:1em}.layout_default .picker_hue{width:100%}.layout_default .picker_sl{-webkit-box-flex:1;flex:1 1 auto}.layout_default .picker_sl::before{content:\'\';display:block;padding-bottom:100%}.layout_default .picker_editor{-webkit-box-ordinal-group:2;order:1;width:6.5rem}.layout_default .picker_editor input{width:100%;height:100%}.layout_default .picker_sample{-webkit-box-ordinal-group:2;order:1;-webkit-box-flex:1;flex:1 1 auto}.layout_default .picker_done,.layout_default .picker_cancel{-webkit-box-ordinal-group:2;order:1}.picker_wrapper{box-sizing:border-box;background:#f2f2f2;box-shadow:0 0 0 1px silver;cursor:default;font-family:sans-serif;color:#444;pointer-events:auto}.picker_wrapper:focus{outline:none}.picker_wrapper button,.picker_wrapper input{box-sizing:border-box;border:none;box-shadow:0 0 0 1px silver;outline:none}.picker_wrapper button:focus,.picker_wrapper button:active,.picker_wrapper input:focus,.picker_wrapper input:active{box-shadow:0 0 2px 1px dodgerblue}.picker_wrapper button{padding:.4em .6em;cursor:pointer;background-color:whitesmoke;background-image:-webkit-gradient(linear, left bottom, left top, from(gainsboro), to(transparent));background-image:-webkit-linear-gradient(bottom, gainsboro, transparent);background-image:linear-gradient(0deg, gainsboro, transparent)}.picker_wrapper button:active{background-image:-webkit-gradient(linear, left bottom, left top, from(transparent), to(gainsboro));background-image:-webkit-linear-gradient(bottom, transparent, gainsboro);background-image:linear-gradient(0deg, transparent, gainsboro)}.picker_wrapper button:hover{background-color:white}.picker_selector{position:absolute;z-index:1;display:block;-webkit-transform:translate(-50%, -50%);transform:translate(-50%, -50%);border:2px solid white;border-radius:100%;box-shadow:0 0 3px 1px #67b9ff;background:currentColor;cursor:pointer}.picker_slider .picker_selector{border-radius:2px}.picker_hue{position:relative;background-image:-webkit-gradient(linear, left top, right top, from(red), color-stop(yellow), color-stop(lime), color-stop(cyan), color-stop(blue), color-stop(magenta), to(red));background-image:-webkit-linear-gradient(left, red, yellow, lime, cyan, blue, magenta, red);background-image:linear-gradient(90deg, red, yellow, lime, cyan, blue, magenta, red);box-shadow:0 0 0 1px silver}.picker_sl{position:relative;box-shadow:0 0 0 1px silver;background-image:-webkit-gradient(linear, left top, left bottom, from(white), color-stop(50%, rgba(255,255,255,0))),-webkit-gradient(linear, left bottom, left top, from(black), color-stop(50%, rgba(0,0,0,0))),-webkit-gradient(linear, left top, right top, from(gray), to(rgba(128,128,128,0)));background-image:-webkit-linear-gradient(top, white, rgba(255,255,255,0) 50%),-webkit-linear-gradient(bottom, black, rgba(0,0,0,0) 50%),-webkit-linear-gradient(left, gray, rgba(128,128,128,0));background-image:linear-gradient(180deg, white, rgba(255,255,255,0) 50%),linear-gradient(0deg, black, rgba(0,0,0,0) 50%),linear-gradient(90deg, gray, rgba(128,128,128,0))}.picker_alpha,.picker_sample{position:relative;background:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'2\' height=\'2\'%3E%3Cpath d=\'M1,0H0V1H2V2H1\' fill=\'lightgrey\'/%3E%3C/svg%3E") left top/contain white;box-shadow:0 0 0 1px silver}.picker_alpha .picker_selector,.picker_sample .picker_selector{background:none}.picker_editor input{font-family:monospace;padding:.2em .4em}.picker_sample::before{content:\'\';position:absolute;display:block;width:100%;height:100%;background:currentColor}.picker_arrow{position:absolute;z-index:-1}.picker_wrapper.popup{position:absolute;z-index:2;margin:1.5em}.picker_wrapper.popup,.picker_wrapper.popup .picker_arrow::before,.picker_wrapper.popup .picker_arrow::after{background:#f2f2f2;box-shadow:0 0 10px 1px rgba(0,0,0,0.4)}.picker_wrapper.popup .picker_arrow{width:3em;height:3em;margin:0}.picker_wrapper.popup .picker_arrow::before,.picker_wrapper.popup .picker_arrow::after{content:"";display:block;position:absolute;top:0;left:0;z-index:-99}.picker_wrapper.popup .picker_arrow::before{width:100%;height:100%;-webkit-transform:skew(45deg);transform:skew(45deg);-webkit-transform-origin:0 100%;transform-origin:0 100%}.picker_wrapper.popup .picker_arrow::after{width:150%;height:150%;box-shadow:none}.popup.popup_top{bottom:100%;left:0}.popup.popup_top .picker_arrow{bottom:0;left:0;-webkit-transform:rotate(-90deg);transform:rotate(-90deg)}.popup.popup_bottom{top:100%;left:0}.popup.popup_bottom .picker_arrow{top:0;left:0;-webkit-transform:rotate(90deg) scale(1, -1);transform:rotate(90deg) scale(1, -1)}.popup.popup_left{top:0;right:100%}.popup.popup_left .picker_arrow{top:0;right:0;-webkit-transform:scale(-1, 1);transform:scale(-1, 1)}.popup.popup_right{top:0;left:100%}.popup.popup_right .picker_arrow{top:0;left:0}';
+  _style.textContent = '.picker_wrapper.no_alpha .picker_alpha{display:none}.picker_wrapper.no_editor .picker_editor{position:absolute;z-index:-1;opacity:0}.picker_wrapper.no_cancel .picker_cancel{display:none}.layout_default.picker_wrapper{display:-webkit-box;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;flex-flow:row wrap;-webkit-box-pack:justify;justify-content:space-between;-webkit-box-align:stretch;align-items:stretch;font-size:10px;width:25em;padding:.5em}.layout_default.picker_wrapper input,.layout_default.picker_wrapper button{font-size:1rem}.layout_default.picker_wrapper>*{margin:.5em}.layout_default.picker_wrapper::before{content:\'\';display:block;width:100%;height:0;-webkit-box-ordinal-group:2;order:1}.layout_default .picker_slider,.layout_default .picker_selector{padding:1em}.layout_default .picker_hue{width:100%}.layout_default .picker_sl{-webkit-box-flex:1;flex:1 1 auto}.layout_default .picker_sl::before{content:\'\';display:block;padding-bottom:100%}.layout_default .picker_editor{-webkit-box-ordinal-group:2;order:1;width:6.5rem}.layout_default .picker_editor input{width:100%;height:100%}.layout_default .picker_sample{-webkit-box-ordinal-group:2;order:1;-webkit-box-flex:1;flex:1 1 auto}.layout_default .picker_done,.layout_default .picker_cancel{-webkit-box-ordinal-group:2;order:1}.picker_wrapper{box-sizing:border-box;background:#f2f2f2;box-shadow:0 0 0 1px silver;cursor:default;font-family:sans-serif;color:#444;pointer-events:auto}.picker_wrapper:focus{outline:none}.picker_wrapper button,.picker_wrapper input{box-sizing:border-box;border:none;box-shadow:0 0 0 1px silver;outline:none}.picker_wrapper button:focus,.picker_wrapper button:active,.picker_wrapper input:focus,.picker_wrapper input:active{box-shadow:0 0 2px 1px dodgerblue}.picker_wrapper button{padding:.4em .6em;cursor:pointer;background-color:whitesmoke;background-image:-webkit-gradient(linear, left bottom, left top, from(gainsboro), to(transparent));background-image:linear-gradient(0deg, gainsboro, transparent)}.picker_wrapper button:active{background-image:-webkit-gradient(linear, left bottom, left top, from(transparent), to(gainsboro));background-image:linear-gradient(0deg, transparent, gainsboro)}.picker_wrapper button:hover{background-color:white}.picker_selector{position:absolute;z-index:1;display:block;-webkit-transform:translate(-50%, -50%);transform:translate(-50%, -50%);border:2px solid white;border-radius:100%;box-shadow:0 0 3px 1px #67b9ff;background:currentColor;cursor:pointer}.picker_slider .picker_selector{border-radius:2px}.picker_hue{position:relative;background-image:-webkit-gradient(linear, left top, right top, from(red), color-stop(yellow), color-stop(lime), color-stop(cyan), color-stop(blue), color-stop(magenta), to(red));background-image:linear-gradient(90deg, red, yellow, lime, cyan, blue, magenta, red);box-shadow:0 0 0 1px silver}.picker_sl{position:relative;box-shadow:0 0 0 1px silver;background-image:-webkit-gradient(linear, left top, left bottom, from(white), color-stop(50%, rgba(255,255,255,0))),-webkit-gradient(linear, left bottom, left top, from(black), color-stop(50%, rgba(0,0,0,0))),-webkit-gradient(linear, left top, right top, from(gray), to(rgba(128,128,128,0)));background-image:linear-gradient(180deg, white, rgba(255,255,255,0) 50%),linear-gradient(0deg, black, rgba(0,0,0,0) 50%),linear-gradient(90deg, gray, rgba(128,128,128,0))}.picker_alpha,.picker_sample{position:relative;background:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'2\' height=\'2\'%3E%3Cpath d=\'M1,0H0V1H2V2H1\' fill=\'lightgrey\'/%3E%3C/svg%3E") left top/contain white;box-shadow:0 0 0 1px silver}.picker_alpha .picker_selector,.picker_sample .picker_selector{background:none}.picker_editor input{font-family:monospace;padding:.2em .4em}.picker_sample::before{content:\'\';position:absolute;display:block;width:100%;height:100%;background:currentColor}.picker_arrow{position:absolute;z-index:-1}.picker_wrapper.popup{position:absolute;z-index:2;margin:1.5em}.picker_wrapper.popup,.picker_wrapper.popup .picker_arrow::before,.picker_wrapper.popup .picker_arrow::after{background:#f2f2f2;box-shadow:0 0 10px 1px rgba(0,0,0,0.4)}.picker_wrapper.popup .picker_arrow{width:3em;height:3em;margin:0}.picker_wrapper.popup .picker_arrow::before,.picker_wrapper.popup .picker_arrow::after{content:"";display:block;position:absolute;top:0;left:0;z-index:-99}.picker_wrapper.popup .picker_arrow::before{width:100%;height:100%;-webkit-transform:skew(45deg);transform:skew(45deg);-webkit-transform-origin:0 100%;transform-origin:0 100%}.picker_wrapper.popup .picker_arrow::after{width:150%;height:150%;box-shadow:none}.popup.popup_top{bottom:100%;left:0}.popup.popup_top .picker_arrow{bottom:0;left:0;-webkit-transform:rotate(-90deg);transform:rotate(-90deg)}.popup.popup_bottom{top:100%;left:0}.popup.popup_bottom .picker_arrow{top:0;left:0;-webkit-transform:rotate(90deg) scale(1, -1);transform:rotate(90deg) scale(1, -1)}.popup.popup_left{top:0;right:100%}.popup.popup_left .picker_arrow{top:0;right:0;-webkit-transform:scale(-1, 1);transform:scale(-1, 1)}.popup.popup_right{top:0;left:100%}.popup.popup_right .picker_arrow{top:0;left:0}';
   document.documentElement.firstElementChild.appendChild(_style);
 
   var Picker = function () {
@@ -37055,7 +36369,726 @@ module.exports = 'data:application/javascript;base64,Im5vIHVzZSBzdHJpY3QiOwohKGZ
 
 
 /***/ }),
-/* 42 */
+/* 43 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var JsonRepairError_1 = __webpack_require__(44);
+var stringUtils_1 = __webpack_require__(45);
+// token types enumeration
+var DELIMITER = 0;
+var NUMBER = 1;
+var STRING = 2;
+var SYMBOL = 3;
+var WHITESPACE = 4;
+var COMMENT = 5;
+var UNKNOWN = 6;
+// map with all delimiters
+var DELIMITERS = {
+    '': true,
+    '{': true,
+    '}': true,
+    '[': true,
+    ']': true,
+    ':': true,
+    ',': true,
+    // for JSONP and MongoDB data type notation
+    '(': true,
+    ')': true,
+    ';': true,
+    // for string concatenation
+    '+': true
+};
+// map with all escape characters
+var ESCAPE_CHARACTERS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    b: '\b',
+    f: '\f',
+    n: '\n',
+    r: '\r',
+    t: '\t'
+    // \u is handled by getToken()
+};
+// TODO: can we unify CONTROL_CHARACTERS and ESCAPE_CHARACTERS?
+var CONTROL_CHARACTERS = {
+    '\b': '\\b',
+    '\f': '\\f',
+    '\n': '\\n',
+    '\r': '\\r',
+    '\t': '\\t'
+};
+var SYMBOLS = {
+    null: 'null',
+    true: 'true',
+    false: 'false'
+};
+var PYTHON_SYMBOLS = {
+    None: 'null',
+    True: 'true',
+    False: 'false'
+};
+var input = ''; // current json text
+var output = ''; // generated output
+var index = 0; // current index in text
+var c = ''; // current token character in text
+var token = ''; // current token
+var tokenType = UNKNOWN; // type of current token
+/**
+ * Repair a string containing an invalid JSON document.
+ * For example changes JavaScript notation into JSON notation.
+ *
+ * Example:
+ *
+ *     repair('{name: \'John\'}") // '{"name": "John"}'
+ *
+ */
+function simpleJsonRepair(text) {
+    // initialize
+    input = text;
+    output = '';
+    index = 0;
+    c = input.charAt(0);
+    token = '';
+    tokenType = UNKNOWN;
+    // get first token
+    processNextToken();
+    // @ts-ignore
+    var isRootLevelObject = tokenType === DELIMITER && token === '{';
+    // parse everything
+    parseObject();
+    if (token === '') {
+        // reached the end of the document properly
+        return output;
+    }
+    if (isRootLevelObject && tokenIsStartOfValue()) {
+        // start of a new value after end of the root level object: looks like
+        // newline delimited JSON -> turn into a root level array
+        while (tokenIsStartOfValue()) {
+            output = stringUtils_1.insertBeforeLastWhitespace(output, ',');
+            // parse next newline delimited item
+            parseObject();
+        }
+        // wrap the output in an array
+        return "[\n" + output + "\n]";
+    }
+    throw new JsonRepairError_1.default('Unexpected characters', index - token.length);
+}
+exports.default = simpleJsonRepair;
+/**
+ * Get the next character from the expression.
+ * The character is stored into the char c. If the end of the expression is
+ * reached, the function puts an empty string in c.
+ */
+function next() {
+    index++;
+    c = input.charAt(index);
+    // Note: not using input[index] because that returns undefined when index is out of range
+}
+// check whether the current token is the start of a value:
+// object, array, number, string, or symbol
+function tokenIsStartOfValue() {
+    return (tokenType === DELIMITER && (token === '[' || token === '{')) ||
+        tokenType === STRING ||
+        tokenType === NUMBER ||
+        tokenType === SYMBOL;
+}
+// check whether the current token is the start of a key (or possible key):
+// number, string, or symbol
+function tokenIsStartOfKey() {
+    return tokenType === STRING ||
+        tokenType === NUMBER ||
+        tokenType === SYMBOL;
+}
+/**
+ * Process the previous token, and get next token in the current text
+ */
+function processNextToken() {
+    output += token;
+    tokenType = UNKNOWN;
+    token = '';
+    getTokenDelimiter();
+    // @ts-ignore
+    if (tokenType === WHITESPACE) {
+        // we leave the whitespace as it is, except replacing special white
+        // space character
+        token = stringUtils_1.normalizeWhitespace(token);
+        processNextToken();
+    }
+    // @ts-ignore
+    if (tokenType === COMMENT) {
+        // ignore comments
+        tokenType = UNKNOWN;
+        token = '';
+        processNextToken();
+    }
+}
+// check for delimiters like ':', '{', ']'
+function getTokenDelimiter() {
+    if (DELIMITERS[c]) {
+        tokenType = DELIMITER;
+        token = c;
+        next();
+        return;
+    }
+    getTokenNumber();
+}
+// check for a number like "2.3e+5"
+function getTokenNumber() {
+    if (stringUtils_1.isDigit(c) || c === '-') {
+        tokenType = NUMBER;
+        if (c === '-') {
+            token += c;
+            next();
+            if (!stringUtils_1.isDigit(c)) {
+                throw new JsonRepairError_1.default('Invalid number, digit expected', index);
+            }
+        }
+        else if (c === '0') {
+            token += c;
+            next();
+        }
+        else {
+            // digit 1-9, nothing extra to do
+        }
+        while (stringUtils_1.isDigit(c)) {
+            token += c;
+            next();
+        }
+        if (c === '.') {
+            token += c;
+            next();
+            if (!stringUtils_1.isDigit(c)) {
+                throw new JsonRepairError_1.default('Invalid number, digit expected', index);
+            }
+            while (stringUtils_1.isDigit(c)) {
+                token += c;
+                next();
+            }
+        }
+        if (c === 'e' || c === 'E') {
+            token += c;
+            next();
+            // @ts-ignore
+            if (c === '+' || c === '-') {
+                token += c;
+                next();
+            }
+            if (!stringUtils_1.isDigit(c)) {
+                throw new JsonRepairError_1.default('Invalid number, digit expected', index);
+            }
+            while (stringUtils_1.isDigit(c)) {
+                token += c;
+                next();
+            }
+        }
+        return;
+    }
+    getTokenString();
+}
+// get a token string like '"hello world"'
+function getTokenString() {
+    if (stringUtils_1.isQuote(c)) {
+        var quote = stringUtils_1.normalizeQuote(c);
+        token += '"'; // output valid double quote
+        tokenType = STRING;
+        next();
+        // @ts-ignore
+        while (c !== '' && stringUtils_1.normalizeQuote(c) !== quote) {
+            if (c === '\\') {
+                // handle escape characters
+                next();
+                var unescaped = ESCAPE_CHARACTERS[c];
+                if (unescaped !== undefined) {
+                    token += '\\' + c;
+                    next();
+                    // @ts-ignore
+                }
+                else if (c === 'u') {
+                    // parse escaped unicode character, like '\\u260E'
+                    token += '\\u';
+                    next();
+                    for (var u = 0; u < 4; u++) {
+                        if (!stringUtils_1.isHex(c)) {
+                            throw new JsonRepairError_1.default('Invalid unicode character', index - token.length);
+                        }
+                        token += c;
+                        next();
+                    }
+                    // @ts-ignore
+                }
+                else if (c === '\'') {
+                    // escaped single quote character -> remove the escape character
+                    token += '\'';
+                    next();
+                }
+                else {
+                    throw new JsonRepairError_1.default('Invalid escape character "\\' + c + '"', index);
+                }
+            }
+            else if (CONTROL_CHARACTERS[c]) {
+                // unescaped special character
+                // fix by adding an escape character
+                token += CONTROL_CHARACTERS[c];
+                next();
+            }
+            else if (c === '"') {
+                // unescaped double quote -> escape it
+                token += '\\"';
+                next();
+            }
+            else {
+                // a regular character
+                token += c;
+                next();
+            }
+        }
+        if (stringUtils_1.normalizeQuote(c) !== quote) {
+            throw new JsonRepairError_1.default('End of string expected', index - token.length);
+        }
+        token += '"'; // output valid double quote
+        next();
+        return;
+    }
+    getTokenAlpha();
+}
+// check for symbols (true, false, null)
+function getTokenAlpha() {
+    if (stringUtils_1.isAlpha(c)) {
+        tokenType = SYMBOL;
+        while (stringUtils_1.isAlpha(c) || stringUtils_1.isDigit(c) || c === '$') {
+            token += c;
+            next();
+        }
+        return;
+    }
+    getTokenWhitespace();
+}
+// get whitespaces: space, tab, newline, and carriage return
+function getTokenWhitespace() {
+    if (stringUtils_1.isWhitespace(c) || stringUtils_1.isSpecialWhitespace(c)) {
+        tokenType = WHITESPACE;
+        while (stringUtils_1.isWhitespace(c) || stringUtils_1.isSpecialWhitespace(c)) {
+            token += c;
+            next();
+        }
+        return;
+    }
+    getTokenComment();
+}
+function getTokenComment() {
+    // find a block comment '/* ... */'
+    if (c === '/' && input[index + 1] === '*') {
+        tokenType = COMMENT;
+        // @ts-ignore
+        while (c !== '' && (c !== '*' || (c === '*' && input[index + 1] !== '/'))) {
+            token += c;
+            next();
+        }
+        if (c === '*' && input[index + 1] === '/') {
+            token += c;
+            next();
+            token += c;
+            next();
+        }
+        return;
+    }
+    // find a comment '// ...'
+    if (c === '/' && input[index + 1] === '/') {
+        tokenType = COMMENT;
+        // @ts-ignore
+        while (c !== '' && c !== '\n') {
+            token += c;
+            next();
+        }
+        return;
+    }
+    getTokenUnknown();
+}
+// something unknown is found, wrong characters -> a syntax error
+function getTokenUnknown() {
+    tokenType = UNKNOWN;
+    while (c !== '') {
+        token += c;
+        next();
+    }
+    throw new JsonRepairError_1.default('Syntax error in part "' + token + '"', index - token.length);
+}
+/**
+ * Parse an object like '{"key": "value"}'
+ * @return {*}
+ */
+function parseObject() {
+    if (tokenType === DELIMITER && token === '{') {
+        processNextToken();
+        // @ts-ignore
+        // TODO: can we make this redundant?
+        if (tokenType === DELIMITER && token === '}') {
+            // empty object
+            processNextToken();
+            return;
+        }
+        while (true) {
+            // parse key
+            // @ts-ignore
+            if (tokenType === SYMBOL || tokenType === NUMBER) {
+                // unquoted key -> add quotes around it, change it into a string
+                tokenType = STRING;
+                token = "\"" + token + "\"";
+            }
+            // @ts-ignore
+            if (tokenType !== STRING) {
+                // TODO: handle ambiguous cases like '[{"i":1,{"i":2}]'
+                throw new JsonRepairError_1.default('Object key expected', index - token.length);
+            }
+            processNextToken();
+            // parse colon (key/value separator)
+            // @ts-ignore
+            if (tokenType === DELIMITER && token === ':') {
+                processNextToken();
+            }
+            else {
+                if (tokenIsStartOfValue()) {
+                    // we expect a colon here, but got the start of a value
+                    // -> insert a colon before any inserted whitespaces at the end of output
+                    output = stringUtils_1.insertBeforeLastWhitespace(output, ':');
+                }
+                else {
+                    throw new JsonRepairError_1.default('Colon expected', index - token.length);
+                }
+            }
+            // parse value
+            parseObject();
+            // parse comma (key/value pair separator)
+            // @ts-ignore
+            if (tokenType === DELIMITER && token === ',') {
+                processNextToken();
+                // @ts-ignore
+                if (tokenType === DELIMITER && token === '}') {
+                    // we've just passed a trailing comma -> remove the trailing comma
+                    output = stringUtils_1.stripLastOccurrence(output, ',');
+                    break;
+                }
+            }
+            else {
+                if (tokenIsStartOfKey()) {
+                    // we expect a comma here, but got the start of a new key
+                    // -> insert a comma before any inserted whitespaces at the end of output
+                    output = stringUtils_1.insertBeforeLastWhitespace(output, ',');
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        // @ts-ignore
+        if (tokenType === DELIMITER && token === '}') {
+            processNextToken();
+        }
+        else {
+            // missing end bracket -> insert the missing bracket
+            output = stringUtils_1.insertBeforeLastWhitespace(output, '}');
+        }
+        return;
+    }
+    parseArray();
+}
+/**
+ * Parse an object like '["item1", "item2", ...]'
+ * @return {*}
+ */
+function parseArray() {
+    if (tokenType === DELIMITER && token === '[') {
+        processNextToken();
+        // @ts-ignore
+        if (tokenType === DELIMITER && token === ']') {
+            // empty array
+            processNextToken();
+            return;
+        }
+        while (true) {
+            // parse item
+            parseObject();
+            // parse comma (item separator)
+            // @ts-ignore
+            if (tokenType === DELIMITER && token === ',') {
+                processNextToken();
+                // @ts-ignore
+                if (tokenType === DELIMITER && token === ']') {
+                    // we've just passed a trailing comma -> remove the trailing comma
+                    output = stringUtils_1.stripLastOccurrence(output, ',');
+                    break;
+                }
+            }
+            else {
+                if (tokenIsStartOfValue()) {
+                    // we expect a comma here, but got the start of a new item
+                    // -> insert a comma before any inserted whitespaces at the end of output
+                    output = stringUtils_1.insertBeforeLastWhitespace(output, ',');
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        // @ts-ignore
+        if (tokenType === DELIMITER && token === ']') {
+            processNextToken();
+        }
+        else {
+            // missing end bracket -> insert the missing bracket
+            output = stringUtils_1.insertBeforeLastWhitespace(output, ']');
+        }
+        return;
+    }
+    parseString();
+}
+/**
+ * Parse a string enclosed by double quotes "...". Can contain escaped quotes
+ * @return {*}
+ */
+function parseString() {
+    if (tokenType === STRING) {
+        processNextToken();
+        // @ts-ignore
+        while (tokenType === DELIMITER && token === '+') {
+            // string concatenation like "hello" + "world"
+            token = ''; // don't output the concatenation
+            processNextToken();
+            if (tokenType === STRING) {
+                // concatenate with the previous string
+                var endIndex = output.lastIndexOf('"');
+                output = output.substring(0, endIndex) + token.substring(1);
+                token = '';
+                processNextToken();
+            }
+        }
+        return;
+    }
+    parseNumber();
+}
+/**
+ * Parse a number
+ */
+function parseNumber() {
+    if (tokenType === NUMBER) {
+        processNextToken();
+        return;
+    }
+    parseSymbol();
+}
+/**
+ * Parse constants true, false, null
+ */
+function parseSymbol() {
+    if (tokenType === SYMBOL) {
+        // a supported symbol: true, false, null
+        if (SYMBOLS[token]) {
+            processNextToken();
+            return;
+        }
+        // for example replace None with null
+        if (PYTHON_SYMBOLS[token]) {
+            token = PYTHON_SYMBOLS[token];
+            processNextToken();
+            return;
+        }
+        // make a copy of the symbol, let's see what comes next
+        var symbol = token;
+        var symbolIndex = output.length;
+        token = '';
+        processNextToken();
+        // @ts-ignore
+        // if (tokenType === DELIMITER && token === '(') {
+        if (tokenType === DELIMITER && token === '(') {
+            // a MongoDB function call or JSONP call
+            // Can be a MongoDB data type like in {"_id": ObjectId("123")}
+            // token = '' // do not output the function name
+            // processNextToken()
+            // next()
+            token = ''; // do not output the ( character
+            processNextToken();
+            // process the part inside the brackets
+            parseObject();
+            // skip the closing bracket ")" and ");"
+            // @ts-ignore
+            if (tokenType === DELIMITER && token === ')') {
+                token = ''; // do not output the ) character
+                processNextToken();
+                if (tokenType === DELIMITER && token === ';') {
+                    token = ''; // do not output the semicolon character
+                    processNextToken();
+                }
+            }
+            return;
+        }
+        // unknown symbol => turn into in a string
+        // it is possible that by reading the next token we already inserted
+        // extra spaces in the output which should be inside the string,
+        // hence the symbolIndex
+        output = stringUtils_1.insertAtIndex(output, "\"" + symbol, symbolIndex);
+        while (tokenType === SYMBOL || tokenType === NUMBER) {
+            processNextToken();
+        }
+        output += '"';
+        return;
+    }
+    parseEnd();
+}
+/**
+ * Evaluated when the expression is not yet ended but expected to end
+ */
+function parseEnd() {
+    if (token === '') {
+        // syntax error or unexpected end of expression
+        throw new JsonRepairError_1.default('Unexpected end of json string', index - token.length);
+    }
+    else {
+        throw new JsonRepairError_1.default('Value expected', index - token.length);
+    }
+}
+
+
+/***/ }),
+/* 44 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+var JsonRepairError = /** @class */ (function (_super) {
+    __extends(JsonRepairError, _super);
+    /**
+     * @param {string} message  Explanatory message
+     * @param {number} char     Character index where the error happened
+     */
+    function JsonRepairError(message, char) {
+        var _this = _super.call(this, message + ' (char ' + char + ')') || this;
+        _this.char = char;
+        return _this;
+    }
+    return JsonRepairError;
+}(SyntaxError));
+exports.default = JsonRepairError;
+
+
+/***/ }),
+/* 45 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.insertAtIndex = exports.insertBeforeLastWhitespace = exports.stripLastOccurrence = exports.normalizeQuote = exports.isQuote = exports.normalizeWhitespace = exports.isSpecialWhitespace = exports.isWhitespace = exports.isDigit = exports.isHex = exports.isAlpha = void 0;
+var SINGLE_QUOTES = [
+    '\'',
+    '\u2018',
+    '\u2019',
+    '\u0060',
+    '\u00B4' // acute accent
+];
+var DOUBLE_QUOTES = [
+    '"',
+    '\u201C',
+    '\u201D' // double quote right
+];
+/**
+ * Check if the given character contains an alpha character, a-z, A-Z, _
+ */
+function isAlpha(c) {
+    return /^[a-zA-Z_]$/.test(c);
+}
+exports.isAlpha = isAlpha;
+/**
+ * Check if the given character contains a hexadecimal character 0-9, a-f, A-F
+ */
+function isHex(c) {
+    return /^[0-9a-fA-F]$/.test(c);
+}
+exports.isHex = isHex;
+/**
+ * checks if the given char c is a digit
+ */
+function isDigit(c) {
+    return (c >= '0' && c <= '9');
+}
+exports.isDigit = isDigit;
+/**
+ * Check if the given character is a whitespace character like space, tab, or
+ * newline
+ */
+function isWhitespace(c) {
+    return c === ' ' || c === '\t' || c === '\n' || c === '\r';
+}
+exports.isWhitespace = isWhitespace;
+function isSpecialWhitespace(c) {
+    return (c === '\u00A0' ||
+        (c >= '\u2000' && c <= '\u200A') ||
+        c === '\u202F' ||
+        c === '\u205F' ||
+        c === '\u3000');
+}
+exports.isSpecialWhitespace = isSpecialWhitespace;
+function normalizeWhitespace(text) {
+    var normalized = '';
+    for (var i = 0; i < text.length; i++) {
+        var char = text[i];
+        normalized += isSpecialWhitespace(char)
+            ? ' '
+            : char;
+    }
+    return normalized;
+}
+exports.normalizeWhitespace = normalizeWhitespace;
+function isQuote(c) {
+    return SINGLE_QUOTES.includes(c) || DOUBLE_QUOTES.includes(c);
+}
+exports.isQuote = isQuote;
+function normalizeQuote(c) {
+    if (SINGLE_QUOTES.includes(c)) {
+        return '\'';
+    }
+    if (DOUBLE_QUOTES.includes(c)) {
+        return '"';
+    }
+    return c;
+}
+exports.normalizeQuote = normalizeQuote;
+function stripLastOccurrence(text, textToStrip) {
+    var index = text.lastIndexOf(textToStrip);
+    return (index !== -1)
+        ? text.substring(0, index) + text.substring(index + 1)
+        : text;
+}
+exports.stripLastOccurrence = stripLastOccurrence;
+function insertBeforeLastWhitespace(text, textToInsert) {
+    return text.replace(/\s*$/, function (match) { return textToInsert + match; });
+}
+exports.insertBeforeLastWhitespace = insertBeforeLastWhitespace;
+function insertAtIndex(text, textToInsert, index) {
+    return text.substring(0, index) + textToInsert + text.substring(index);
+}
+exports.insertAtIndex = insertAtIndex;
+
+
+/***/ }),
+/* 46 */
 /***/ (function(module, exports) {
 
 /* ***** BEGIN LICENSE BLOCK *****
@@ -37096,31 +37129,31 @@ window.ace.define('ace/theme/jsoneditor', ['require', 'exports', 'module', 'ace/
 });
 
 /***/ }),
-/* 43 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 exports.tryRequireAjv = function () {
   try {
-    return __webpack_require__(44);
+    return __webpack_require__(48);
   } catch (err) {// no problem... when we need Ajv we will throw a neat exception
   }
 };
 
 /***/ }),
-/* 44 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var compileSchema = __webpack_require__(45)
-  , resolve = __webpack_require__(17)
-  , Cache = __webpack_require__(49)
-  , SchemaObject = __webpack_require__(25)
-  , stableStringify = __webpack_require__(26)
-  , formats = __webpack_require__(50)
-  , rules = __webpack_require__(51)
-  , $dataMetaSchema = __webpack_require__(72)
+var compileSchema = __webpack_require__(49)
+  , resolve = __webpack_require__(18)
+  , Cache = __webpack_require__(53)
+  , SchemaObject = __webpack_require__(26)
+  , stableStringify = __webpack_require__(27)
+  , formats = __webpack_require__(54)
+  , rules = __webpack_require__(55)
+  , $dataMetaSchema = __webpack_require__(76)
   , util = __webpack_require__(7);
 
 module.exports = Ajv;
@@ -37138,14 +37171,14 @@ Ajv.prototype.errorsText = errorsText;
 Ajv.prototype._addSchema = _addSchema;
 Ajv.prototype._compile = _compile;
 
-Ajv.prototype.compileAsync = __webpack_require__(73);
-var customKeyword = __webpack_require__(74);
+Ajv.prototype.compileAsync = __webpack_require__(77);
+var customKeyword = __webpack_require__(78);
 Ajv.prototype.addKeyword = customKeyword.add;
 Ajv.prototype.getKeyword = customKeyword.get;
 Ajv.prototype.removeKeyword = customKeyword.remove;
 Ajv.prototype.validateKeyword = customKeyword.validate;
 
-var errorClasses = __webpack_require__(19);
+var errorClasses = __webpack_require__(20);
 Ajv.ValidationError = errorClasses.Validation;
 Ajv.MissingRefError = errorClasses.MissingRef;
 Ajv.$dataMetaSchema = $dataMetaSchema;
@@ -37554,11 +37587,11 @@ function addFormat(name, format) {
 function addDefaultMetaSchema(self) {
   var $dataSchema;
   if (self._opts.$data) {
-    $dataSchema = __webpack_require__(77);
+    $dataSchema = __webpack_require__(81);
     self.addMetaSchema($dataSchema, $dataSchema.$id, true);
   }
   if (self._opts.meta === false) return;
-  var metaSchema = __webpack_require__(32);
+  var metaSchema = __webpack_require__(33);
   if (self._opts.$data) metaSchema = $dataMetaSchema(metaSchema, META_SUPPORT_DATA);
   self.addMetaSchema(metaSchema, META_SCHEMA_ID, true);
   self._refs['http://json-schema.org/schema'] = META_SCHEMA_ID;
@@ -37620,25 +37653,25 @@ function noop() {}
 
 
 /***/ }),
-/* 45 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var resolve = __webpack_require__(17)
+var resolve = __webpack_require__(18)
   , util = __webpack_require__(7)
-  , errorClasses = __webpack_require__(19)
-  , stableStringify = __webpack_require__(26);
+  , errorClasses = __webpack_require__(20)
+  , stableStringify = __webpack_require__(27);
 
-var validateGenerator = __webpack_require__(27);
+var validateGenerator = __webpack_require__(28);
 
 /**
  * Functions below are used inside compiled validations function
  */
 
 var ucs2length = util.ucs2length;
-var equal = __webpack_require__(18);
+var equal = __webpack_require__(19);
 
 // this error is thrown by async schemas to return validation errors via exception
 var ValidationError = errorClasses.Validation;
@@ -37739,7 +37772,7 @@ function compile(schema, root, localRefs, baseId) {
                    + vars(defaults, defaultCode) + vars(customRules, customRuleCode)
                    + sourceCode;
 
-    if (opts.processCode) sourceCode = opts.processCode(sourceCode);
+    if (opts.processCode) sourceCode = opts.processCode(sourceCode, _schema);
     // console.log('\n\n\n *** \n', JSON.stringify(sourceCode));
     var validate;
     try {
@@ -38014,10 +38047,10 @@ function vars(arr, statement) {
 
 
 /***/ }),
-/* 46 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
-/** @license URI.js v4.2.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
+/** @license URI.js v4.4.0 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
 (function (global, factory) {
 	 true ? factory(exports) :
 	undefined;
@@ -38979,9 +39012,9 @@ function _recomposeAuthority(components, options) {
             return "[" + $1 + ($2 ? "%25" + $2 : "") + "]";
         }));
     }
-    if (typeof components.port === "number") {
+    if (typeof components.port === "number" || typeof components.port === "string") {
         uriTokens.push(":");
-        uriTokens.push(components.port.toString(10));
+        uriTokens.push(String(components.port));
     }
     return uriTokens.length ? uriTokens.join("") : undefined;
 }
@@ -39184,8 +39217,9 @@ var handler = {
         return components;
     },
     serialize: function serialize(components, options) {
+        var secure = String(components.scheme).toLowerCase() === "https";
         //normalize the default port
-        if (components.port === (String(components.scheme).toLowerCase() !== "https" ? 80 : 443) || components.port === "") {
+        if (components.port === (secure ? 443 : 80) || components.port === "") {
             components.port = undefined;
         }
         //normalize the empty path
@@ -39204,6 +39238,57 @@ var handler$1 = {
     domainHost: handler.domainHost,
     parse: handler.parse,
     serialize: handler.serialize
+};
+
+function isSecure(wsComponents) {
+    return typeof wsComponents.secure === 'boolean' ? wsComponents.secure : String(wsComponents.scheme).toLowerCase() === "wss";
+}
+//RFC 6455
+var handler$2 = {
+    scheme: "ws",
+    domainHost: true,
+    parse: function parse(components, options) {
+        var wsComponents = components;
+        //indicate if the secure flag is set
+        wsComponents.secure = isSecure(wsComponents);
+        //construct resouce name
+        wsComponents.resourceName = (wsComponents.path || '/') + (wsComponents.query ? '?' + wsComponents.query : '');
+        wsComponents.path = undefined;
+        wsComponents.query = undefined;
+        return wsComponents;
+    },
+    serialize: function serialize(wsComponents, options) {
+        //normalize the default port
+        if (wsComponents.port === (isSecure(wsComponents) ? 443 : 80) || wsComponents.port === "") {
+            wsComponents.port = undefined;
+        }
+        //ensure scheme matches secure flag
+        if (typeof wsComponents.secure === 'boolean') {
+            wsComponents.scheme = wsComponents.secure ? 'wss' : 'ws';
+            wsComponents.secure = undefined;
+        }
+        //reconstruct path from resource name
+        if (wsComponents.resourceName) {
+            var _wsComponents$resourc = wsComponents.resourceName.split('?'),
+                _wsComponents$resourc2 = slicedToArray(_wsComponents$resourc, 2),
+                path = _wsComponents$resourc2[0],
+                query = _wsComponents$resourc2[1];
+
+            wsComponents.path = path && path !== '/' ? path : undefined;
+            wsComponents.query = query;
+            wsComponents.resourceName = undefined;
+        }
+        //forbid fragment component
+        wsComponents.fragment = undefined;
+        return wsComponents;
+    }
+};
+
+var handler$3 = {
+    scheme: "wss",
+    domainHost: handler$2.domainHost,
+    parse: handler$2.parse,
+    serialize: handler$2.serialize
 };
 
 var O = {};
@@ -39236,7 +39321,7 @@ function decodeUnreserved(str) {
     var decStr = pctDecChars(str);
     return !decStr.match(UNRESERVED) ? str : decStr;
 }
-var handler$2 = {
+var handler$4 = {
     scheme: "mailto",
     parse: function parse$$1(components, options) {
         var mailtoComponents = components;
@@ -39324,7 +39409,7 @@ var handler$2 = {
 
 var URN_PARSE = /^([^\:]+)\:(.*)/;
 //RFC 2141
-var handler$3 = {
+var handler$5 = {
     scheme: "urn",
     parse: function parse$$1(components, options) {
         var matches = components.path && components.path.match(URN_PARSE);
@@ -39363,7 +39448,7 @@ var handler$3 = {
 
 var UUID = /^[0-9A-Fa-f]{8}(?:\-[0-9A-Fa-f]{4}){3}\-[0-9A-Fa-f]{12}$/;
 //RFC 4122
-var handler$4 = {
+var handler$6 = {
     scheme: "urn:uuid",
     parse: function parse(urnComponents, options) {
         var uuidComponents = urnComponents;
@@ -39387,6 +39472,8 @@ SCHEMES[handler$1.scheme] = handler$1;
 SCHEMES[handler$2.scheme] = handler$2;
 SCHEMES[handler$3.scheme] = handler$3;
 SCHEMES[handler$4.scheme] = handler$4;
+SCHEMES[handler$5.scheme] = handler$5;
+SCHEMES[handler$6.scheme] = handler$6;
 
 exports.SCHEMES = SCHEMES;
 exports.pctEncChar = pctEncChar;
@@ -39404,11 +39491,10 @@ exports.unescapeComponent = unescapeComponent;
 Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
-//# sourceMappingURL=uri.all.js.map
 
 
 /***/ }),
-/* 47 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39435,7 +39521,7 @@ module.exports = function ucs2length(str) {
 
 
 /***/ }),
-/* 48 */
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39531,7 +39617,7 @@ function escapeJsonPtr(str) {
 
 
 /***/ }),
-/* 49 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39564,7 +39650,7 @@ Cache.prototype.clear = function Cache_clear() {
 
 
 /***/ }),
-/* 50 */
+/* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39583,8 +39669,8 @@ var URITEMPLATE = /^(?:(?:[^\x00-\x20"'<>%\\^`{|}]|%[0-9a-f]{2})|\{[+#./;?&=,!@|
 // For the source: https://gist.github.com/dperini/729294
 // For test cases: https://mathiasbynens.be/demo/url-regex
 // @todo Delete current URL in favour of the commented out URL rule when this issue is fixed https://github.com/eslint/eslint/issues/7983.
-// var URL = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u{00a1}-\u{ffff}0-9]+-?)*[a-z\u{00a1}-\u{ffff}0-9]+)(?:\.(?:[a-z\u{00a1}-\u{ffff}0-9]+-?)*[a-z\u{00a1}-\u{ffff}0-9]+)*(?:\.(?:[a-z\u{00a1}-\u{ffff}]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$/iu;
-var URL = /^(?:(?:http[s\u017F]?|ftp):\/\/)(?:(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+(?::(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])*)?@)?(?:(?!10(?:\.[0-9]{1,3}){3})(?!127(?:\.[0-9]{1,3}){3})(?!169\.254(?:\.[0-9]{1,3}){2})(?!192\.168(?:\.[0-9]{1,3}){2})(?!172\.(?:1[6-9]|2[0-9]|3[01])(?:\.[0-9]{1,3}){2})(?:[1-9][0-9]?|1[0-9][0-9]|2[01][0-9]|22[0-3])(?:\.(?:1?[0-9]{1,2}|2[0-4][0-9]|25[0-5])){2}(?:\.(?:[1-9][0-9]?|1[0-9][0-9]|2[0-4][0-9]|25[0-4]))|(?:(?:(?:[0-9KSa-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+-?)*(?:[0-9KSa-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+)(?:\.(?:(?:[0-9KSa-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+-?)*(?:[0-9KSa-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+)*(?:\.(?:(?:[KSa-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]){2,})))(?::[0-9]{2,5})?(?:\/(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])*)?$/i;
+// var URL = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u{00a1}-\u{ffff}0-9]+-)*[a-z\u{00a1}-\u{ffff}0-9]+)(?:\.(?:[a-z\u{00a1}-\u{ffff}0-9]+-)*[a-z\u{00a1}-\u{ffff}0-9]+)*(?:\.(?:[a-z\u{00a1}-\u{ffff}]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$/iu;
+var URL = /^(?:(?:http[s\u017F]?|ftp):\/\/)(?:(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+(?::(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])*)?@)?(?:(?!10(?:\.[0-9]{1,3}){3})(?!127(?:\.[0-9]{1,3}){3})(?!169\.254(?:\.[0-9]{1,3}){2})(?!192\.168(?:\.[0-9]{1,3}){2})(?!172\.(?:1[6-9]|2[0-9]|3[01])(?:\.[0-9]{1,3}){2})(?:[1-9][0-9]?|1[0-9][0-9]|2[01][0-9]|22[0-3])(?:\.(?:1?[0-9]{1,2}|2[0-4][0-9]|25[0-5])){2}(?:\.(?:[1-9][0-9]?|1[0-9][0-9]|2[0-4][0-9]|25[0-4]))|(?:(?:(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+-)*(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+)(?:\.(?:(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+-)*(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+)*(?:\.(?:(?:[a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]){2,})))(?::[0-9]{2,5})?(?:\/(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])*)?$/i;
 var UUID = /^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 var JSON_POINTER = /^(?:\/(?:[^~/]|~0|~1)*)*$/;
 var JSON_POINTER_URI_FRAGMENT = /^#(?:\/(?:[a-z0-9_\-.!$&'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i;
@@ -39606,8 +39692,8 @@ formats.fast = {
   time: /^(?:[0-2]\d:[0-5]\d:[0-5]\d|23:59:60)(?:\.\d+)?(?:z|[+-]\d\d(?::?\d\d)?)?$/i,
   'date-time': /^\d\d\d\d-[0-1]\d-[0-3]\d[t\s](?:[0-2]\d:[0-5]\d:[0-5]\d|23:59:60)(?:\.\d+)?(?:z|[+-]\d\d(?::?\d\d)?)$/i,
   // uri: https://github.com/mafintosh/is-my-json-valid/blob/master/formats.js
-  uri: /^(?:[a-z][a-z0-9+-.]*:)(?:\/?\/)?[^\s]*$/i,
-  'uri-reference': /^(?:(?:[a-z][a-z0-9+-.]*:)?\/?\/)?(?:[^\\\s#][^\s#]*)?(?:#[^\\\s]*)?$/i,
+  uri: /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/)?[^\s]*$/i,
+  'uri-reference': /^(?:(?:[a-z][a-z0-9+\-.]*:)?\/?\/)?(?:[^\\\s#][^\s#]*)?(?:#[^\\\s]*)?$/i,
   'uri-template': URITEMPLATE,
   url: URL,
   // email (sources from jsen validator):
@@ -39713,13 +39799,13 @@ function regex(str) {
 
 
 /***/ }),
-/* 51 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var ruleModules = __webpack_require__(52)
+var ruleModules = __webpack_require__(56)
   , toHash = __webpack_require__(7).toHash;
 
 module.exports = function rules() {
@@ -39786,7 +39872,7 @@ module.exports = function rules() {
 
 
 /***/ }),
-/* 52 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39794,39 +39880,39 @@ module.exports = function rules() {
 
 //all requires must be explicit because browserify won't work with dynamic requires
 module.exports = {
-  '$ref': __webpack_require__(53),
-  allOf: __webpack_require__(54),
-  anyOf: __webpack_require__(55),
-  '$comment': __webpack_require__(56),
-  const: __webpack_require__(57),
-  contains: __webpack_require__(58),
-  dependencies: __webpack_require__(59),
-  'enum': __webpack_require__(60),
-  format: __webpack_require__(61),
-  'if': __webpack_require__(62),
-  items: __webpack_require__(63),
-  maximum: __webpack_require__(28),
-  minimum: __webpack_require__(28),
-  maxItems: __webpack_require__(29),
-  minItems: __webpack_require__(29),
-  maxLength: __webpack_require__(30),
-  minLength: __webpack_require__(30),
-  maxProperties: __webpack_require__(31),
-  minProperties: __webpack_require__(31),
-  multipleOf: __webpack_require__(64),
-  not: __webpack_require__(65),
-  oneOf: __webpack_require__(66),
-  pattern: __webpack_require__(67),
-  properties: __webpack_require__(68),
-  propertyNames: __webpack_require__(69),
-  required: __webpack_require__(70),
-  uniqueItems: __webpack_require__(71),
-  validate: __webpack_require__(27)
+  '$ref': __webpack_require__(57),
+  allOf: __webpack_require__(58),
+  anyOf: __webpack_require__(59),
+  '$comment': __webpack_require__(60),
+  const: __webpack_require__(61),
+  contains: __webpack_require__(62),
+  dependencies: __webpack_require__(63),
+  'enum': __webpack_require__(64),
+  format: __webpack_require__(65),
+  'if': __webpack_require__(66),
+  items: __webpack_require__(67),
+  maximum: __webpack_require__(29),
+  minimum: __webpack_require__(29),
+  maxItems: __webpack_require__(30),
+  minItems: __webpack_require__(30),
+  maxLength: __webpack_require__(31),
+  minLength: __webpack_require__(31),
+  maxProperties: __webpack_require__(32),
+  minProperties: __webpack_require__(32),
+  multipleOf: __webpack_require__(68),
+  not: __webpack_require__(69),
+  oneOf: __webpack_require__(70),
+  pattern: __webpack_require__(71),
+  properties: __webpack_require__(72),
+  propertyNames: __webpack_require__(73),
+  required: __webpack_require__(74),
+  uniqueItems: __webpack_require__(75),
+  validate: __webpack_require__(28)
 };
 
 
 /***/ }),
-/* 53 */
+/* 57 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39957,7 +40043,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 54 */
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39980,7 +40066,7 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
       l1 = arr1.length - 1;
     while ($i < l1) {
       $sch = arr1[$i += 1];
-      if ((it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all))) {
+      if ((it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all))) {
         $allSchemasEmpty = false;
         $it.schema = $sch;
         $it.schemaPath = $schemaPath + '[' + $i + ']';
@@ -40001,13 +40087,12 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
       out += ' ' + ($closingBraces.slice(0, -1)) + ' ';
     }
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }
 
 
 /***/ }),
-/* 55 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40028,7 +40113,7 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
   $it.level++;
   var $nextValid = 'valid' + $it.level;
   var $noEmptySchema = $schema.every(function($sch) {
-    return (it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all));
+    return (it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all));
   });
   if ($noEmptySchema) {
     var $currentBaseId = $it.baseId;
@@ -40077,7 +40162,6 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
     if (it.opts.allErrors) {
       out += ' } ';
     }
-    out = it.util.cleanUpCode(out);
   } else {
     if ($breakOnError) {
       out += ' if (true) { ';
@@ -40088,7 +40172,7 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 56 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40109,7 +40193,7 @@ module.exports = function generate_comment(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 57 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40172,7 +40256,7 @@ module.exports = function generate_const(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 58 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40196,7 +40280,7 @@ module.exports = function generate_contains(it, $keyword, $ruleType) {
     $dataNxt = $it.dataLevel = it.dataLevel + 1,
     $nextData = 'data' + $dataNxt,
     $currentBaseId = it.baseId,
-    $nonEmptySchema = (it.opts.strictKeywords ? typeof $schema == 'object' && Object.keys($schema).length > 0 : it.util.schemaHasRules($schema, it.RULES.all));
+    $nonEmptySchema = (it.opts.strictKeywords ? (typeof $schema == 'object' && Object.keys($schema).length > 0) || $schema === false : it.util.schemaHasRules($schema, it.RULES.all));
   out += 'var ' + ($errs) + ' = errors;var ' + ($valid) + ';';
   if ($nonEmptySchema) {
     var $wasComposite = it.compositeRule;
@@ -40255,13 +40339,12 @@ module.exports = function generate_contains(it, $keyword, $ruleType) {
   if (it.opts.allErrors) {
     out += ' } ';
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }
 
 
 /***/ }),
-/* 59 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40284,6 +40367,7 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
     $propertyDeps = {},
     $ownProperties = it.opts.ownProperties;
   for ($property in $schema) {
+    if ($property == '__proto__') continue;
     var $sch = $schema[$property];
     var $deps = Array.isArray($sch) ? $propertyDeps : $schemaDeps;
     $deps[$property] = $sch;
@@ -40409,7 +40493,7 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
   var $currentBaseId = $it.baseId;
   for (var $property in $schemaDeps) {
     var $sch = $schemaDeps[$property];
-    if ((it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all))) {
+    if ((it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all))) {
       out += ' ' + ($nextValid) + ' = true; if ( ' + ($data) + (it.util.getProperty($property)) + ' !== undefined ';
       if ($ownProperties) {
         out += ' && Object.prototype.hasOwnProperty.call(' + ($data) + ', \'' + (it.util.escapeQuotes($property)) + '\') ';
@@ -40430,13 +40514,12 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
   if ($breakOnError) {
     out += '   ' + ($closingBraces) + ' if (' + ($errs) + ' == errors) {';
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }
 
 
 /***/ }),
-/* 60 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40509,7 +40592,7 @@ module.exports = function generate_enum(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 61 */
+/* 65 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40666,7 +40749,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 62 */
+/* 66 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40687,8 +40770,8 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
   var $nextValid = 'valid' + $it.level;
   var $thenSch = it.schema['then'],
     $elseSch = it.schema['else'],
-    $thenPresent = $thenSch !== undefined && (it.opts.strictKeywords ? typeof $thenSch == 'object' && Object.keys($thenSch).length > 0 : it.util.schemaHasRules($thenSch, it.RULES.all)),
-    $elsePresent = $elseSch !== undefined && (it.opts.strictKeywords ? typeof $elseSch == 'object' && Object.keys($elseSch).length > 0 : it.util.schemaHasRules($elseSch, it.RULES.all)),
+    $thenPresent = $thenSch !== undefined && (it.opts.strictKeywords ? (typeof $thenSch == 'object' && Object.keys($thenSch).length > 0) || $thenSch === false : it.util.schemaHasRules($thenSch, it.RULES.all)),
+    $elsePresent = $elseSch !== undefined && (it.opts.strictKeywords ? (typeof $elseSch == 'object' && Object.keys($elseSch).length > 0) || $elseSch === false : it.util.schemaHasRules($elseSch, it.RULES.all)),
     $currentBaseId = $it.baseId;
   if ($thenPresent || $elsePresent) {
     var $ifClause;
@@ -40766,7 +40849,6 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
     if ($breakOnError) {
       out += ' else { ';
     }
-    out = it.util.cleanUpCode(out);
   } else {
     if ($breakOnError) {
       out += ' if (true) { ';
@@ -40777,7 +40859,7 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 63 */
+/* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40849,7 +40931,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
         l1 = arr1.length - 1;
       while ($i < l1) {
         $sch = arr1[$i += 1];
-        if ((it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all))) {
+        if ((it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all))) {
           out += ' ' + ($nextValid) + ' = true; if (' + ($data) + '.length > ' + ($i) + ') { ';
           var $passData = $data + '[' + $i + ']';
           $it.schema = $sch;
@@ -40872,7 +40954,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
         }
       }
     }
-    if (typeof $additionalItems == 'object' && (it.opts.strictKeywords ? typeof $additionalItems == 'object' && Object.keys($additionalItems).length > 0 : it.util.schemaHasRules($additionalItems, it.RULES.all))) {
+    if (typeof $additionalItems == 'object' && (it.opts.strictKeywords ? (typeof $additionalItems == 'object' && Object.keys($additionalItems).length > 0) || $additionalItems === false : it.util.schemaHasRules($additionalItems, it.RULES.all))) {
       $it.schema = $additionalItems;
       $it.schemaPath = it.schemaPath + '.additionalItems';
       $it.errSchemaPath = it.errSchemaPath + '/additionalItems';
@@ -40896,7 +40978,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
         $closingBraces += '}';
       }
     }
-  } else if ((it.opts.strictKeywords ? typeof $schema == 'object' && Object.keys($schema).length > 0 : it.util.schemaHasRules($schema, it.RULES.all))) {
+  } else if ((it.opts.strictKeywords ? (typeof $schema == 'object' && Object.keys($schema).length > 0) || $schema === false : it.util.schemaHasRules($schema, it.RULES.all))) {
     $it.schema = $schema;
     $it.schemaPath = $schemaPath;
     $it.errSchemaPath = $errSchemaPath;
@@ -40919,13 +41001,12 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
   if ($breakOnError) {
     out += ' ' + ($closingBraces) + ' if (' + ($errs) + ' == errors) {';
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }
 
 
 /***/ }),
-/* 64 */
+/* 68 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40946,6 +41027,9 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
     $schemaValue = 'schema' + $lvl;
   } else {
     $schemaValue = $schema;
+  }
+  if (!($isData || typeof $schema == 'number')) {
+    throw new Error($keyword + ' must be number');
   }
   out += 'var division' + ($lvl) + ';if (';
   if ($isData) {
@@ -41009,7 +41093,7 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 65 */
+/* 69 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41027,7 +41111,7 @@ module.exports = function generate_not(it, $keyword, $ruleType) {
   var $it = it.util.copy(it);
   $it.level++;
   var $nextValid = 'valid' + $it.level;
-  if ((it.opts.strictKeywords ? typeof $schema == 'object' && Object.keys($schema).length > 0 : it.util.schemaHasRules($schema, it.RULES.all))) {
+  if ((it.opts.strictKeywords ? (typeof $schema == 'object' && Object.keys($schema).length > 0) || $schema === false : it.util.schemaHasRules($schema, it.RULES.all))) {
     $it.schema = $schema;
     $it.schemaPath = $schemaPath;
     $it.errSchemaPath = $errSchemaPath;
@@ -41100,7 +41184,7 @@ module.exports = function generate_not(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 66 */
+/* 70 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41132,7 +41216,7 @@ module.exports = function generate_oneOf(it, $keyword, $ruleType) {
       l1 = arr1.length - 1;
     while ($i < l1) {
       $sch = arr1[$i += 1];
-      if ((it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all))) {
+      if ((it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all))) {
         $it.schema = $sch;
         $it.schemaPath = $schemaPath + '[' + $i + ']';
         $it.errSchemaPath = $errSchemaPath + '/' + $i;
@@ -41180,7 +41264,7 @@ module.exports = function generate_oneOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 67 */
+/* 71 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41262,7 +41346,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 68 */
+/* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41286,9 +41370,9 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
     $dataNxt = $it.dataLevel = it.dataLevel + 1,
     $nextData = 'data' + $dataNxt,
     $dataProperties = 'dataProperties' + $lvl;
-  var $schemaKeys = Object.keys($schema || {}),
+  var $schemaKeys = Object.keys($schema || {}).filter(notProto),
     $pProperties = it.schema.patternProperties || {},
-    $pPropertyKeys = Object.keys($pProperties),
+    $pPropertyKeys = Object.keys($pProperties).filter(notProto),
     $aProperties = it.schema.additionalProperties,
     $someProperties = $schemaKeys.length || $pPropertyKeys.length,
     $noAdditional = $aProperties === false,
@@ -41298,7 +41382,13 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
     $ownProperties = it.opts.ownProperties,
     $currentBaseId = it.baseId;
   var $required = it.schema.required;
-  if ($required && !(it.opts.$data && $required.$data) && $required.length < it.opts.loopRequired) var $requiredHash = it.util.toHash($required);
+  if ($required && !(it.opts.$data && $required.$data) && $required.length < it.opts.loopRequired) {
+    var $requiredHash = it.util.toHash($required);
+  }
+
+  function notProto(p) {
+    return p !== '__proto__';
+  }
   out += 'var ' + ($errs) + ' = errors;var ' + ($nextValid) + ' = true;';
   if ($ownProperties) {
     out += ' var ' + ($dataProperties) + ' = undefined;';
@@ -41451,7 +41541,7 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
       while (i3 < l3) {
         $propertyKey = arr3[i3 += 1];
         var $sch = $schema[$propertyKey];
-        if ((it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all))) {
+        if ((it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all))) {
           var $prop = it.util.getProperty($propertyKey),
             $passData = $data + $prop,
             $hasDefault = $useDefaults && $sch.default !== undefined;
@@ -41554,7 +41644,7 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
       while (i4 < l4) {
         $pProperty = arr4[i4 += 1];
         var $sch = $pProperties[$pProperty];
-        if ((it.opts.strictKeywords ? typeof $sch == 'object' && Object.keys($sch).length > 0 : it.util.schemaHasRules($sch, it.RULES.all))) {
+        if ((it.opts.strictKeywords ? (typeof $sch == 'object' && Object.keys($sch).length > 0) || $sch === false : it.util.schemaHasRules($sch, it.RULES.all))) {
           $it.schema = $sch;
           $it.schemaPath = it.schemaPath + '.patternProperties' + it.util.getProperty($pProperty);
           $it.errSchemaPath = it.errSchemaPath + '/patternProperties/' + it.util.escapeFragment($pProperty);
@@ -41593,13 +41683,12 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
   if ($breakOnError) {
     out += ' ' + ($closingBraces) + ' if (' + ($errs) + ' == errors) {';
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }
 
 
 /***/ }),
-/* 69 */
+/* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41619,7 +41708,7 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   $it.level++;
   var $nextValid = 'valid' + $it.level;
   out += 'var ' + ($errs) + ' = errors;';
-  if ((it.opts.strictKeywords ? typeof $schema == 'object' && Object.keys($schema).length > 0 : it.util.schemaHasRules($schema, it.RULES.all))) {
+  if ((it.opts.strictKeywords ? (typeof $schema == 'object' && Object.keys($schema).length > 0) || $schema === false : it.util.schemaHasRules($schema, it.RULES.all))) {
     $it.schema = $schema;
     $it.schemaPath = $schemaPath;
     $it.errSchemaPath = $errSchemaPath;
@@ -41682,13 +41771,12 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   if ($breakOnError) {
     out += ' ' + ($closingBraces) + ' if (' + ($errs) + ' == errors) {';
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }
 
 
 /***/ }),
-/* 70 */
+/* 74 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41722,7 +41810,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
         while (i1 < l1) {
           $property = arr1[i1 += 1];
           var $propertySch = it.schema.properties[$property];
-          if (!($propertySch && (it.opts.strictKeywords ? typeof $propertySch == 'object' && Object.keys($propertySch).length > 0 : it.util.schemaHasRules($propertySch, it.RULES.all)))) {
+          if (!($propertySch && (it.opts.strictKeywords ? (typeof $propertySch == 'object' && Object.keys($propertySch).length > 0) || $propertySch === false : it.util.schemaHasRules($propertySch, it.RULES.all)))) {
             $required[$required.length] = $property;
           }
         }
@@ -41965,7 +42053,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 71 */
+/* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42000,7 +42088,7 @@ module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
     } else {
       out += ' var itemIndices = {}, item; for (;i--;) { var item = ' + ($data) + '[i]; ';
       var $method = 'checkDataType' + ($typeIsArray ? 's' : '');
-      out += ' if (' + (it.util[$method]($itemType, 'item', true)) + ') continue; ';
+      out += ' if (' + (it.util[$method]($itemType, 'item', it.opts.strictNumbers, true)) + ') continue; ';
       if ($typeIsArray) {
         out += ' if (typeof item == \'string\') item = \'"\' + item; ';
       }
@@ -42058,7 +42146,7 @@ module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 72 */
+/* 76 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42102,7 +42190,7 @@ module.exports = function (metaSchema, keywordsJsonPointers) {
         keywords[key] = {
           anyOf: [
             schema,
-            { $ref: 'https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/data.json#' }
+            { $ref: 'https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#' }
           ]
         };
       }
@@ -42114,13 +42202,13 @@ module.exports = function (metaSchema, keywordsJsonPointers) {
 
 
 /***/ }),
-/* 73 */
+/* 77 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var MissingRefError = __webpack_require__(19).MissingRef;
+var MissingRefError = __webpack_require__(20).MissingRef;
 
 module.exports = compileAsync;
 
@@ -42211,15 +42299,15 @@ function compileAsync(schema, meta, callback) {
 
 
 /***/ }),
-/* 74 */
+/* 78 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
-var customRuleCode = __webpack_require__(75);
-var definitionSchema = __webpack_require__(76);
+var customRuleCode = __webpack_require__(79);
+var definitionSchema = __webpack_require__(80);
 
 module.exports = {
   add: addKeyword,
@@ -42263,7 +42351,7 @@ function addKeyword(keyword, definition) {
         metaSchema = {
           anyOf: [
             metaSchema,
-            { '$ref': 'https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/data.json#' }
+            { '$ref': 'https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#' }
           ]
         };
       }
@@ -42364,7 +42452,7 @@ function validateKeyword(definition, throwError) {
 
 
 /***/ }),
-/* 75 */
+/* 79 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42599,16 +42687,16 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 76 */
+/* 80 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var metaSchema = __webpack_require__(32);
+var metaSchema = __webpack_require__(33);
 
 module.exports = {
-  $id: 'https://github.com/epoberezkin/ajv/blob/master/lib/definition_schema.js',
+  $id: 'https://github.com/ajv-validator/ajv/blob/master/lib/definition_schema.js',
   definitions: {
     simpleTypes: metaSchema.definitions.simpleTypes
   },
@@ -42643,25 +42731,25 @@ module.exports = {
 
 
 /***/ }),
-/* 77 */
+/* 81 */
 /***/ (function(module) {
 
-module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$id\":\"https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/data.json#\",\"description\":\"Meta-schema for $data reference (JSON Schema extension proposal)\",\"type\":\"object\",\"required\":[\"$data\"],\"properties\":{\"$data\":{\"type\":\"string\",\"anyOf\":[{\"format\":\"relative-json-pointer\"},{\"format\":\"json-pointer\"}]}},\"additionalProperties\":false}");
+module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$id\":\"https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#\",\"description\":\"Meta-schema for $data reference (JSON Schema extension proposal)\",\"type\":\"object\",\"required\":[\"$data\"],\"properties\":{\"$data\":{\"type\":\"string\",\"anyOf\":[{\"format\":\"relative-json-pointer\"},{\"format\":\"json-pointer\"}]}},\"additionalProperties\":false}");
 
 /***/ }),
-/* 78 */
+/* 82 */
 /***/ (function(module) {
 
 module.exports = JSON.parse("{\"id\":\"http://json-schema.org/draft-04/schema#\",\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"description\":\"Core schema meta-schema\",\"definitions\":{\"schemaArray\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"$ref\":\"#\"}},\"positiveInteger\":{\"type\":\"integer\",\"minimum\":0},\"positiveIntegerDefault0\":{\"allOf\":[{\"$ref\":\"#/definitions/positiveInteger\"},{\"default\":0}]},\"simpleTypes\":{\"enum\":[\"array\",\"boolean\",\"integer\",\"null\",\"number\",\"object\",\"string\"]},\"stringArray\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"minItems\":1,\"uniqueItems\":true}},\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"$schema\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"},\"default\":{},\"multipleOf\":{\"type\":\"number\",\"minimum\":0,\"exclusiveMinimum\":true},\"maximum\":{\"type\":\"number\"},\"exclusiveMaximum\":{\"type\":\"boolean\",\"default\":false},\"minimum\":{\"type\":\"number\"},\"exclusiveMinimum\":{\"type\":\"boolean\",\"default\":false},\"maxLength\":{\"$ref\":\"#/definitions/positiveInteger\"},\"minLength\":{\"$ref\":\"#/definitions/positiveIntegerDefault0\"},\"pattern\":{\"type\":\"string\",\"format\":\"regex\"},\"additionalItems\":{\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#\"}],\"default\":{}},\"items\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/schemaArray\"}],\"default\":{}},\"maxItems\":{\"$ref\":\"#/definitions/positiveInteger\"},\"minItems\":{\"$ref\":\"#/definitions/positiveIntegerDefault0\"},\"uniqueItems\":{\"type\":\"boolean\",\"default\":false},\"maxProperties\":{\"$ref\":\"#/definitions/positiveInteger\"},\"minProperties\":{\"$ref\":\"#/definitions/positiveIntegerDefault0\"},\"required\":{\"$ref\":\"#/definitions/stringArray\"},\"additionalProperties\":{\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#\"}],\"default\":{}},\"definitions\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"properties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"patternProperties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"dependencies\":{\"type\":\"object\",\"additionalProperties\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/stringArray\"}]}},\"enum\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true},\"type\":{\"anyOf\":[{\"$ref\":\"#/definitions/simpleTypes\"},{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/simpleTypes\"},\"minItems\":1,\"uniqueItems\":true}]},\"format\":{\"type\":\"string\"},\"allOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"anyOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"oneOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"not\":{\"$ref\":\"#\"}},\"dependencies\":{\"exclusiveMaximum\":[\"maximum\"],\"exclusiveMinimum\":[\"minimum\"]},\"default\":{}}");
 
 /***/ }),
-/* 79 */
+/* 83 */
 /***/ (function(module) {
 
 module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-06/schema#\",\"$id\":\"http://json-schema.org/draft-06/schema#\",\"title\":\"Core schema meta-schema\",\"definitions\":{\"schemaArray\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"$ref\":\"#\"}},\"nonNegativeInteger\":{\"type\":\"integer\",\"minimum\":0},\"nonNegativeIntegerDefault0\":{\"allOf\":[{\"$ref\":\"#/definitions/nonNegativeInteger\"},{\"default\":0}]},\"simpleTypes\":{\"enum\":[\"array\",\"boolean\",\"integer\",\"null\",\"number\",\"object\",\"string\"]},\"stringArray\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"uniqueItems\":true,\"default\":[]}},\"type\":[\"object\",\"boolean\"],\"properties\":{\"$id\":{\"type\":\"string\",\"format\":\"uri-reference\"},\"$schema\":{\"type\":\"string\",\"format\":\"uri\"},\"$ref\":{\"type\":\"string\",\"format\":\"uri-reference\"},\"title\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"},\"default\":{},\"examples\":{\"type\":\"array\",\"items\":{}},\"multipleOf\":{\"type\":\"number\",\"exclusiveMinimum\":0},\"maximum\":{\"type\":\"number\"},\"exclusiveMaximum\":{\"type\":\"number\"},\"minimum\":{\"type\":\"number\"},\"exclusiveMinimum\":{\"type\":\"number\"},\"maxLength\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minLength\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"pattern\":{\"type\":\"string\",\"format\":\"regex\"},\"additionalItems\":{\"$ref\":\"#\"},\"items\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/schemaArray\"}],\"default\":{}},\"maxItems\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minItems\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"uniqueItems\":{\"type\":\"boolean\",\"default\":false},\"contains\":{\"$ref\":\"#\"},\"maxProperties\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minProperties\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"required\":{\"$ref\":\"#/definitions/stringArray\"},\"additionalProperties\":{\"$ref\":\"#\"},\"definitions\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"properties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"patternProperties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"dependencies\":{\"type\":\"object\",\"additionalProperties\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/stringArray\"}]}},\"propertyNames\":{\"$ref\":\"#\"},\"const\":{},\"enum\":{\"type\":\"array\",\"minItems\":1,\"uniqueItems\":true},\"type\":{\"anyOf\":[{\"$ref\":\"#/definitions/simpleTypes\"},{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/simpleTypes\"},\"minItems\":1,\"uniqueItems\":true}]},\"format\":{\"type\":\"string\"},\"allOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"anyOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"oneOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"not\":{\"$ref\":\"#\"}},\"default\":{}}");
 
 /***/ }),
-/* 80 */
+/* 84 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -42671,9 +42759,452 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, "treeModeMixins", function() { return /* binding */ treeModeMixins; });
 
-// EXTERNAL MODULE: ./src/js/vanilla-picker/index.js
-var vanilla_picker = __webpack_require__(13);
-var vanilla_picker_default = /*#__PURE__*/__webpack_require__.n(vanilla_picker);
+// CONCATENATED MODULE: ./src/js/autocomplete.js
+
+
+var defaultFilterFunction = {
+  start: function start(token, match, config) {
+    return match.indexOf(token) === 0;
+  },
+  contain: function contain(token, match, config) {
+    return match.indexOf(token) > -1;
+  }
+};
+function autocomplete(config) {
+  config = config || {};
+  config.filter = config.filter || 'start';
+  config.trigger = config.trigger || 'keydown';
+  config.confirmKeys = config.confirmKeys || [39, 35, 9]; // right, end, tab
+
+  config.caseSensitive = config.caseSensitive || false; // autocomplete case sensitive
+
+  var fontSize = '';
+  var fontFamily = '';
+  var wrapper = document.createElement('div');
+  wrapper.style.position = 'relative';
+  wrapper.style.outline = '0';
+  wrapper.style.border = '0';
+  wrapper.style.margin = '0';
+  wrapper.style.padding = '0';
+  var dropDown = document.createElement('div');
+  dropDown.className = 'autocomplete dropdown';
+  dropDown.style.position = 'absolute';
+  dropDown.style.visibility = 'hidden';
+  var spacer;
+  var leftSide; // <-- it will contain the leftSide part of the textfield (the bit that was already autocompleted)
+
+  var createDropDownController = function createDropDownController(elem, rs) {
+    var rows = [];
+    var ix = 0;
+    var oldIndex = -1; // TODO: move this styling in JS to SCSS
+
+    var onMouseOver = function onMouseOver() {
+      this.style.backgroundColor = '#ddd';
+    };
+
+    var onMouseOut = function onMouseOut() {
+      this.style.backgroundColor = '';
+    };
+
+    var onMouseDown = function onMouseDown() {
+      p.hide();
+      p.onmouseselection(this.__hint, p.rs);
+    };
+
+    var p = {
+      rs: rs,
+      hide: function hide() {
+        elem.style.visibility = 'hidden'; // rs.hideDropDown();
+      },
+      refresh: function refresh(token, array) {
+        elem.style.visibility = 'hidden';
+        ix = 0;
+        elem.textContent = '';
+        var vph = window.innerHeight || document.documentElement.clientHeight;
+        var rect = elem.parentNode.getBoundingClientRect();
+        var distanceToTop = rect.top - 6; // heuristic give 6px
+
+        var distanceToBottom = vph - rect.bottom - 6; // distance from the browser border.
+
+        rows = [];
+        var filterFn = typeof config.filter === 'function' ? config.filter : defaultFilterFunction[config.filter];
+        var filtered = !filterFn ? [] : array.filter(function (match) {
+          return filterFn(config.caseSensitive ? token : token.toLowerCase(), config.caseSensitive ? match : match.toLowerCase(), config);
+        });
+        rows = filtered.map(function (row) {
+          var divRow = document.createElement('div');
+          divRow.className = 'item'; // divRow.style.color = config.color;
+
+          divRow.onmouseover = onMouseOver;
+          divRow.onmouseout = onMouseOut;
+          divRow.onmousedown = onMouseDown;
+          divRow.__hint = row;
+          divRow.textContent = '';
+          divRow.appendChild(document.createTextNode(row.substring(0, token.length)));
+          var b = document.createElement('b');
+          b.appendChild(document.createTextNode(row.substring(token.length)));
+          divRow.appendChild(b);
+          elem.appendChild(divRow);
+          return divRow;
+        });
+
+        if (rows.length === 0) {
+          return; // nothing to show.
+        }
+
+        if (rows.length === 1 && (token.toLowerCase() === rows[0].__hint.toLowerCase() && !config.caseSensitive || token === rows[0].__hint && config.caseSensitive)) {
+          return; // do not show the dropDown if it has only one element which matches what we have just displayed.
+        }
+
+        if (rows.length < 2) return;
+        p.highlight(0);
+
+        if (distanceToTop > distanceToBottom * 3) {
+          // Heuristic (only when the distance to the to top is 4 times more than distance to the bottom
+          elem.style.maxHeight = distanceToTop + 'px'; // we display the dropDown on the top of the input text
+
+          elem.style.top = '';
+          elem.style.bottom = '100%';
+        } else {
+          elem.style.top = '100%';
+          elem.style.bottom = '';
+          elem.style.maxHeight = distanceToBottom + 'px';
+        }
+
+        elem.style.visibility = 'visible';
+      },
+      highlight: function highlight(index) {
+        if (oldIndex !== -1 && rows[oldIndex]) {
+          rows[oldIndex].className = 'item';
+        }
+
+        rows[index].className = 'item hover';
+        oldIndex = index;
+      },
+      move: function move(step) {
+        // moves the selection either up or down (unless it's not possible) step is either +1 or -1.
+        if (elem.style.visibility === 'hidden') return ''; // nothing to move if there is no dropDown. (this happens if the user hits escape and then down or up)
+
+        if (ix + step === -1 || ix + step === rows.length) return rows[ix].__hint; // NO CIRCULAR SCROLLING.
+
+        ix += step;
+        p.highlight(ix);
+        return rows[ix].__hint; // txtShadow.value = uRows[uIndex].__hint ;
+      },
+      onmouseselection: function onmouseselection() {} // it will be overwritten.
+
+    };
+    return p;
+  };
+
+  function setEndOfContenteditable(contentEditableElement) {
+    var range, selection;
+
+    if (document.createRange) {
+      // Firefox, Chrome, Opera, Safari, IE 9+
+      range = document.createRange(); // Create a range (a range is a like the selection but invisible)
+
+      range.selectNodeContents(contentEditableElement); // Select the entire contents of the element with the range
+
+      range.collapse(false); // collapse the range to the end point. false means collapse to end rather than the start
+
+      selection = window.getSelection(); // get the selection object (allows you to change selection)
+
+      selection.removeAllRanges(); // remove any selections already made
+
+      selection.addRange(range); // make the range you have just created the visible selection
+    } else if (document.selection) {
+      // IE 8 and lower
+      range = document.body.createTextRange(); // Create a range (a range is a like the selection but invisible)
+
+      range.moveToElementText(contentEditableElement); // Select the entire contents of the element with the range
+
+      range.collapse(false); // collapse the range to the end point. false means collapse to end rather than the start
+
+      range.select(); // Select the range (make it the visible selection
+    }
+  }
+
+  function calculateWidthForText(text) {
+    if (spacer === undefined) {
+      // on first call only.
+      spacer = document.createElement('span');
+      spacer.style.visibility = 'hidden';
+      spacer.style.position = 'fixed';
+      spacer.style.outline = '0';
+      spacer.style.margin = '0';
+      spacer.style.padding = '0';
+      spacer.style.border = '0';
+      spacer.style.left = '0';
+      spacer.style.whiteSpace = 'pre';
+      spacer.style.fontSize = fontSize;
+      spacer.style.fontFamily = fontFamily;
+      spacer.style.fontWeight = 'normal';
+      document.body.appendChild(spacer);
+    }
+
+    spacer.textContent = text;
+    return spacer.getBoundingClientRect().right;
+  }
+
+  var rs = {
+    onArrowDown: function onArrowDown() {},
+    // defaults to no action.
+    onArrowUp: function onArrowUp() {},
+    // defaults to no action.
+    onEnter: function onEnter() {},
+    // defaults to no action.
+    onTab: function onTab() {},
+    // defaults to no action.
+    startFrom: 0,
+    options: [],
+    element: null,
+    elementHint: null,
+    elementStyle: null,
+    wrapper: wrapper,
+    // Only to allow  easy access to the HTML elements to the final user (possibly for minor customizations)
+    show: function show(element, startPos, options) {
+      var _this = this;
+
+      this.startFrom = startPos;
+      this.wrapper.remove();
+
+      if (this.elementHint) {
+        this.elementHint.remove();
+        this.elementHint = null;
+      }
+
+      if (fontSize === '') {
+        fontSize = window.getComputedStyle(element).getPropertyValue('font-size');
+      }
+
+      if (fontFamily === '') {
+        fontFamily = window.getComputedStyle(element).getPropertyValue('font-family');
+      }
+
+      dropDown.style.marginLeft = '0';
+      dropDown.style.marginTop = element.getBoundingClientRect().height + 'px';
+      this.options = options.map(String);
+
+      if (this.element !== element) {
+        this.element = element;
+        this.elementStyle = {
+          zIndex: this.element.style.zIndex,
+          position: this.element.style.position,
+          backgroundColor: this.element.style.backgroundColor,
+          borderColor: this.element.style.borderColor
+        };
+      }
+
+      this.element.style.zIndex = 3;
+      this.element.style.position = 'relative';
+      this.element.style.backgroundColor = 'transparent';
+      this.element.style.borderColor = 'transparent';
+      this.elementHint = element.cloneNode();
+      this.elementHint.className = 'autocomplete hint';
+      this.elementHint.style.zIndex = 2;
+      this.elementHint.style.position = 'absolute';
+
+      this.elementHint.onfocus = function () {
+        _this.element.focus();
+      };
+
+      if (this.element.addEventListener) {
+        this.element.removeEventListener('keydown', keyDownHandler);
+        this.element.addEventListener('keydown', keyDownHandler, false);
+        this.element.removeEventListener('blur', onBlurHandler);
+        this.element.addEventListener('blur', onBlurHandler, false);
+      }
+
+      wrapper.appendChild(this.elementHint);
+      wrapper.appendChild(dropDown);
+      element.parentElement.appendChild(wrapper);
+      this.repaint(element);
+    },
+    setText: function setText(text) {
+      this.element.innerText = text;
+    },
+    getText: function getText() {
+      return this.element.innerText;
+    },
+    hideDropDown: function hideDropDown() {
+      this.wrapper.remove();
+
+      if (this.elementHint) {
+        this.elementHint.remove();
+        this.elementHint = null;
+        dropDownController.hide();
+        this.element.style.zIndex = this.elementStyle.zIndex;
+        this.element.style.position = this.elementStyle.position;
+        this.element.style.backgroundColor = this.elementStyle.backgroundColor;
+        this.element.style.borderColor = this.elementStyle.borderColor;
+      }
+    },
+    repaint: function repaint(element) {
+      var text = element.innerText;
+      text = text.replace('\n', '');
+      var optionsLength = this.options.length; // breaking text in leftSide and token.
+
+      var token = text.substring(this.startFrom);
+      leftSide = text.substring(0, this.startFrom);
+
+      for (var i = 0; i < optionsLength; i++) {
+        var opt = this.options[i];
+
+        if (!config.caseSensitive && opt.toLowerCase().indexOf(token.toLowerCase()) === 0 || config.caseSensitive && opt.indexOf(token) === 0) {
+          // <-- how about upperCase vs. lowercase
+          this.elementHint.innerText = leftSide + token + opt.substring(token.length);
+          this.elementHint.realInnerText = leftSide + opt;
+          break;
+        }
+      } // moving the dropDown and refreshing it.
+
+
+      dropDown.style.left = calculateWidthForText(leftSide) + 'px';
+      dropDownController.refresh(token, this.options);
+      this.elementHint.style.width = calculateWidthForText(this.elementHint.innerText) + 10 + 'px';
+      var wasDropDownHidden = dropDown.style.visibility === 'hidden';
+
+      if (!wasDropDownHidden) {
+        this.elementHint.style.width = calculateWidthForText(this.elementHint.innerText) + dropDown.clientWidth + 'px';
+      }
+    }
+  };
+  var dropDownController = createDropDownController(dropDown, rs);
+
+  var keyDownHandler = function (e) {
+    // console.log("Keydown:" + e.keyCode);
+    e = e || window.event;
+    var keyCode = e.keyCode;
+    if (this.elementHint == null) return;
+
+    if (keyCode === 33) {
+      return;
+    } // page up (do nothing)
+
+
+    if (keyCode === 34) {
+      return;
+    } // page down (do nothing);
+
+
+    if (keyCode === 27) {
+      // escape
+      rs.hideDropDown();
+      rs.element.focus();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    var text = this.element.innerText;
+    text = text.replace('\n', '');
+
+    if (config.confirmKeys.indexOf(keyCode) >= 0) {
+      //  (autocomplete triggered)
+      if (keyCode === 9) {
+        if (this.elementHint.innerText.length === 0) {
+          rs.onTab();
+        }
+      }
+
+      if (this.elementHint.innerText.length > 0) {
+        // if there is a hint
+        if (this.element.innerText !== this.elementHint.realInnerText) {
+          this.element.innerText = this.elementHint.realInnerText;
+          rs.hideDropDown();
+          setEndOfContenteditable(this.element);
+
+          if (keyCode === 9) {
+            rs.element.focus();
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      }
+
+      return;
+    }
+
+    if (keyCode === 13) {
+      // enter  (autocomplete triggered)
+      if (this.elementHint.innerText.length === 0) {
+        // if there is a hint
+        rs.onEnter();
+      } else {
+        var wasDropDownHidden = dropDown.style.visibility === 'hidden';
+        dropDownController.hide();
+
+        if (wasDropDownHidden) {
+          rs.hideDropDown();
+          rs.element.focus();
+          rs.onEnter();
+          return;
+        }
+
+        this.element.innerText = this.elementHint.realInnerText;
+        rs.hideDropDown();
+        setEndOfContenteditable(this.element);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      return;
+    }
+
+    if (keyCode === 40) {
+      // down
+      var token = text.substring(this.startFrom);
+      var m = dropDownController.move(+1);
+
+      if (m === '') {
+        rs.onArrowDown();
+      }
+
+      this.elementHint.innerText = leftSide + token + m.substring(token.length);
+      this.elementHint.realInnerText = leftSide + m;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    if (keyCode === 38) {
+      // up
+      var _token = text.substring(this.startFrom);
+
+      var _m = dropDownController.move(-1);
+
+      if (_m === '') {
+        rs.onArrowUp();
+      }
+
+      this.elementHint.innerText = leftSide + _token + _m.substring(_token.length);
+      this.elementHint.realInnerText = leftSide + _m;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }.bind(rs);
+
+  var onBlurHandler = function onBlurHandler(e) {
+    rs.hideDropDown(); // console.log("Lost focus.");
+  };
+
+  dropDownController.onmouseselection = function (text, rs) {
+    rs.element.innerText = rs.elementHint.innerText = leftSide + text;
+    rs.hideDropDown();
+    window.setTimeout(function () {
+      rs.element.focus();
+      setEndOfContenteditable(rs.element);
+    }, 1);
+  };
+
+  return rs;
+}
+// EXTERNAL MODULE: ./src/js/ContextMenu.js
+var ContextMenu = __webpack_require__(3);
+
+// EXTERNAL MODULE: ./src/js/FocusTracker.js
+var FocusTracker = __webpack_require__(9);
 
 // CONCATENATED MODULE: ./src/js/Highlighter.js
 
@@ -42785,915 +43316,24 @@ var Highlighter = /*#__PURE__*/function () {
 
   return Highlighter;
 }();
-// EXTERNAL MODULE: ./src/js/util.js
-var util = __webpack_require__(0);
-
-// CONCATENATED MODULE: ./src/js/NodeHistory.js
-
-
-function NodeHistory_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function NodeHistory_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function NodeHistory_createClass(Constructor, protoProps, staticProps) { if (protoProps) NodeHistory_defineProperties(Constructor.prototype, protoProps); if (staticProps) NodeHistory_defineProperties(Constructor, staticProps); return Constructor; }
-
-
-/**
- * @constructor History
- * Store action history, enables undo and redo
- * @param {JSONEditor} editor
- */
-
-var NodeHistory_NodeHistory = /*#__PURE__*/function () {
-  function NodeHistory(editor) {
-    NodeHistory_classCallCheck(this, NodeHistory);
-
-    this.editor = editor;
-    this.history = [];
-    this.index = -1;
-    this.clear(); // helper function to find a Node from a path
-
-    function findNode(path) {
-      return editor.node.findNodeByInternalPath(path);
-    } // map with all supported actions
-
-
-    this.actions = {
-      editField: {
-        undo: function undo(params) {
-          var parentNode = findNode(params.parentPath);
-          var node = parentNode.childs[params.index];
-          node.updateField(params.oldValue);
-        },
-        redo: function redo(params) {
-          var parentNode = findNode(params.parentPath);
-          var node = parentNode.childs[params.index];
-          node.updateField(params.newValue);
-        }
-      },
-      editValue: {
-        undo: function undo(params) {
-          findNode(params.path).updateValue(params.oldValue);
-        },
-        redo: function redo(params) {
-          findNode(params.path).updateValue(params.newValue);
-        }
-      },
-      changeType: {
-        undo: function undo(params) {
-          findNode(params.path).changeType(params.oldType);
-        },
-        redo: function redo(params) {
-          findNode(params.path).changeType(params.newType);
-        }
-      },
-      appendNodes: {
-        undo: function undo(params) {
-          var parentNode = findNode(params.parentPath);
-          params.paths.map(findNode).forEach(function (node) {
-            parentNode.removeChild(node);
-          });
-        },
-        redo: function redo(params) {
-          var parentNode = findNode(params.parentPath);
-          params.nodes.forEach(function (node) {
-            parentNode.appendChild(node);
-          });
-        }
-      },
-      insertBeforeNodes: {
-        undo: function undo(params) {
-          var parentNode = findNode(params.parentPath);
-          params.paths.map(findNode).forEach(function (node) {
-            parentNode.removeChild(node);
-          });
-        },
-        redo: function redo(params) {
-          var parentNode = findNode(params.parentPath);
-          var beforeNode = findNode(params.beforePath);
-          params.nodes.forEach(function (node) {
-            parentNode.insertBefore(node, beforeNode);
-          });
-        }
-      },
-      insertAfterNodes: {
-        undo: function undo(params) {
-          var parentNode = findNode(params.parentPath);
-          params.paths.map(findNode).forEach(function (node) {
-            parentNode.removeChild(node);
-          });
-        },
-        redo: function redo(params) {
-          var parentNode = findNode(params.parentPath);
-          var afterNode = findNode(params.afterPath);
-          params.nodes.forEach(function (node) {
-            parentNode.insertAfter(node, afterNode);
-            afterNode = node;
-          });
-        }
-      },
-      removeNodes: {
-        undo: function undo(params) {
-          var parentNode = findNode(params.parentPath);
-          var beforeNode = parentNode.childs[params.index] || parentNode.append;
-          params.nodes.forEach(function (node) {
-            parentNode.insertBefore(node, beforeNode);
-          });
-        },
-        redo: function redo(params) {
-          var parentNode = findNode(params.parentPath);
-          params.paths.map(findNode).forEach(function (node) {
-            parentNode.removeChild(node);
-          });
-        }
-      },
-      duplicateNodes: {
-        undo: function undo(params) {
-          var parentNode = findNode(params.parentPath);
-          params.clonePaths.map(findNode).forEach(function (node) {
-            parentNode.removeChild(node);
-          });
-        },
-        redo: function redo(params) {
-          var parentNode = findNode(params.parentPath);
-          var afterNode = findNode(params.afterPath);
-          var nodes = params.paths.map(findNode);
-          nodes.forEach(function (node) {
-            var clone = node.clone();
-
-            if (parentNode.type === 'object') {
-              var existingFieldNames = parentNode.getFieldNames();
-              clone.field = Object(util["findUniqueName"])(node.field, existingFieldNames);
-            }
-
-            parentNode.insertAfter(clone, afterNode);
-            afterNode = clone;
-          });
-        }
-      },
-      moveNodes: {
-        undo: function undo(params) {
-          var oldParentNode = findNode(params.oldParentPath);
-          var newParentNode = findNode(params.newParentPath);
-          var oldBeforeNode = oldParentNode.childs[params.oldIndex] || oldParentNode.append; // first copy the nodes, then move them
-
-          var nodes = newParentNode.childs.slice(params.newIndex, params.newIndex + params.count);
-          nodes.forEach(function (node, index) {
-            node.field = params.fieldNames[index];
-            oldParentNode.moveBefore(node, oldBeforeNode);
-          }); // This is a hack to work around an issue that we don't know tha original
-          // path of the new parent after dragging, as the node is already moved at that time.
-
-          if (params.newParentPathRedo === null) {
-            params.newParentPathRedo = newParentNode.getInternalPath();
-          }
-        },
-        redo: function redo(params) {
-          var oldParentNode = findNode(params.oldParentPathRedo);
-          var newParentNode = findNode(params.newParentPathRedo);
-          var newBeforeNode = newParentNode.childs[params.newIndexRedo] || newParentNode.append; // first copy the nodes, then move them
-
-          var nodes = oldParentNode.childs.slice(params.oldIndexRedo, params.oldIndexRedo + params.count);
-          nodes.forEach(function (node, index) {
-            node.field = params.fieldNames[index];
-            newParentNode.moveBefore(node, newBeforeNode);
-          });
-        }
-      },
-      sort: {
-        undo: function undo(params) {
-          var node = findNode(params.path);
-          node.hideChilds();
-          node.childs = params.oldChilds;
-          node.updateDom({
-            updateIndexes: true
-          });
-          node.showChilds();
-        },
-        redo: function redo(params) {
-          var node = findNode(params.path);
-          node.hideChilds();
-          node.childs = params.newChilds;
-          node.updateDom({
-            updateIndexes: true
-          });
-          node.showChilds();
-        }
-      },
-      transform: {
-        undo: function undo(params) {
-          findNode(params.path).setInternalValue(params.oldValue); // TODO: would be nice to restore the state of the node and childs
-        },
-        redo: function redo(params) {
-          findNode(params.path).setInternalValue(params.newValue); // TODO: would be nice to restore the state of the node and childs
-        }
-      } // TODO: restore the original caret position and selection with each undo
-      // TODO: implement history for actions "expand", "collapse", "scroll", "setDocument"
-
-    };
-  }
-  /**
-   * The method onChange is executed when the History is changed, and can
-   * be overloaded.
-   */
-
-
-  NodeHistory_createClass(NodeHistory, [{
-    key: "onChange",
-    value: function onChange() {}
-    /**
-     * Add a new action to the history
-     * @param {String} action  The executed action. Available actions: "editField",
-     *                         "editValue", "changeType", "appendNode",
-     *                         "removeNode", "duplicateNode", "moveNode"
-     * @param {Object} params  Object containing parameters describing the change.
-     *                         The parameters in params depend on the action (for
-     *                         example for "editValue" the Node, old value, and new
-     *                         value are provided). params contains all information
-     *                         needed to undo or redo the action.
-     */
-
-  }, {
-    key: "add",
-    value: function add(action, params) {
-      this.index++;
-      this.history[this.index] = {
-        action: action,
-        params: params,
-        timestamp: new Date()
-      }; // remove redo actions which are invalid now
-
-      if (this.index < this.history.length - 1) {
-        this.history.splice(this.index + 1, this.history.length - this.index - 1);
-      } // fire onchange event
-
-
-      this.onChange();
-    }
-    /**
-     * Clear history
-     */
-
-  }, {
-    key: "clear",
-    value: function clear() {
-      this.history = [];
-      this.index = -1; // fire onchange event
-
-      this.onChange();
-    }
-    /**
-     * Check if there is an action available for undo
-     * @return {Boolean} canUndo
-     */
-
-  }, {
-    key: "canUndo",
-    value: function canUndo() {
-      return this.index >= 0;
-    }
-    /**
-     * Check if there is an action available for redo
-     * @return {Boolean} canRedo
-     */
-
-  }, {
-    key: "canRedo",
-    value: function canRedo() {
-      return this.index < this.history.length - 1;
-    }
-    /**
-     * Undo the last action
-     */
-
-  }, {
-    key: "undo",
-    value: function undo() {
-      if (this.canUndo()) {
-        var obj = this.history[this.index];
-
-        if (obj) {
-          var action = this.actions[obj.action];
-
-          if (action && action.undo) {
-            action.undo(obj.params);
-
-            if (obj.params.oldSelection) {
-              try {
-                this.editor.setDomSelection(obj.params.oldSelection);
-              } catch (err) {
-                console.error(err);
-              }
-            }
-          } else {
-            console.error(new Error('unknown action "' + obj.action + '"'));
-          }
-        }
-
-        this.index--; // fire onchange event
-
-        this.onChange();
-      }
-    }
-    /**
-     * Redo the last action
-     */
-
-  }, {
-    key: "redo",
-    value: function redo() {
-      if (this.canRedo()) {
-        this.index++;
-        var obj = this.history[this.index];
-
-        if (obj) {
-          var action = this.actions[obj.action];
-
-          if (action && action.redo) {
-            action.redo(obj.params);
-
-            if (obj.params.newSelection) {
-              try {
-                this.editor.setDomSelection(obj.params.newSelection);
-              } catch (err) {
-                console.error(err);
-              }
-            }
-          } else {
-            console.error(new Error('unknown action "' + obj.action + '"'));
-          }
-        } // fire onchange event
-
-
-        this.onChange();
-      }
-    }
-    /**
-     * Destroy history
-     */
-
-  }, {
-    key: "destroy",
-    value: function destroy() {
-      this.editor = null;
-      this.history = [];
-      this.index = -1;
-    }
-  }]);
-
-  return NodeHistory;
-}();
 // EXTERNAL MODULE: ./src/js/i18n.js
 var i18n = __webpack_require__(1);
 
-// CONCATENATED MODULE: ./src/js/SearchBox.js
+// EXTERNAL MODULE: ./src/js/jmespathQuery.js
+var jmespathQuery = __webpack_require__(4);
 
+// EXTERNAL MODULE: ./src/js/ModeSwitcher.js
+var ModeSwitcher = __webpack_require__(10);
 
-function SearchBox_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function SearchBox_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function SearchBox_createClass(Constructor, protoProps, staticProps) { if (protoProps) SearchBox_defineProperties(Constructor.prototype, protoProps); if (staticProps) SearchBox_defineProperties(Constructor, staticProps); return Constructor; }
-
-
-/**
- * @constructor SearchBox
- * Create a search box in given HTML container
- * @param {JSONEditor} editor    The JSON Editor to attach to
- * @param {Element} container               HTML container element of where to
- *                                          create the search box
- */
-
-var SearchBox_SearchBox = /*#__PURE__*/function () {
-  function SearchBox(editor, container) {
-    SearchBox_classCallCheck(this, SearchBox);
-
-    var searchBox = this;
-    this.editor = editor;
-    this.timeout = undefined;
-    this.delay = 200; // ms
-
-    this.lastText = undefined;
-    this.results = null;
-    this.dom = {};
-    this.dom.container = container;
-    var wrapper = document.createElement('div');
-    this.dom.wrapper = wrapper;
-    wrapper.className = 'jsoneditor-search';
-    container.appendChild(wrapper);
-    var results = document.createElement('div');
-    this.dom.results = results;
-    results.className = 'jsoneditor-results';
-    wrapper.appendChild(results);
-    var divInput = document.createElement('div');
-    this.dom.input = divInput;
-    divInput.className = 'jsoneditor-frame';
-    divInput.title = Object(i18n["c" /* translate */])('searchTitle');
-    wrapper.appendChild(divInput);
-    var refreshSearch = document.createElement('button');
-    refreshSearch.type = 'button';
-    refreshSearch.className = 'jsoneditor-refresh';
-    divInput.appendChild(refreshSearch);
-    var search = document.createElement('input');
-    search.type = 'text';
-    this.dom.search = search;
-
-    search.oninput = function (event) {
-      searchBox._onDelayedSearch(event);
-    };
-
-    search.onchange = function (event) {
-      // For IE 9
-      searchBox._onSearch();
-    };
-
-    search.onkeydown = function (event) {
-      searchBox._onKeyDown(event);
-    };
-
-    search.onkeyup = function (event) {
-      searchBox._onKeyUp(event);
-    };
-
-    refreshSearch.onclick = function (event) {
-      search.select();
-    }; // TODO: ESC in FF restores the last input, is a FF bug, https://bugzilla.mozilla.org/show_bug.cgi?id=598819
-
-
-    divInput.appendChild(search);
-    var searchNext = document.createElement('button');
-    searchNext.type = 'button';
-    searchNext.title = Object(i18n["c" /* translate */])('searchNextResultTitle');
-    searchNext.className = 'jsoneditor-next';
-
-    searchNext.onclick = function () {
-      searchBox.next();
-    };
-
-    divInput.appendChild(searchNext);
-    var searchPrevious = document.createElement('button');
-    searchPrevious.type = 'button';
-    searchPrevious.title = Object(i18n["c" /* translate */])('searchPreviousResultTitle');
-    searchPrevious.className = 'jsoneditor-previous';
-
-    searchPrevious.onclick = function () {
-      searchBox.previous();
-    };
-
-    divInput.appendChild(searchPrevious);
-  }
-  /**
-   * Go to the next search result
-   * @param {boolean} [focus]   If true, focus will be set to the next result
-   *                            focus is false by default.
-   */
-
-
-  SearchBox_createClass(SearchBox, [{
-    key: "next",
-    value: function next(focus) {
-      if (this.results) {
-        var index = this.resultIndex !== null ? this.resultIndex + 1 : 0;
-
-        if (index > this.results.length - 1) {
-          index = 0;
-        }
-
-        this._setActiveResult(index, focus);
-      }
-    }
-    /**
-     * Go to the prevous search result
-     * @param {boolean} [focus]   If true, focus will be set to the next result
-     *                            focus is false by default.
-     */
-
-  }, {
-    key: "previous",
-    value: function previous(focus) {
-      if (this.results) {
-        var max = this.results.length - 1;
-        var index = this.resultIndex !== null ? this.resultIndex - 1 : max;
-
-        if (index < 0) {
-          index = max;
-        }
-
-        this._setActiveResult(index, focus);
-      }
-    }
-    /**
-     * Set new value for the current active result
-     * @param {Number} index
-     * @param {boolean} [focus]   If true, focus will be set to the next result.
-     *                            focus is false by default.
-     * @private
-     */
-
-  }, {
-    key: "_setActiveResult",
-    value: function _setActiveResult(index, focus) {
-      // de-activate current active result
-      if (this.activeResult) {
-        var prevNode = this.activeResult.node;
-        var prevElem = this.activeResult.elem;
-
-        if (prevElem === 'field') {
-          delete prevNode.searchFieldActive;
-        } else {
-          delete prevNode.searchValueActive;
-        }
-
-        prevNode.updateDom();
-      }
-
-      if (!this.results || !this.results[index]) {
-        // out of range, set to undefined
-        this.resultIndex = undefined;
-        this.activeResult = undefined;
-        return;
-      }
-
-      this.resultIndex = index; // set new node active
-
-      var node = this.results[this.resultIndex].node;
-      var elem = this.results[this.resultIndex].elem;
-
-      if (elem === 'field') {
-        node.searchFieldActive = true;
-      } else {
-        node.searchValueActive = true;
-      }
-
-      this.activeResult = this.results[this.resultIndex];
-      node.updateDom(); // TODO: not so nice that the focus is only set after the animation is finished
-
-      node.scrollTo(function () {
-        if (focus) {
-          node.focus(elem);
-        }
-      });
-    }
-    /**
-     * Cancel any running onDelayedSearch.
-     * @private
-     */
-
-  }, {
-    key: "_clearDelay",
-    value: function _clearDelay() {
-      if (this.timeout !== undefined) {
-        clearTimeout(this.timeout);
-        delete this.timeout;
-      }
-    }
-    /**
-     * Start a timer to execute a search after a short delay.
-     * Used for reducing the number of searches while typing.
-     * @param {Event} event
-     * @private
-     */
-
-  }, {
-    key: "_onDelayedSearch",
-    value: function _onDelayedSearch(event) {
-      // execute the search after a short delay (reduces the number of
-      // search actions while typing in the search text box)
-      this._clearDelay();
-
-      var searchBox = this;
-      this.timeout = setTimeout(function (event) {
-        searchBox._onSearch();
-      }, this.delay);
-    }
-    /**
-     * Handle onSearch event
-     * @param {boolean} [forceSearch]  If true, search will be executed again even
-     *                                 when the search text is not changed.
-     *                                 Default is false.
-     * @private
-     */
-
-  }, {
-    key: "_onSearch",
-    value: function _onSearch(forceSearch) {
-      this._clearDelay();
-
-      var value = this.dom.search.value;
-      var text = value.length > 0 ? value : undefined;
-
-      if (text !== this.lastText || forceSearch) {
-        // only search again when changed
-        this.lastText = text;
-        this.results = this.editor.search(text);
-        var MAX_SEARCH_RESULTS = this.results[0] ? this.results[0].node.MAX_SEARCH_RESULTS : Infinity; // try to maintain the current active result if this is still part of the new search results
-
-        var activeResultIndex = 0;
-
-        if (this.activeResult) {
-          for (var i = 0; i < this.results.length; i++) {
-            if (this.results[i].node === this.activeResult.node) {
-              activeResultIndex = i;
-              break;
-            }
-          }
-        }
-
-        this._setActiveResult(activeResultIndex, false); // display search results
-
-
-        if (text !== undefined) {
-          var resultCount = this.results.length;
-
-          if (resultCount === 0) {
-            this.dom.results.innerHTML = 'no&nbsp;results';
-          } else if (resultCount === 1) {
-            this.dom.results.innerHTML = '1&nbsp;result';
-          } else if (resultCount > MAX_SEARCH_RESULTS) {
-            this.dom.results.innerHTML = MAX_SEARCH_RESULTS + '+&nbsp;results';
-          } else {
-            this.dom.results.innerHTML = resultCount + '&nbsp;results';
-          }
-        } else {
-          this.dom.results.innerHTML = '';
-        }
-      }
-    }
-    /**
-     * Handle onKeyDown event in the input box
-     * @param {Event} event
-     * @private
-     */
-
-  }, {
-    key: "_onKeyDown",
-    value: function _onKeyDown(event) {
-      var keynum = event.which;
-
-      if (keynum === 27) {
-        // ESC
-        this.dom.search.value = ''; // clear search
-
-        this._onSearch();
-
-        event.preventDefault();
-        event.stopPropagation();
-      } else if (keynum === 13) {
-        // Enter
-        if (event.ctrlKey) {
-          // force to search again
-          this._onSearch(true);
-        } else if (event.shiftKey) {
-          // move to the previous search result
-          this.previous();
-        } else {
-          // move to the next search result
-          this.next();
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    }
-    /**
-     * Handle onKeyUp event in the input box
-     * @param {Event} event
-     * @private
-     */
-
-  }, {
-    key: "_onKeyUp",
-    value: function _onKeyUp(event) {
-      var keynum = event.keyCode;
-
-      if (keynum !== 27 && keynum !== 13) {
-        // !show and !Enter
-        this._onDelayedSearch(event); // For IE 9
-
-      }
-    }
-    /**
-     * Clear the search results
-     */
-
-  }, {
-    key: "clear",
-    value: function clear() {
-      this.dom.search.value = '';
-
-      this._onSearch();
-    }
-    /**
-     * Refresh searchResults if there is a search value
-     */
-
-  }, {
-    key: "forceSearch",
-    value: function forceSearch() {
-      this._onSearch(true);
-    }
-    /**
-     * Test whether the search box value is empty
-     * @returns {boolean} Returns true when empty.
-     */
-
-  }, {
-    key: "isEmpty",
-    value: function isEmpty() {
-      return this.dom.search.value === '';
-    }
-    /**
-     * Destroy the search box
-     */
-
-  }, {
-    key: "destroy",
-    value: function destroy() {
-      this.editor = null;
-      this.dom.container.removeChild(this.dom.wrapper);
-      this.dom = null;
-      this.results = null;
-      this.activeResult = null;
-
-      this._clearDelay();
-    }
-  }]);
-
-  return SearchBox;
-}();
-// EXTERNAL MODULE: ./src/js/ContextMenu.js
-var ContextMenu = __webpack_require__(3);
-
-// CONCATENATED MODULE: ./src/js/TreePath.js
-
-
-function TreePath_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function TreePath_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function TreePath_createClass(Constructor, protoProps, staticProps) { if (protoProps) TreePath_defineProperties(Constructor.prototype, protoProps); if (staticProps) TreePath_defineProperties(Constructor, staticProps); return Constructor; }
-
-
-
-
-/**
- * Creates a component that visualize path selection in tree based editors
- * @param {HTMLElement} container
- * @param {HTMLElement} root
- * @constructor
- */
-
-var TreePath_TreePath = /*#__PURE__*/function () {
-  function TreePath(container, root) {
-    TreePath_classCallCheck(this, TreePath);
-
-    if (container) {
-      this.root = root;
-      this.path = document.createElement('div');
-      this.path.className = 'jsoneditor-treepath';
-      this.path.setAttribute('tabindex', 0);
-      this.contentMenuClicked = false;
-      container.appendChild(this.path);
-      this.reset();
-    }
-  }
-  /**
-   * Reset component to initial status
-   */
-
-
-  TreePath_createClass(TreePath, [{
-    key: "reset",
-    value: function reset() {
-      this.path.innerHTML = Object(i18n["c" /* translate */])('selectNode');
-    }
-    /**
-     * Renders the component UI according to a given path objects
-     * @param {Array<{name: String, childs: Array}>} pathObjs a list of path objects
-     *
-     */
-
-  }, {
-    key: "setPath",
-    value: function setPath(pathObjs) {
-      var me = this;
-      this.path.innerHTML = '';
-
-      if (pathObjs && pathObjs.length) {
-        pathObjs.forEach(function (pathObj, idx) {
-          var pathEl = document.createElement('span');
-          var sepEl;
-          pathEl.className = 'jsoneditor-treepath-element';
-          pathEl.innerText = pathObj.name;
-          pathEl.onclick = _onSegmentClick.bind(me, pathObj);
-          me.path.appendChild(pathEl);
-
-          if (pathObj.children.length) {
-            sepEl = document.createElement('span');
-            sepEl.className = 'jsoneditor-treepath-seperator';
-            sepEl.innerHTML = '&#9658;';
-
-            sepEl.onclick = function () {
-              me.contentMenuClicked = true;
-              var items = [];
-              pathObj.children.forEach(function (child) {
-                items.push({
-                  text: child.name,
-                  className: 'jsoneditor-type-modes' + (pathObjs[idx + 1] + 1 && pathObjs[idx + 1].name === child.name ? ' jsoneditor-selected' : ''),
-                  click: _onContextMenuItemClick.bind(me, pathObj, child.name)
-                });
-              });
-              var menu = new ContextMenu["a" /* ContextMenu */](items);
-              menu.show(sepEl, me.root, true);
-            };
-
-            me.path.appendChild(sepEl);
-          }
-
-          if (idx === pathObjs.length - 1) {
-            var leftRectPos = (sepEl || pathEl).getBoundingClientRect().right;
-
-            if (me.path.offsetWidth < leftRectPos) {
-              me.path.scrollLeft = leftRectPos;
-            }
-
-            if (me.path.scrollLeft) {
-              var showAllBtn = document.createElement('span');
-              showAllBtn.className = 'jsoneditor-treepath-show-all-btn';
-              showAllBtn.title = 'show all path';
-              showAllBtn.innerHTML = '...';
-              showAllBtn.onclick = _onShowAllClick.bind(me, pathObjs);
-              me.path.insertBefore(showAllBtn, me.path.firstChild);
-            }
-          }
-        });
-      }
-
-      function _onShowAllClick(pathObjs) {
-        me.contentMenuClicked = false;
-        Object(util["addClassName"])(me.path, 'show-all');
-        me.path.style.width = me.path.parentNode.getBoundingClientRect().width - 10 + 'px';
-
-        me.path.onblur = function () {
-          if (me.contentMenuClicked) {
-            me.contentMenuClicked = false;
-            me.path.focus();
-            return;
-          }
-
-          Object(util["removeClassName"])(me.path, 'show-all');
-          me.path.onblur = undefined;
-          me.path.style.width = '';
-          me.setPath(pathObjs);
-        };
-      }
-
-      function _onSegmentClick(pathObj) {
-        if (this.selectionCallback) {
-          this.selectionCallback(pathObj);
-        }
-      }
-
-      function _onContextMenuItemClick(pathObj, selection) {
-        if (this.contextMenuCallback) {
-          this.contextMenuCallback(pathObj, selection);
-        }
-      }
-    }
-    /**
-     * set a callback function for selection of path section
-     * @param {Function} callback function to invoke when section is selected
-     */
-
-  }, {
-    key: "onSectionSelected",
-    value: function onSectionSelected(callback) {
-      if (typeof callback === 'function') {
-        this.selectionCallback = callback;
-      }
-    }
-    /**
-     * set a callback function for selection of path section
-     * @param {Function} callback function to invoke when section is selected
-     */
-
-  }, {
-    key: "onContextMenuItemSelected",
-    value: function onContextMenuItemSelected(callback) {
-      if (typeof callback === 'function') {
-        this.contextMenuCallback = callback;
-      }
-    }
-  }]);
-
-  return TreePath;
-}();
 // EXTERNAL MODULE: ./node_modules/javascript-natural-sort/naturalSort.js
-var naturalSort = __webpack_require__(11);
+var naturalSort = __webpack_require__(13);
 var naturalSort_default = /*#__PURE__*/__webpack_require__.n(naturalSort);
 
 // EXTERNAL MODULE: ./src/js/createAbsoluteAnchor.js
 var createAbsoluteAnchor = __webpack_require__(12);
+
+// EXTERNAL MODULE: ./src/js/util.js
+var util = __webpack_require__(0);
 
 // CONCATENATED MODULE: ./src/js/appendNodeFactory.js
 
@@ -43759,7 +43399,7 @@ function appendNodeFactory(Node) {
 
     var tdAppend = document.createElement('td');
     var domText = document.createElement('div');
-    domText.innerHTML = '(' + Object(i18n["c" /* translate */])('empty') + ')';
+    domText.appendChild(document.createTextNode('(' + Object(i18n["c" /* translate */])('empty') + ')'));
     domText.className = 'jsoneditor-readonly';
     tdAppend.appendChild(domText);
     dom.td = tdAppend;
@@ -43801,7 +43441,7 @@ function appendNodeFactory(Node) {
     var domText = dom.text;
 
     if (domText) {
-      domText.innerHTML = '(' + Object(i18n["c" /* translate */])('empty') + ' ' + this.parent.type + ')';
+      domText.firstChild.nodeValue = '(' + Object(i18n["c" /* translate */])('empty') + ' ' + this.parent.type + ')';
     } // attach or detach the contents of the append node:
     // hide when the parent has childs, show when the parent has no childs
 
@@ -43854,32 +43494,31 @@ function appendNodeFactory(Node) {
 
   AppendNode.prototype.showContextMenu = function (anchor, onClose) {
     var node = this;
-    var titles = Node.TYPE_TITLES;
     var appendSubmenu = [{
       text: Object(i18n["c" /* translate */])('auto'),
       className: 'jsoneditor-type-auto',
-      title: titles.auto,
+      title: Object(i18n["c" /* translate */])('autoType'),
       click: function click() {
         node._onAppend('', '', 'auto');
       }
     }, {
       text: Object(i18n["c" /* translate */])('array'),
       className: 'jsoneditor-type-array',
-      title: titles.array,
+      title: Object(i18n["c" /* translate */])('arrayType'),
       click: function click() {
         node._onAppend('', []);
       }
     }, {
       text: Object(i18n["c" /* translate */])('object'),
       className: 'jsoneditor-type-object',
-      title: titles.object,
+      title: Object(i18n["c" /* translate */])('objectType'),
       click: function click() {
         node._onAppend('', {});
       }
     }, {
       text: Object(i18n["c" /* translate */])('string'),
       className: 'jsoneditor-type-string',
-      title: titles.string,
+      title: Object(i18n["c" /* translate */])('stringType'),
       click: function click() {
         node._onAppend('', '', 'string');
       }
@@ -44121,6 +43760,12 @@ var constants = __webpack_require__(2);
 // CONCATENATED MODULE: ./src/js/Node.js
 
 
+function _createForOfIteratorHelper(o, allowArrayLike) { var it; if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = o[Symbol.iterator](); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it["return"] != null) it["return"](); } finally { if (didErr) throw err; } } }; }
+
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function Node_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -44213,9 +43858,13 @@ var Node_Node = /*#__PURE__*/function () {
           if (typeof editable === 'boolean') {
             this.editable.field = editable;
             this.editable.value = editable;
-          } else {
+          } else if (_typeof(editable) === 'object' && editable !== null) {
             if (typeof editable.field === 'boolean') this.editable.field = editable.field;
             if (typeof editable.value === 'boolean') this.editable.value = editable.value;
+          } else {
+            console.error('Invalid return value for function onEditable.', 'Actual value:', editable, '.', 'Either a boolean or object { field: boolean, value: boolean } expected.');
+            this.editable.field = false;
+            this.editable.value = false;
           }
         }
       }
@@ -45251,9 +44900,10 @@ var Node_Node = /*#__PURE__*/function () {
         // create a temporary row, to prevent the scroll position from jumping
         // when removing the node
         var tbody = this.dom.tr ? this.dom.tr.parentNode : undefined;
+        var trTemp;
 
         if (tbody) {
-          var trTemp = document.createElement('tr');
+          trTemp = document.createElement('tr');
           trTemp.style.height = tbody.clientHeight + 'px';
           tbody.appendChild(trTemp);
         }
@@ -45275,7 +44925,7 @@ var Node_Node = /*#__PURE__*/function () {
           this.insertBefore(node, beforeNode, updateDom);
         }
 
-        if (tbody) {
+        if (tbody && trTemp) {
           tbody.removeChild(trTemp);
         }
       }
@@ -45775,6 +45425,12 @@ var Node_Node = /*#__PURE__*/function () {
 
       if (this.dom.value && this.type !== 'array' && this.type !== 'object') {
         this.valueInnerText = Object(util["getInnerText"])(this.dom.value);
+
+        if (this.valueInnerText === '' && this.dom.value.innerHTML !== '') {
+          // When clearing the contents, often a <br/> remains, messing up the
+          // styling of the empty text box. Therefore we remove the <br/>
+          this.dom.value.textContent = '';
+        }
       }
 
       if (this.valueInnerText !== undefined) {
@@ -46000,35 +45656,33 @@ var Node_Node = /*#__PURE__*/function () {
             this.dom.select.id = this.id;
             this.dom.select.name = this.dom.select.id; // Create the default empty option
 
-            this.dom.select.option = document.createElement('option');
-            this.dom.select.option.value = '';
-            this.dom.select.option.innerHTML = '--';
-            this.dom.select.appendChild(this.dom.select.option); // Iterate all enum values and add them as options
+            var defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '--';
+            this.dom.select.appendChild(defaultOption); // Iterate all enum values and add them as options
 
             for (var i = 0; i < this["enum"].length; i++) {
-              this.dom.select.option = document.createElement('option');
-              this.dom.select.option.value = this["enum"][i];
-              this.dom.select.option.innerHTML = this["enum"][i];
-
-              if (this.dom.select.option.value === this.value) {
-                this.dom.select.option.selected = true;
-              }
-
-              this.dom.select.appendChild(this.dom.select.option);
+              var option = document.createElement('option');
+              option.value = this["enum"][i];
+              option.textContent = this["enum"][i];
+              this.dom.select.appendChild(option);
             }
 
             this.dom.tdSelect = document.createElement('td');
             this.dom.tdSelect.className = 'jsoneditor-tree';
             this.dom.tdSelect.appendChild(this.dom.select);
             this.dom.tdValue.parentNode.insertBefore(this.dom.tdSelect, this.dom.tdValue);
-          } // If the enum is inside a composite type display
-          // both the simple input and the dropdown field
+          } // Select the matching value
 
+
+          this.dom.select.value = this["enum"].indexOf(this.value) !== -1 ? this.value : ''; // default
+          // If the enum is inside a composite type display
+          // both the simple input and the dropdown field
 
           if (this.schema && !Node_hasOwnProperty(this.schema, 'oneOf') && !Node_hasOwnProperty(this.schema, 'anyOf') && !Node_hasOwnProperty(this.schema, 'allOf')) {
             this.valueFieldHTML = this.dom.tdValue.innerHTML;
             this.dom.tdValue.style.visibility = 'hidden';
-            this.dom.tdValue.innerHTML = '';
+            this.dom.tdValue.textContent = '';
           } else {
             delete this.valueFieldHTML;
           }
@@ -46052,12 +45706,11 @@ var Node_Node = /*#__PURE__*/function () {
             this.dom.tdColor = document.createElement('td');
             this.dom.tdColor.className = 'jsoneditor-tree';
             this.dom.tdColor.appendChild(this.dom.color);
-            this.dom.tdValue.parentNode.insertBefore(this.dom.tdColor, this.dom.tdValue); // this is a bit hacky, overriding the text color like this. find a nicer solution
-
-            this.dom.value.style.color = '#1A1A1A';
-          } // update the color background
+            this.dom.tdValue.parentNode.insertBefore(this.dom.tdColor, this.dom.tdValue);
+          } // update styling of value and color background
 
 
+          Object(util["addClassName"])(this.dom.value, 'jsoneditor-color-value');
           this.dom.color.style.backgroundColor = value;
         } else {
           // cleanup color picker when displayed
@@ -46083,7 +45736,7 @@ var Node_Node = /*#__PURE__*/function () {
           }
 
           if (!title) {
-            this.dom.date.innerHTML = new Date(value).toISOString();
+            this.dom.date.textContent = new Date(value).toISOString();
           } else {
             while (this.dom.date.firstChild) {
               this.dom.date.removeChild(this.dom.date.firstChild);
@@ -46114,7 +45767,7 @@ var Node_Node = /*#__PURE__*/function () {
         this.dom.tdColor.parentNode.removeChild(this.dom.tdColor);
         delete this.dom.tdColor;
         delete this.dom.color;
-        this.dom.value.style.color = '';
+        Object(util["removeClassName"])(this.dom.value, 'jsoneditor-color-value');
       }
     }
     /**
@@ -46135,10 +45788,10 @@ var Node_Node = /*#__PURE__*/function () {
 
         if (tooltip) {
           domField.title = tooltip;
-        } // make backgound color lightgray when empty
+        } // make background color lightgray when empty
 
 
-        var isEmpty = String(this.field) === '' && this.parent.type !== 'array';
+        var isEmpty = String(this.field) === '' && this.parent && this.parent.type !== 'array';
 
         if (isEmpty) {
           Object(util["addClassName"])(domField, 'jsoneditor-empty');
@@ -46177,6 +45830,12 @@ var Node_Node = /*#__PURE__*/function () {
 
       if (this.dom.field && this.fieldEditable) {
         this.fieldInnerText = Object(util["getInnerText"])(this.dom.field);
+
+        if (this.fieldInnerText === '' && this.dom.field.innerHTML !== '') {
+          // When clearing the contents, often a <br/> remains, messing up the
+          // styling of the empty text box. Therefore we remove the <br/>
+          this.dom.field.textContent = '';
+        }
       }
 
       if (this.fieldInnerText !== undefined) {
@@ -46536,7 +46195,14 @@ var Node_Node = /*#__PURE__*/function () {
           }
         }
 
-        domField.innerHTML = this._escapeHTML(fieldText);
+        var escapedField = this._escapeHTML(fieldText);
+
+        if (document.activeElement !== domField || escapedField !== this._unescapeHTML(Object(util["getInnerText"])(domField))) {
+          // only update if it not has the focus or when there is an actual change,
+          // else you would needlessly loose the caret position when changing tabs
+          // or whilst typing
+          domField.innerHTML = escapedField;
+        }
 
         this._updateSchema();
       } // apply value to DOM
@@ -46548,7 +46214,14 @@ var Node_Node = /*#__PURE__*/function () {
         if (this.type === 'array' || this.type === 'object') {
           this.updateNodeName();
         } else {
-          domValue.innerHTML = this._escapeHTML(this.value);
+          var escapedValue = this._escapeHTML(this.value);
+
+          if (document.activeElement !== domValue || escapedValue !== this._unescapeHTML(Object(util["getInnerText"])(domValue))) {
+            // only update if it not has the focus or when there is an actual change,
+            // else you would needlessly loose the caret position when changing tabs
+            // or whilst typing
+            domValue.innerHTML = escapedValue;
+          }
         }
       } // apply styling to the table row
 
@@ -46652,7 +46325,7 @@ var Node_Node = /*#__PURE__*/function () {
             var childField = child.dom.field;
 
             if (childField) {
-              childField.innerHTML = index;
+              childField.textContent = index;
             }
           });
         } else if (this.type === 'object') {
@@ -46680,10 +46353,10 @@ var Node_Node = /*#__PURE__*/function () {
 
       if (this.type === 'array') {
         domValue = document.createElement('div');
-        domValue.innerHTML = '[...]';
+        domValue.textContent = '[...]';
       } else if (this.type === 'object') {
         domValue = document.createElement('div');
-        domValue.innerHTML = '{...}';
+        domValue.textContent = '{...}';
       } else {
         if (!this.editable.value && Object(util["isUrl"])(this.value)) {
           // create a link in case of read-only editor and value containing an url
@@ -46789,11 +46462,7 @@ var Node_Node = /*#__PURE__*/function () {
       var dom = this.dom;
       var node = this;
 
-      var expandable = this._hasChilds();
-
-      if (typeof this.editor.options.onEvent === 'function') {
-        this._onEvent(event);
-      } // check if mouse is on menu or on dragarea.
+      var expandable = this._hasChilds(); // check if mouse is on menu or on dragarea.
       // If so, highlight current row and its childs
 
 
@@ -46835,7 +46504,7 @@ var Node_Node = /*#__PURE__*/function () {
 
 
       if (type === 'change' && target === dom.checkbox) {
-        this.dom.value.innerHTML = !this.value;
+        this.dom.value.textContent = String(!this.value);
 
         this._getDomValue();
 
@@ -46844,7 +46513,7 @@ var Node_Node = /*#__PURE__*/function () {
 
 
       if (type === 'change' && target === dom.select) {
-        this.dom.value.innerHTML = dom.select.value;
+        this.dom.value.innerHTML = this._escapeHTML(dom.select.value);
 
         this._getDomValue();
 
@@ -46868,8 +46537,9 @@ var Node_Node = /*#__PURE__*/function () {
 
               var escapedValue = this._escapeHTML(this.value);
 
-              if (domValue.innerHTML !== escapedValue) {
-                // only update if changed, else you lose the caret position when changing tabs for example
+              if (escapedValue !== this._unescapeHTML(Object(util["getInnerText"])(domValue))) {
+                // only update when there is an actual change, else you loose the
+                // caret position when changing tabs or whilst typing
                 domValue.innerHTML = escapedValue;
               }
 
@@ -46895,7 +46565,7 @@ var Node_Node = /*#__PURE__*/function () {
               // if read-only, we use the regular click behavior of an anchor
               if (Object(util["isUrl"])(this.value)) {
                 event.preventDefault();
-                window.open(this.value, '_blank');
+                window.open(this.value, '_blank', 'noopener');
               }
             }
 
@@ -46933,8 +46603,9 @@ var Node_Node = /*#__PURE__*/function () {
 
               var escapedField = this._escapeHTML(this.field);
 
-              if (domField.innerHTML !== escapedField) {
-                // only update if changed, else you lose the caret position when changing tabs for example
+              if (escapedField !== this._unescapeHTML(Object(util["getInnerText"])(domField))) {
+                // only update when there is an actual change, else you loose the
+                // caret position when changing tabs or whilst typing
                 domField.innerHTML = escapedField;
               }
 
@@ -47005,6 +46676,11 @@ var Node_Node = /*#__PURE__*/function () {
 
       if (type === 'keydown') {
         this.onKeyDown(event);
+      } // fire after applying for example a change by clicking a checkbox
+
+
+      if (typeof this.editor.options.onEvent === 'function') {
+        this._onEvent(event);
       }
     }
     /**
@@ -47021,14 +46697,16 @@ var Node_Node = /*#__PURE__*/function () {
     key: "_onEvent",
     value: function _onEvent(event) {
       var element = event.target;
+      var isField = element === this.dom.field;
+      var isValue = element === this.dom.value || element === this.dom.checkbox || element === this.dom.select;
 
-      if (element === this.dom.field || element === this.dom.value) {
+      if (isField || isValue) {
         var info = {
           field: this.getField(),
           path: this.getPath()
         }; // For leaf values, include value
 
-        if (!this._hasChilds() && element === this.dom.value) {
+        if (isValue && !this._hasChilds()) {
           info.value = this.getValue();
         }
 
@@ -47069,7 +46747,7 @@ var Node_Node = /*#__PURE__*/function () {
         if (target === this.dom.value) {
           if (!this.editable.value || event.ctrlKey) {
             if (Object(util["isUrl"])(this.value)) {
-              window.open(this.value, '_blank');
+              window.open(this.value, '_blank', 'noopener');
               handled = true;
             }
           }
@@ -47291,8 +46969,9 @@ var Node_Node = /*#__PURE__*/function () {
           handled = true;
         } else if (altKey && shiftKey && editable) {
           // Alt + Shift + Arrow Right
-          dom = firstNode.getDom();
-          var prevDom = dom.previousSibling;
+          var _dom = firstNode.getDom();
+
+          var prevDom = _dom.previousSibling;
 
           if (prevDom) {
             prevNode = Node.getNodeFromTarget(prevDom);
@@ -47422,12 +47101,16 @@ var Node_Node = /*#__PURE__*/function () {
   }, {
     key: "_onExpand",
     value: function _onExpand(recurse) {
+      var table;
+      var frame;
+      var scrollTop;
+
       if (recurse) {
         // Take the table offline
-        var table = this.dom.tr.parentNode; // TODO: not nice to access the main table like this
+        table = this.dom.tr.parentNode; // TODO: not nice to access the main table like this
 
-        var frame = table.parentNode;
-        var scrollTop = frame.scrollTop;
+        frame = table.parentNode;
+        scrollTop = frame.scrollTop;
         frame.removeChild(table);
       }
 
@@ -48142,7 +47825,6 @@ var Node_Node = /*#__PURE__*/function () {
     key: "showContextMenu",
     value: function showContextMenu(anchor, onClose) {
       var node = this;
-      var titles = Node.TYPE_TITLES;
       var items = [];
 
       if (this.editable.value) {
@@ -48153,28 +47835,28 @@ var Node_Node = /*#__PURE__*/function () {
           submenu: [{
             text: Object(i18n["c" /* translate */])('auto'),
             className: 'jsoneditor-type-auto' + (this.type === 'auto' ? ' jsoneditor-selected' : ''),
-            title: titles.auto,
+            title: Object(i18n["c" /* translate */])('autoType'),
             click: function click() {
               node._onChangeType('auto');
             }
           }, {
             text: Object(i18n["c" /* translate */])('array'),
             className: 'jsoneditor-type-array' + (this.type === 'array' ? ' jsoneditor-selected' : ''),
-            title: titles.array,
+            title: Object(i18n["c" /* translate */])('arrayType'),
             click: function click() {
               node._onChangeType('array');
             }
           }, {
             text: Object(i18n["c" /* translate */])('object'),
             className: 'jsoneditor-type-object' + (this.type === 'object' ? ' jsoneditor-selected' : ''),
-            title: titles.object,
+            title: Object(i18n["c" /* translate */])('objectType'),
             click: function click() {
               node._onChangeType('object');
             }
           }, {
             text: Object(i18n["c" /* translate */])('string'),
             className: 'jsoneditor-type-string' + (this.type === 'string' ? ' jsoneditor-selected' : ''),
-            title: titles.string,
+            title: Object(i18n["c" /* translate */])('stringType'),
             click: function click() {
               node._onChangeType('string');
             }
@@ -48238,28 +47920,28 @@ var Node_Node = /*#__PURE__*/function () {
           var appendSubmenu = [{
             text: Object(i18n["c" /* translate */])('auto'),
             className: 'jsoneditor-type-auto',
-            title: titles.auto,
+            title: Object(i18n["c" /* translate */])('autoType'),
             click: function click() {
               node._onAppend('', '', 'auto');
             }
           }, {
             text: Object(i18n["c" /* translate */])('array'),
             className: 'jsoneditor-type-array',
-            title: titles.array,
+            title: Object(i18n["c" /* translate */])('arrayType'),
             click: function click() {
               node._onAppend('', []);
             }
           }, {
             text: Object(i18n["c" /* translate */])('object'),
             className: 'jsoneditor-type-object',
-            title: titles.object,
+            title: Object(i18n["c" /* translate */])('objectType'),
             click: function click() {
               node._onAppend('', {});
             }
           }, {
             text: Object(i18n["c" /* translate */])('string'),
             className: 'jsoneditor-type-string',
-            title: titles.string,
+            title: Object(i18n["c" /* translate */])('stringType'),
             click: function click() {
               node._onAppend('', '', 'string');
             }
@@ -48281,28 +47963,28 @@ var Node_Node = /*#__PURE__*/function () {
         var insertSubmenu = [{
           text: Object(i18n["c" /* translate */])('auto'),
           className: 'jsoneditor-type-auto',
-          title: titles.auto,
+          title: Object(i18n["c" /* translate */])('autoType'),
           click: function click() {
             node._onInsertBefore('', '', 'auto');
           }
         }, {
           text: Object(i18n["c" /* translate */])('array'),
           className: 'jsoneditor-type-array',
-          title: titles.array,
+          title: Object(i18n["c" /* translate */])('arrayType'),
           click: function click() {
             node._onInsertBefore('', []);
           }
         }, {
           text: Object(i18n["c" /* translate */])('object'),
           className: 'jsoneditor-type-object',
-          title: titles.object,
+          title: Object(i18n["c" /* translate */])('objectType'),
           click: function click() {
             node._onInsertBefore('', {});
           }
         }, {
           text: Object(i18n["c" /* translate */])('string'),
           className: 'jsoneditor-type-string',
-          title: titles.string,
+          title: Object(i18n["c" /* translate */])('stringType'),
           click: function click() {
             node._onInsertBefore('', '', 'string');
           }
@@ -48392,7 +48074,7 @@ var Node_Node = /*#__PURE__*/function () {
       var json = this.getValue();
 
       Object(js_showTransformModal["showTransformModal"])({
-        anchor: modalAnchor || constants["a" /* DEFAULT_MODAL_ANCHOR */],
+        container: modalAnchor || constants["a" /* DEFAULT_MODAL_ANCHOR */],
         json: json,
         queryDescription: queryDescription,
         // can be undefined
@@ -48536,7 +48218,7 @@ var Node_Node = /*#__PURE__*/function () {
           }
         }
 
-        this.dom.value.innerHTML = this.type === 'object' ? '{' + (nodeName || count) + '}' : '[' + (nodeName || count) + ']';
+        this.dom.value.textContent = this.type === 'object' ? '{' + (nodeName || count) + '}' : '[' + (nodeName || count) + ']';
       }
     }
     /**
@@ -48607,13 +48289,13 @@ Node_Node.onDragStart = function (nodes, event) {
   var offsetY = Object(util["getAbsoluteTop"])(draggedNode.dom.tr) - Object(util["getAbsoluteTop"])(firstNode.dom.tr);
 
   if (!editor.mousemove) {
-    editor.mousemove = Object(util["addEventListener"])(window, 'mousemove', function (event) {
+    editor.mousemove = Object(util["addEventListener"])(event.view, 'mousemove', function (event) {
       Node_Node.onDrag(nodes, event);
     });
   }
 
   if (!editor.mouseup) {
-    editor.mouseup = Object(util["addEventListener"])(window, 'mouseup', function (event) {
+    editor.mouseup = Object(util["addEventListener"])(event.view, 'mouseup', function (event) {
       Node_Node.onDragEnd(nodes, event);
     });
   }
@@ -48700,7 +48382,7 @@ Node_Node.onDrag = function (nodes, event) {
       }
     }
 
-    if (nodePrev) {
+    if (nodePrev && (editor.options.limitDragging === false || nodePrev.parent === nodes[0].parent)) {
       nodes.forEach(function (node) {
         nodePrev.parent.moveBefore(node, nodePrev);
       });
@@ -48776,7 +48458,7 @@ Node_Node.onDrag = function (nodes, event) {
         } // move the node when its position is changed
 
 
-        if (nodeNext && nodeNext.dom.tr && trLast.nextSibling !== nodeNext.dom.tr) {
+        if (nodeNext && (editor.options.limitDragging === false || nodeNext.parent === nodes[0].parent) && nodeNext.dom.tr && nodeNext.dom.tr !== trLast.nextSibling) {
           nodes.forEach(function (node) {
             nodeNext.parent.moveBefore(node, nodeNext);
           });
@@ -48859,12 +48541,12 @@ Node_Node.onDragEnd = function (nodes, event) {
   delete editor.drag;
 
   if (editor.mousemove) {
-    Object(util["removeEventListener"])(window, 'mousemove', editor.mousemove);
+    Object(util["removeEventListener"])(event.view, 'mousemove', editor.mousemove);
     delete editor.mousemove;
   }
 
   if (editor.mouseup) {
-    Object(util["removeEventListener"])(window, 'mouseup', editor.mouseup);
+    Object(util["removeEventListener"])(event.view, 'mouseup', editor.mouseup);
     delete editor.mouseup;
   } // Stop any running auto scroll
 
@@ -48902,70 +48584,97 @@ Node_Node._findEnum = function (schema) {
 };
 /**
  * Return the part of a JSON schema matching given path.
- * @param {Object} schema
+ * @param {Object} topLevelSchema
  * @param {Object} schemaRefs
  * @param {Array.<string | number>} path
+ * @param {Object} currentSchema
  * @return {Object | null}
  * @private
  */
 
 
-Node_Node._findSchema = function (schema, schemaRefs, path) {
-  var childSchema = schema;
-  var foundSchema = childSchema;
-  var allSchemas = schema.oneOf || schema.anyOf || schema.allOf;
+Node_Node._findSchema = function (topLevelSchema, schemaRefs, path) {
+  var currentSchema = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : topLevelSchema;
+  var nextPath = path.slice(1, path.length);
+  var nextKey = path[0];
+  var possibleSchemas = currentSchema.oneOf || currentSchema.anyOf || currentSchema.allOf || [currentSchema];
 
-  if (!allSchemas) {
-    allSchemas = [schema];
-  }
+  var _iterator = _createForOfIteratorHelper(possibleSchemas),
+      _step;
 
-  for (var j = 0; j < allSchemas.length; j++) {
-    childSchema = allSchemas[j];
+  try {
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var schema = _step.value;
+      currentSchema = schema;
 
-    if ('$ref' in childSchema && typeof childSchema.$ref === 'string') {
-      childSchema = schemaRefs[childSchema.$ref];
+      if ('$ref' in currentSchema && typeof currentSchema.$ref === 'string') {
+        var ref = currentSchema.$ref;
 
-      if (childSchema) {
-        foundSchema = Node_Node._findSchema(childSchema, schemaRefs, path);
-      }
-    }
+        if (ref in schemaRefs) {
+          currentSchema = schemaRefs[ref];
+        } else if (ref.startsWith('#/')) {
+          var refPath = ref.substring(2).split('/');
+          currentSchema = topLevelSchema;
 
-    for (var i = 0; i < path.length && childSchema; i++) {
-      var nextPath = path.slice(i + 1, path.length);
-      var key = path[i];
+          var _iterator2 = _createForOfIteratorHelper(refPath),
+              _step2;
 
-      if (typeof key === 'string' && childSchema.patternProperties && !(childSchema.properties && key in childSchema.properties)) {
-        for (var prop in childSchema.patternProperties) {
-          if (key.match(prop)) {
-            foundSchema = Node_Node._findSchema(childSchema.patternProperties[prop], schemaRefs, nextPath);
+          try {
+            for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+              var segment = _step2.value;
+
+              if (segment in currentSchema) {
+                currentSchema = currentSchema[segment];
+              } else {
+                throw Error("Unable to resovle reference ".concat(ref));
+              }
+            }
+          } catch (err) {
+            _iterator2.e(err);
+          } finally {
+            _iterator2.f();
           }
-        }
-      } else if (typeof key === 'string' && childSchema.properties) {
-        if (!(key in childSchema.properties)) {
-          foundSchema = null;
         } else {
-          childSchema = childSchema.properties[key];
+          throw Error("Unable to resolve reference ".concat(ref));
+        }
+      } // We have no more path segments to resolve, return the currently found schema
+      // We do this here, after resolving references, in case of the leaf schema beeing a reference
 
-          if (childSchema) {
-            foundSchema = Node_Node._findSchema(childSchema, schemaRefs, nextPath);
+
+      if (nextKey === undefined) {
+        return currentSchema;
+      }
+
+      if (typeof nextKey === 'string') {
+        if (_typeof(currentSchema.properties) === 'object' && currentSchema.properties !== null && nextKey in currentSchema.properties) {
+          currentSchema = currentSchema.properties[nextKey];
+          return Node_Node._findSchema(topLevelSchema, schemaRefs, nextPath, currentSchema);
+        }
+
+        if (_typeof(currentSchema.patternProperties) === 'object' && currentSchema.patternProperties !== null) {
+          for (var prop in currentSchema.patternProperties) {
+            if (nextKey.match(prop)) {
+              currentSchema = currentSchema.patternProperties[prop];
+              return Node_Node._findSchema(topLevelSchema, schemaRefs, nextPath, currentSchema);
+            }
           }
         }
-      } else if (typeof key === 'number' && childSchema.items) {
-        childSchema = childSchema.items;
 
-        if (childSchema) {
-          foundSchema = Node_Node._findSchema(childSchema, schemaRefs, nextPath);
-        }
+        continue;
+      }
+
+      if (typeof nextKey === 'number' && _typeof(currentSchema.items) === 'object' && currentSchema.items !== null) {
+        currentSchema = currentSchema.items;
+        return Node_Node._findSchema(topLevelSchema, schemaRefs, nextPath, currentSchema);
       }
     }
-  } // If the found schema is the input schema, the schema does not have the given path
-
-
-  if (foundSchema === schema && path.length > 0) {
-    return null;
+  } catch (err) {
+    _iterator.e(err);
+  } finally {
+    _iterator.f();
   }
 
-  return foundSchema;
+  return null;
 };
 /**
  * Remove nodes
@@ -49042,7 +48751,7 @@ Node_Node.onDuplicate = function (nodes) {
       if (clones[0].parent.type === 'object') {
         // when duplicating a single object property,
         // set focus to the field and keep the original field name
-        clones[0].dom.field.innerHTML = nodes[0].field;
+        clones[0].dom.field.innerHTML = nodes[0]._escapeHTML(nodes[0].field);
         clones[0].focus('field');
       } else {
         clones[0].focus();
@@ -49130,15 +48839,8 @@ Node_Node.blurNodes = function (nodes) {
   } else {
     parent.focus();
   }
-}; // titles with explanation for the different types
-
-
-Node_Node.TYPE_TITLES = {
-  auto: Object(i18n["c" /* translate */])('autoType'),
-  object: Object(i18n["c" /* translate */])('objectType'),
-  array: Object(i18n["c" /* translate */])('arrayType'),
-  string: Object(i18n["c" /* translate */])('stringType')
 }; // helper function to get the internal path of a node
+
 
 function getInternalPath(node) {
   return node.getInternalPath();
@@ -49157,453 +48859,905 @@ function Node_hasOwnProperty(object, key) {
 
 var Node_AppendNode = appendNodeFactory(Node_Node);
 var Node_ShowMoreNode = showMoreNodeFactory(Node_Node);
-// EXTERNAL MODULE: ./src/js/ModeSwitcher.js
-var ModeSwitcher = __webpack_require__(8);
-
-// EXTERNAL MODULE: ./src/js/FocusTracker.js
-var FocusTracker = __webpack_require__(9);
-
-// CONCATENATED MODULE: ./src/js/autocomplete.js
+// CONCATENATED MODULE: ./src/js/NodeHistory.js
 
 
-var defaultFilterFunction = {
-  start: function start(token, match, config) {
-    return match.indexOf(token) === 0;
-  },
-  contain: function contain(token, match, config) {
-    return match.indexOf(token) > -1;
+function NodeHistory_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function NodeHistory_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function NodeHistory_createClass(Constructor, protoProps, staticProps) { if (protoProps) NodeHistory_defineProperties(Constructor.prototype, protoProps); if (staticProps) NodeHistory_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+/**
+ * @constructor History
+ * Store action history, enables undo and redo
+ * @param {JSONEditor} editor
+ */
+
+var NodeHistory_NodeHistory = /*#__PURE__*/function () {
+  function NodeHistory(editor) {
+    NodeHistory_classCallCheck(this, NodeHistory);
+
+    this.editor = editor;
+    this.history = [];
+    this.index = -1;
+    this.clear(); // helper function to find a Node from a path
+
+    function findNode(path) {
+      return editor.node.findNodeByInternalPath(path);
+    } // map with all supported actions
+
+
+    this.actions = {
+      editField: {
+        undo: function undo(params) {
+          var parentNode = findNode(params.parentPath);
+          var node = parentNode.childs[params.index];
+          node.updateField(params.oldValue);
+        },
+        redo: function redo(params) {
+          var parentNode = findNode(params.parentPath);
+          var node = parentNode.childs[params.index];
+          node.updateField(params.newValue);
+        }
+      },
+      editValue: {
+        undo: function undo(params) {
+          findNode(params.path).updateValue(params.oldValue);
+        },
+        redo: function redo(params) {
+          findNode(params.path).updateValue(params.newValue);
+        }
+      },
+      changeType: {
+        undo: function undo(params) {
+          findNode(params.path).changeType(params.oldType);
+        },
+        redo: function redo(params) {
+          findNode(params.path).changeType(params.newType);
+        }
+      },
+      appendNodes: {
+        undo: function undo(params) {
+          var parentNode = findNode(params.parentPath);
+          params.paths.map(findNode).forEach(function (node) {
+            parentNode.removeChild(node);
+          });
+        },
+        redo: function redo(params) {
+          var parentNode = findNode(params.parentPath);
+          params.nodes.forEach(function (node) {
+            parentNode.appendChild(node);
+          });
+        }
+      },
+      insertBeforeNodes: {
+        undo: function undo(params) {
+          var parentNode = findNode(params.parentPath);
+          params.paths.map(findNode).forEach(function (node) {
+            parentNode.removeChild(node);
+          });
+        },
+        redo: function redo(params) {
+          var parentNode = findNode(params.parentPath);
+          var beforeNode = findNode(params.beforePath);
+          params.nodes.forEach(function (node) {
+            parentNode.insertBefore(node, beforeNode);
+          });
+        }
+      },
+      insertAfterNodes: {
+        undo: function undo(params) {
+          var parentNode = findNode(params.parentPath);
+          params.paths.map(findNode).forEach(function (node) {
+            parentNode.removeChild(node);
+          });
+        },
+        redo: function redo(params) {
+          var parentNode = findNode(params.parentPath);
+          var afterNode = findNode(params.afterPath);
+          params.nodes.forEach(function (node) {
+            parentNode.insertAfter(node, afterNode);
+            afterNode = node;
+          });
+        }
+      },
+      removeNodes: {
+        undo: function undo(params) {
+          var parentNode = findNode(params.parentPath);
+          var beforeNode = parentNode.childs[params.index] || parentNode.append;
+          params.nodes.forEach(function (node) {
+            parentNode.insertBefore(node, beforeNode);
+          });
+        },
+        redo: function redo(params) {
+          var parentNode = findNode(params.parentPath);
+          params.paths.map(findNode).forEach(function (node) {
+            parentNode.removeChild(node);
+          });
+        }
+      },
+      duplicateNodes: {
+        undo: function undo(params) {
+          var parentNode = findNode(params.parentPath);
+          params.clonePaths.map(findNode).forEach(function (node) {
+            parentNode.removeChild(node);
+          });
+        },
+        redo: function redo(params) {
+          var parentNode = findNode(params.parentPath);
+          var afterNode = findNode(params.afterPath);
+          var nodes = params.paths.map(findNode);
+          nodes.forEach(function (node) {
+            var clone = node.clone();
+
+            if (parentNode.type === 'object') {
+              var existingFieldNames = parentNode.getFieldNames();
+              clone.field = Object(util["findUniqueName"])(node.field, existingFieldNames);
+            }
+
+            parentNode.insertAfter(clone, afterNode);
+            afterNode = clone;
+          });
+        }
+      },
+      moveNodes: {
+        undo: function undo(params) {
+          var oldParentNode = findNode(params.oldParentPath);
+          var newParentNode = findNode(params.newParentPath);
+          var oldBeforeNode = oldParentNode.childs[params.oldIndex] || oldParentNode.append; // first copy the nodes, then move them
+
+          var nodes = newParentNode.childs.slice(params.newIndex, params.newIndex + params.count);
+          nodes.forEach(function (node, index) {
+            node.field = params.fieldNames[index];
+            oldParentNode.moveBefore(node, oldBeforeNode);
+          }); // This is a hack to work around an issue that we don't know tha original
+          // path of the new parent after dragging, as the node is already moved at that time.
+
+          if (params.newParentPathRedo === null) {
+            params.newParentPathRedo = newParentNode.getInternalPath();
+          }
+        },
+        redo: function redo(params) {
+          var oldParentNode = findNode(params.oldParentPathRedo);
+          var newParentNode = findNode(params.newParentPathRedo);
+          var newBeforeNode = newParentNode.childs[params.newIndexRedo] || newParentNode.append; // first copy the nodes, then move them
+
+          var nodes = oldParentNode.childs.slice(params.oldIndexRedo, params.oldIndexRedo + params.count);
+          nodes.forEach(function (node, index) {
+            node.field = params.fieldNames[index];
+            newParentNode.moveBefore(node, newBeforeNode);
+          });
+        }
+      },
+      sort: {
+        undo: function undo(params) {
+          var node = findNode(params.path);
+          node.hideChilds();
+          node.childs = params.oldChilds;
+          node.updateDom({
+            updateIndexes: true
+          });
+          node.showChilds();
+        },
+        redo: function redo(params) {
+          var node = findNode(params.path);
+          node.hideChilds();
+          node.childs = params.newChilds;
+          node.updateDom({
+            updateIndexes: true
+          });
+          node.showChilds();
+        }
+      },
+      transform: {
+        undo: function undo(params) {
+          findNode(params.path).setInternalValue(params.oldValue); // TODO: would be nice to restore the state of the node and childs
+        },
+        redo: function redo(params) {
+          findNode(params.path).setInternalValue(params.newValue); // TODO: would be nice to restore the state of the node and childs
+        }
+      } // TODO: restore the original caret position and selection with each undo
+      // TODO: implement history for actions "expand", "collapse", "scroll", "setDocument"
+
+    };
   }
-};
-function autocomplete(config) {
-  config = config || {};
-  config.filter = config.filter || 'start';
-  config.trigger = config.trigger || 'keydown';
-  config.confirmKeys = config.confirmKeys || [39, 35, 9]; // right, end, tab
+  /**
+   * The method onChange is executed when the History is changed, and can
+   * be overloaded.
+   */
 
-  config.caseSensitive = config.caseSensitive || false; // autocomplete case sensitive
 
-  var fontSize = '';
-  var fontFamily = '';
-  var wrapper = document.createElement('div');
-  wrapper.style.position = 'relative';
-  wrapper.style.outline = '0';
-  wrapper.style.border = '0';
-  wrapper.style.margin = '0';
-  wrapper.style.padding = '0';
-  var dropDown = document.createElement('div');
-  dropDown.className = 'autocomplete dropdown';
-  dropDown.style.position = 'absolute';
-  dropDown.style.visibility = 'hidden';
-  var spacer;
-  var leftSide; // <-- it will contain the leftSide part of the textfield (the bit that was already autocompleted)
+  NodeHistory_createClass(NodeHistory, [{
+    key: "onChange",
+    value: function onChange() {}
+    /**
+     * Add a new action to the history
+     * @param {String} action  The executed action. Available actions: "editField",
+     *                         "editValue", "changeType", "appendNode",
+     *                         "removeNode", "duplicateNode", "moveNode"
+     * @param {Object} params  Object containing parameters describing the change.
+     *                         The parameters in params depend on the action (for
+     *                         example for "editValue" the Node, old value, and new
+     *                         value are provided). params contains all information
+     *                         needed to undo or redo the action.
+     */
 
-  var createDropDownController = function createDropDownController(elem, rs) {
-    var rows = [];
-    var ix = 0;
-    var oldIndex = -1; // TODO: move this styling in JS to SCSS
+  }, {
+    key: "add",
+    value: function add(action, params) {
+      this.index++;
+      this.history[this.index] = {
+        action: action,
+        params: params,
+        timestamp: new Date()
+      }; // remove redo actions which are invalid now
 
-    var onMouseOver = function onMouseOver() {
-      this.style.backgroundColor = '#ddd';
-    };
+      if (this.index < this.history.length - 1) {
+        this.history.splice(this.index + 1, this.history.length - this.index - 1);
+      } // fire onchange event
 
-    var onMouseOut = function onMouseOut() {
-      this.style.backgroundColor = '';
-    };
 
-    var onMouseDown = function onMouseDown() {
-      p.hide();
-      p.onmouseselection(this.__hint, p.rs);
-    };
+      this.onChange();
+    }
+    /**
+     * Clear history
+     */
 
-    var p = {
-      rs: rs,
-      hide: function hide() {
-        elem.style.visibility = 'hidden'; // rs.hideDropDown();
-      },
-      refresh: function refresh(token, array) {
-        elem.style.visibility = 'hidden';
-        ix = 0;
-        elem.innerHTML = '';
-        var vph = window.innerHeight || document.documentElement.clientHeight;
-        var rect = elem.parentNode.getBoundingClientRect();
-        var distanceToTop = rect.top - 6; // heuristic give 6px
+  }, {
+    key: "clear",
+    value: function clear() {
+      this.history = [];
+      this.index = -1; // fire onchange event
 
-        var distanceToBottom = vph - rect.bottom - 6; // distance from the browser border.
+      this.onChange();
+    }
+    /**
+     * Check if there is an action available for undo
+     * @return {Boolean} canUndo
+     */
 
-        rows = [];
-        var filterFn = typeof config.filter === 'function' ? config.filter : defaultFilterFunction[config.filter];
-        var filtered = !filterFn ? [] : array.filter(function (match) {
-          return filterFn(config.caseSensitive ? token : token.toLowerCase(), config.caseSensitive ? match : match.toLowerCase(), config);
-        });
-        rows = filtered.map(function (row) {
-          var divRow = document.createElement('div');
-          divRow.className = 'item'; // divRow.style.color = config.color;
+  }, {
+    key: "canUndo",
+    value: function canUndo() {
+      return this.index >= 0;
+    }
+    /**
+     * Check if there is an action available for redo
+     * @return {Boolean} canRedo
+     */
 
-          divRow.onmouseover = onMouseOver;
-          divRow.onmouseout = onMouseOut;
-          divRow.onmousedown = onMouseDown;
-          divRow.__hint = row;
-          divRow.innerHTML = row.substring(0, token.length) + '<b>' + row.substring(token.length) + '</b>';
-          elem.appendChild(divRow);
-          return divRow;
-        });
+  }, {
+    key: "canRedo",
+    value: function canRedo() {
+      return this.index < this.history.length - 1;
+    }
+    /**
+     * Undo the last action
+     */
 
-        if (rows.length === 0) {
-          return; // nothing to show.
+  }, {
+    key: "undo",
+    value: function undo() {
+      if (this.canUndo()) {
+        var obj = this.history[this.index];
+
+        if (obj) {
+          var action = this.actions[obj.action];
+
+          if (action && action.undo) {
+            action.undo(obj.params);
+
+            if (obj.params.oldSelection) {
+              try {
+                this.editor.setDomSelection(obj.params.oldSelection);
+              } catch (err) {
+                console.error(err);
+              }
+            }
+          } else {
+            console.error(new Error('unknown action "' + obj.action + '"'));
+          }
         }
 
-        if (rows.length === 1 && (token.toLowerCase() === rows[0].__hint.toLowerCase() && !config.caseSensitive || token === rows[0].__hint && config.caseSensitive)) {
-          return; // do not show the dropDown if it has only one element which matches what we have just displayed.
+        this.index--; // fire onchange event
+
+        this.onChange();
+      }
+    }
+    /**
+     * Redo the last action
+     */
+
+  }, {
+    key: "redo",
+    value: function redo() {
+      if (this.canRedo()) {
+        this.index++;
+        var obj = this.history[this.index];
+
+        if (obj) {
+          var action = this.actions[obj.action];
+
+          if (action && action.redo) {
+            action.redo(obj.params);
+
+            if (obj.params.newSelection) {
+              try {
+                this.editor.setDomSelection(obj.params.newSelection);
+              } catch (err) {
+                console.error(err);
+              }
+            }
+          } else {
+            console.error(new Error('unknown action "' + obj.action + '"'));
+          }
+        } // fire onchange event
+
+
+        this.onChange();
+      }
+    }
+    /**
+     * Destroy history
+     */
+
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.editor = null;
+      this.history = [];
+      this.index = -1;
+    }
+  }]);
+
+  return NodeHistory;
+}();
+// CONCATENATED MODULE: ./src/js/SearchBox.js
+
+
+function SearchBox_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function SearchBox_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function SearchBox_createClass(Constructor, protoProps, staticProps) { if (protoProps) SearchBox_defineProperties(Constructor.prototype, protoProps); if (staticProps) SearchBox_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+/**
+ * @constructor SearchBox
+ * Create a search box in given HTML container
+ * @param {JSONEditor} editor    The JSON Editor to attach to
+ * @param {Element} container               HTML container element of where to
+ *                                          create the search box
+ */
+
+var SearchBox_SearchBox = /*#__PURE__*/function () {
+  function SearchBox(editor, container) {
+    SearchBox_classCallCheck(this, SearchBox);
+
+    var searchBox = this;
+    this.editor = editor;
+    this.timeout = undefined;
+    this.delay = 200; // ms
+
+    this.lastText = undefined;
+    this.results = null;
+    this.dom = {};
+    this.dom.container = container;
+    var wrapper = document.createElement('div');
+    this.dom.wrapper = wrapper;
+    wrapper.className = 'jsoneditor-search';
+    container.appendChild(wrapper);
+    var results = document.createElement('div');
+    this.dom.results = results;
+    results.className = 'jsoneditor-results';
+    wrapper.appendChild(results);
+    var divInput = document.createElement('div');
+    this.dom.input = divInput;
+    divInput.className = 'jsoneditor-frame';
+    divInput.title = Object(i18n["c" /* translate */])('searchTitle');
+    wrapper.appendChild(divInput);
+    var refreshSearch = document.createElement('button');
+    refreshSearch.type = 'button';
+    refreshSearch.className = 'jsoneditor-refresh';
+    divInput.appendChild(refreshSearch);
+    var search = document.createElement('input');
+    search.type = 'text';
+    this.dom.search = search;
+
+    search.oninput = function (event) {
+      searchBox._onDelayedSearch(event);
+    };
+
+    search.onchange = function (event) {
+      // For IE 9
+      searchBox._onSearch();
+    };
+
+    search.onkeydown = function (event) {
+      searchBox._onKeyDown(event);
+    };
+
+    search.onkeyup = function (event) {
+      searchBox._onKeyUp(event);
+    };
+
+    refreshSearch.onclick = function (event) {
+      search.select();
+    }; // TODO: ESC in FF restores the last input, is a FF bug, https://bugzilla.mozilla.org/show_bug.cgi?id=598819
+
+
+    divInput.appendChild(search);
+    var searchNext = document.createElement('button');
+    searchNext.type = 'button';
+    searchNext.title = Object(i18n["c" /* translate */])('searchNextResultTitle');
+    searchNext.className = 'jsoneditor-next';
+
+    searchNext.onclick = function () {
+      searchBox.next();
+    };
+
+    divInput.appendChild(searchNext);
+    var searchPrevious = document.createElement('button');
+    searchPrevious.type = 'button';
+    searchPrevious.title = Object(i18n["c" /* translate */])('searchPreviousResultTitle');
+    searchPrevious.className = 'jsoneditor-previous';
+
+    searchPrevious.onclick = function () {
+      searchBox.previous();
+    };
+
+    divInput.appendChild(searchPrevious);
+  }
+  /**
+   * Go to the next search result
+   * @param {boolean} [focus]   If true, focus will be set to the next result
+   *                            focus is false by default.
+   */
+
+
+  SearchBox_createClass(SearchBox, [{
+    key: "next",
+    value: function next(focus) {
+      if (this.results) {
+        var index = this.resultIndex !== null ? this.resultIndex + 1 : 0;
+
+        if (index > this.results.length - 1) {
+          index = 0;
         }
 
-        if (rows.length < 2) return;
-        p.highlight(0);
+        this._setActiveResult(index, focus);
+      }
+    }
+    /**
+     * Go to the prevous search result
+     * @param {boolean} [focus]   If true, focus will be set to the next result
+     *                            focus is false by default.
+     */
 
-        if (distanceToTop > distanceToBottom * 3) {
-          // Heuristic (only when the distance to the to top is 4 times more than distance to the bottom
-          elem.style.maxHeight = distanceToTop + 'px'; // we display the dropDown on the top of the input text
+  }, {
+    key: "previous",
+    value: function previous(focus) {
+      if (this.results) {
+        var max = this.results.length - 1;
+        var index = this.resultIndex !== null ? this.resultIndex - 1 : max;
 
-          elem.style.top = '';
-          elem.style.bottom = '100%';
+        if (index < 0) {
+          index = max;
+        }
+
+        this._setActiveResult(index, focus);
+      }
+    }
+    /**
+     * Set new value for the current active result
+     * @param {Number} index
+     * @param {boolean} [focus]   If true, focus will be set to the next result.
+     *                            focus is false by default.
+     * @private
+     */
+
+  }, {
+    key: "_setActiveResult",
+    value: function _setActiveResult(index, focus) {
+      // de-activate current active result
+      if (this.activeResult) {
+        var prevNode = this.activeResult.node;
+        var prevElem = this.activeResult.elem;
+
+        if (prevElem === 'field') {
+          delete prevNode.searchFieldActive;
         } else {
-          elem.style.top = '100%';
-          elem.style.bottom = '';
-          elem.style.maxHeight = distanceToBottom + 'px';
+          delete prevNode.searchValueActive;
         }
 
-        elem.style.visibility = 'visible';
-      },
-      highlight: function highlight(index) {
-        if (oldIndex !== -1 && rows[oldIndex]) {
-          rows[oldIndex].className = 'item';
+        prevNode.updateDom();
+      }
+
+      if (!this.results || !this.results[index]) {
+        // out of range, set to undefined
+        this.resultIndex = undefined;
+        this.activeResult = undefined;
+        return;
+      }
+
+      this.resultIndex = index; // set new node active
+
+      var node = this.results[this.resultIndex].node;
+      var elem = this.results[this.resultIndex].elem;
+
+      if (elem === 'field') {
+        node.searchFieldActive = true;
+      } else {
+        node.searchValueActive = true;
+      }
+
+      this.activeResult = this.results[this.resultIndex];
+      node.updateDom(); // TODO: not so nice that the focus is only set after the animation is finished
+
+      node.scrollTo(function () {
+        if (focus) {
+          node.focus(elem);
+        }
+      });
+    }
+    /**
+     * Cancel any running onDelayedSearch.
+     * @private
+     */
+
+  }, {
+    key: "_clearDelay",
+    value: function _clearDelay() {
+      if (this.timeout !== undefined) {
+        clearTimeout(this.timeout);
+        delete this.timeout;
+      }
+    }
+    /**
+     * Start a timer to execute a search after a short delay.
+     * Used for reducing the number of searches while typing.
+     * @param {Event} event
+     * @private
+     */
+
+  }, {
+    key: "_onDelayedSearch",
+    value: function _onDelayedSearch(event) {
+      // execute the search after a short delay (reduces the number of
+      // search actions while typing in the search text box)
+      this._clearDelay();
+
+      var searchBox = this;
+      this.timeout = setTimeout(function (event) {
+        searchBox._onSearch();
+      }, this.delay);
+    }
+    /**
+     * Handle onSearch event
+     * @param {boolean} [forceSearch]  If true, search will be executed again even
+     *                                 when the search text is not changed.
+     *                                 Default is false.
+     * @private
+     */
+
+  }, {
+    key: "_onSearch",
+    value: function _onSearch(forceSearch) {
+      this._clearDelay();
+
+      var value = this.dom.search.value;
+      var text = value.length > 0 ? value : undefined;
+
+      if (text !== this.lastText || forceSearch) {
+        // only search again when changed
+        this.lastText = text;
+        this.results = this.editor.search(text);
+        var MAX_SEARCH_RESULTS = this.results[0] ? this.results[0].node.MAX_SEARCH_RESULTS : Infinity; // try to maintain the current active result if this is still part of the new search results
+
+        var activeResultIndex = 0;
+
+        if (this.activeResult) {
+          for (var i = 0; i < this.results.length; i++) {
+            if (this.results[i].node === this.activeResult.node) {
+              activeResultIndex = i;
+              break;
+            }
+          }
         }
 
-        rows[index].className = 'item hover';
-        oldIndex = index;
-      },
-      move: function move(step) {
-        // moves the selection either up or down (unless it's not possible) step is either +1 or -1.
-        if (elem.style.visibility === 'hidden') return ''; // nothing to move if there is no dropDown. (this happens if the user hits escape and then down or up)
+        this._setActiveResult(activeResultIndex, false); // display search results
 
-        if (ix + step === -1 || ix + step === rows.length) return rows[ix].__hint; // NO CIRCULAR SCROLLING.
 
-        ix += step;
-        p.highlight(ix);
-        return rows[ix].__hint; // txtShadow.value = uRows[uIndex].__hint ;
-      },
-      onmouseselection: function onmouseselection() {} // it will be overwritten.
+        if (text !== undefined) {
+          var resultCount = this.results.length;
 
-    };
-    return p;
-  };
+          if (resultCount === 0) {
+            this.dom.results.textContent = "no\xA0results";
+          } else if (resultCount === 1) {
+            this.dom.results.textContent = "1\xA0result";
+          } else if (resultCount > MAX_SEARCH_RESULTS) {
+            this.dom.results.textContent = MAX_SEARCH_RESULTS + "+\xA0results";
+          } else {
+            this.dom.results.textContent = resultCount + "\xA0results";
+          }
+        } else {
+          this.dom.results.textContent = '';
+        }
+      }
+    }
+    /**
+     * Handle onKeyDown event in the input box
+     * @param {Event} event
+     * @private
+     */
 
-  function setEndOfContenteditable(contentEditableElement) {
-    var range, selection;
+  }, {
+    key: "_onKeyDown",
+    value: function _onKeyDown(event) {
+      var keynum = event.which;
 
-    if (document.createRange) {
-      // Firefox, Chrome, Opera, Safari, IE 9+
-      range = document.createRange(); // Create a range (a range is a like the selection but invisible)
+      if (keynum === 27) {
+        // ESC
+        this.dom.search.value = ''; // clear search
 
-      range.selectNodeContents(contentEditableElement); // Select the entire contents of the element with the range
+        this._onSearch();
 
-      range.collapse(false); // collapse the range to the end point. false means collapse to end rather than the start
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (keynum === 13) {
+        // Enter
+        if (event.ctrlKey) {
+          // force to search again
+          this._onSearch(true);
+        } else if (event.shiftKey) {
+          // move to the previous search result
+          this.previous();
+        } else {
+          // move to the next search result
+          this.next();
+        }
 
-      selection = window.getSelection(); // get the selection object (allows you to change selection)
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+    /**
+     * Handle onKeyUp event in the input box
+     * @param {Event} event
+     * @private
+     */
 
-      selection.removeAllRanges(); // remove any selections already made
+  }, {
+    key: "_onKeyUp",
+    value: function _onKeyUp(event) {
+      var keynum = event.keyCode;
 
-      selection.addRange(range); // make the range you have just created the visible selection
-    } else if (document.selection) {
-      // IE 8 and lower
-      range = document.body.createTextRange(); // Create a range (a range is a like the selection but invisible)
+      if (keynum !== 27 && keynum !== 13) {
+        // !show and !Enter
+        this._onDelayedSearch(event); // For IE 9
 
-      range.moveToElementText(contentEditableElement); // Select the entire contents of the element with the range
+      }
+    }
+    /**
+     * Clear the search results
+     */
 
-      range.collapse(false); // collapse the range to the end point. false means collapse to end rather than the start
+  }, {
+    key: "clear",
+    value: function clear() {
+      this.dom.search.value = '';
 
-      range.select(); // Select the range (make it the visible selection
+      this._onSearch();
+    }
+    /**
+     * Refresh searchResults if there is a search value
+     */
+
+  }, {
+    key: "forceSearch",
+    value: function forceSearch() {
+      this._onSearch(true);
+    }
+    /**
+     * Test whether the search box value is empty
+     * @returns {boolean} Returns true when empty.
+     */
+
+  }, {
+    key: "isEmpty",
+    value: function isEmpty() {
+      return this.dom.search.value === '';
+    }
+    /**
+     * Destroy the search box
+     */
+
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.editor = null;
+      this.dom.container.removeChild(this.dom.wrapper);
+      this.dom = null;
+      this.results = null;
+      this.activeResult = null;
+
+      this._clearDelay();
+    }
+  }]);
+
+  return SearchBox;
+}();
+// CONCATENATED MODULE: ./src/js/TreePath.js
+
+
+function TreePath_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function TreePath_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function TreePath_createClass(Constructor, protoProps, staticProps) { if (protoProps) TreePath_defineProperties(Constructor.prototype, protoProps); if (staticProps) TreePath_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+/**
+ * Creates a component that visualize path selection in tree based editors
+ * @param {HTMLElement} container
+ * @param {HTMLElement} root
+ * @constructor
+ */
+
+var TreePath_TreePath = /*#__PURE__*/function () {
+  function TreePath(container, root) {
+    TreePath_classCallCheck(this, TreePath);
+
+    if (container) {
+      this.root = root;
+      this.path = document.createElement('div');
+      this.path.className = 'jsoneditor-treepath';
+      this.path.setAttribute('tabindex', 0);
+      this.contentMenuClicked = false;
+      container.appendChild(this.path);
+      this.reset();
     }
   }
-
-  function calculateWidthForText(text) {
-    if (spacer === undefined) {
-      // on first call only.
-      spacer = document.createElement('span');
-      spacer.style.visibility = 'hidden';
-      spacer.style.position = 'fixed';
-      spacer.style.outline = '0';
-      spacer.style.margin = '0';
-      spacer.style.padding = '0';
-      spacer.style.border = '0';
-      spacer.style.left = '0';
-      spacer.style.whiteSpace = 'pre';
-      spacer.style.fontSize = fontSize;
-      spacer.style.fontFamily = fontFamily;
-      spacer.style.fontWeight = 'normal';
-      document.body.appendChild(spacer);
-    } // Used to encode an HTML string into a plain text.
-    // taken from http://stackoverflow.com/questions/1219860/javascript-jquery-html-encoding
+  /**
+   * Reset component to initial status
+   */
 
 
-    spacer.innerHTML = String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return spacer.getBoundingClientRect().right;
-  }
+  TreePath_createClass(TreePath, [{
+    key: "reset",
+    value: function reset() {
+      this.path.textContent = Object(i18n["c" /* translate */])('selectNode');
+    }
+    /**
+     * Renders the component UI according to a given path objects
+     * @param {Array<{name: String, childs: Array}>} pathObjs a list of path objects
+     *
+     */
 
-  var rs = {
-    onArrowDown: function onArrowDown() {},
-    // defaults to no action.
-    onArrowUp: function onArrowUp() {},
-    // defaults to no action.
-    onEnter: function onEnter() {},
-    // defaults to no action.
-    onTab: function onTab() {},
-    // defaults to no action.
-    startFrom: 0,
-    options: [],
-    element: null,
-    elementHint: null,
-    elementStyle: null,
-    wrapper: wrapper,
-    // Only to allow  easy access to the HTML elements to the final user (possibly for minor customizations)
-    show: function show(element, startPos, options) {
-      var _this = this;
+  }, {
+    key: "setPath",
+    value: function setPath(pathObjs) {
+      var me = this;
+      this.path.textContent = '';
 
-      this.startFrom = startPos;
-      this.wrapper.remove();
+      if (pathObjs && pathObjs.length) {
+        pathObjs.forEach(function (pathObj, idx) {
+          var pathEl = document.createElement('span');
+          var sepEl;
+          pathEl.className = 'jsoneditor-treepath-element';
+          pathEl.innerText = pathObj.name;
+          pathEl.onclick = _onSegmentClick.bind(me, pathObj);
+          me.path.appendChild(pathEl);
 
-      if (this.elementHint) {
-        this.elementHint.remove();
-        this.elementHint = null;
+          if (pathObj.children.length) {
+            sepEl = document.createElement('span');
+            sepEl.className = 'jsoneditor-treepath-seperator';
+            sepEl.textContent = "\u25BA";
+
+            sepEl.onclick = function () {
+              me.contentMenuClicked = true;
+              var items = [];
+              pathObj.children.forEach(function (child) {
+                items.push({
+                  text: child.name,
+                  className: 'jsoneditor-type-modes' + (pathObjs[idx + 1] + 1 && pathObjs[idx + 1].name === child.name ? ' jsoneditor-selected' : ''),
+                  click: _onContextMenuItemClick.bind(me, pathObj, child.name)
+                });
+              });
+              var menu = new ContextMenu["a" /* ContextMenu */](items, {
+                limitHeight: true
+              });
+              menu.show(sepEl, me.root, true);
+            };
+
+            me.path.appendChild(sepEl);
+          }
+
+          if (idx === pathObjs.length - 1) {
+            var leftRectPos = (sepEl || pathEl).getBoundingClientRect().right;
+
+            if (me.path.offsetWidth < leftRectPos) {
+              me.path.scrollLeft = leftRectPos;
+            }
+
+            if (me.path.scrollLeft) {
+              var showAllBtn = document.createElement('span');
+              showAllBtn.className = 'jsoneditor-treepath-show-all-btn';
+              showAllBtn.title = 'show all path';
+              showAllBtn.textContent = '...';
+              showAllBtn.onclick = _onShowAllClick.bind(me, pathObjs);
+              me.path.insertBefore(showAllBtn, me.path.firstChild);
+            }
+          }
+        });
       }
 
-      if (fontSize === '') {
-        fontSize = window.getComputedStyle(element).getPropertyValue('font-size');
-      }
+      function _onShowAllClick(pathObjs) {
+        me.contentMenuClicked = false;
+        Object(util["addClassName"])(me.path, 'show-all');
+        me.path.style.width = me.path.parentNode.getBoundingClientRect().width - 10 + 'px';
 
-      if (fontFamily === '') {
-        fontFamily = window.getComputedStyle(element).getPropertyValue('font-family');
-      }
+        me.path.onblur = function () {
+          if (me.contentMenuClicked) {
+            me.contentMenuClicked = false;
+            me.path.focus();
+            return;
+          }
 
-      dropDown.style.marginLeft = '0';
-      dropDown.style.marginTop = element.getBoundingClientRect().height + 'px';
-      this.options = options.map(String);
-
-      if (this.element !== element) {
-        this.element = element;
-        this.elementStyle = {
-          zIndex: this.element.style.zIndex,
-          position: this.element.style.position,
-          backgroundColor: this.element.style.backgroundColor,
-          borderColor: this.element.style.borderColor
+          Object(util["removeClassName"])(me.path, 'show-all');
+          me.path.onblur = undefined;
+          me.path.style.width = '';
+          me.setPath(pathObjs);
         };
       }
 
-      this.element.style.zIndex = 3;
-      this.element.style.position = 'relative';
-      this.element.style.backgroundColor = 'transparent';
-      this.element.style.borderColor = 'transparent';
-      this.elementHint = element.cloneNode();
-      this.elementHint.className = 'autocomplete hint';
-      this.elementHint.style.zIndex = 2;
-      this.elementHint.style.position = 'absolute';
-
-      this.elementHint.onfocus = function () {
-        _this.element.focus();
-      };
-
-      if (this.element.addEventListener) {
-        this.element.removeEventListener('keydown', keyDownHandler);
-        this.element.addEventListener('keydown', keyDownHandler, false);
-        this.element.removeEventListener('blur', onBlurHandler);
-        this.element.addEventListener('blur', onBlurHandler, false);
-      }
-
-      wrapper.appendChild(this.elementHint);
-      wrapper.appendChild(dropDown);
-      element.parentElement.appendChild(wrapper);
-      this.repaint(element);
-    },
-    setText: function setText(text) {
-      this.element.innerText = text;
-    },
-    getText: function getText() {
-      return this.element.innerText;
-    },
-    hideDropDown: function hideDropDown() {
-      this.wrapper.remove();
-
-      if (this.elementHint) {
-        this.elementHint.remove();
-        this.elementHint = null;
-        dropDownController.hide();
-        this.element.style.zIndex = this.elementStyle.zIndex;
-        this.element.style.position = this.elementStyle.position;
-        this.element.style.backgroundColor = this.elementStyle.backgroundColor;
-        this.element.style.borderColor = this.elementStyle.borderColor;
-      }
-    },
-    repaint: function repaint(element) {
-      var text = element.innerText;
-      text = text.replace('\n', '');
-      var optionsLength = this.options.length; // breaking text in leftSide and token.
-
-      var token = text.substring(this.startFrom);
-      leftSide = text.substring(0, this.startFrom);
-
-      for (var i = 0; i < optionsLength; i++) {
-        var opt = this.options[i];
-
-        if (!config.caseSensitive && opt.toLowerCase().indexOf(token.toLowerCase()) === 0 || config.caseSensitive && opt.indexOf(token) === 0) {
-          // <-- how about upperCase vs. lowercase
-          this.elementHint.innerText = leftSide + token + opt.substring(token.length);
-          this.elementHint.realInnerText = leftSide + opt;
-          break;
-        }
-      } // moving the dropDown and refreshing it.
-
-
-      dropDown.style.left = calculateWidthForText(leftSide) + 'px';
-      dropDownController.refresh(token, this.options);
-      this.elementHint.style.width = calculateWidthForText(this.elementHint.innerText) + 10 + 'px';
-      var wasDropDownHidden = dropDown.style.visibility === 'hidden';
-
-      if (!wasDropDownHidden) {
-        this.elementHint.style.width = calculateWidthForText(this.elementHint.innerText) + dropDown.clientWidth + 'px';
-      }
-    }
-  };
-  var dropDownController = createDropDownController(dropDown, rs);
-
-  var keyDownHandler = function (e) {
-    // console.log("Keydown:" + e.keyCode);
-    e = e || window.event;
-    var keyCode = e.keyCode;
-    if (this.elementHint == null) return;
-
-    if (keyCode === 33) {
-      return;
-    } // page up (do nothing)
-
-
-    if (keyCode === 34) {
-      return;
-    } // page down (do nothing);
-
-
-    if (keyCode === 27) {
-      // escape
-      rs.hideDropDown();
-      rs.element.focus();
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-
-    var text = this.element.innerText;
-    text = text.replace('\n', '');
-
-    if (config.confirmKeys.indexOf(keyCode) >= 0) {
-      //  (autocomplete triggered)
-      if (keyCode === 9) {
-        if (this.elementHint.innerText.length === 0) {
-          rs.onTab();
+      function _onSegmentClick(pathObj) {
+        if (this.selectionCallback) {
+          this.selectionCallback(pathObj);
         }
       }
 
-      if (this.elementHint.innerText.length > 0) {
-        // if there is a hint
-        if (this.element.innerText !== this.elementHint.realInnerText) {
-          this.element.innerText = this.elementHint.realInnerText;
-          rs.hideDropDown();
-          setEndOfContenteditable(this.element);
-
-          if (keyCode === 9) {
-            rs.element.focus();
-            e.preventDefault();
-            e.stopPropagation();
-          }
+      function _onContextMenuItemClick(pathObj, selection) {
+        if (this.contextMenuCallback) {
+          this.contextMenuCallback(pathObj, selection);
         }
       }
-
-      return;
     }
+    /**
+     * set a callback function for selection of path section
+     * @param {Function} callback function to invoke when section is selected
+     */
 
-    if (keyCode === 13) {
-      // enter  (autocomplete triggered)
-      if (this.elementHint.innerText.length === 0) {
-        // if there is a hint
-        rs.onEnter();
-      } else {
-        var wasDropDownHidden = dropDown.style.visibility === 'hidden';
-        dropDownController.hide();
-
-        if (wasDropDownHidden) {
-          rs.hideDropDown();
-          rs.element.focus();
-          rs.onEnter();
-          return;
-        }
-
-        this.element.innerText = this.elementHint.realInnerText;
-        rs.hideDropDown();
-        setEndOfContenteditable(this.element);
-        e.preventDefault();
-        e.stopPropagation();
+  }, {
+    key: "onSectionSelected",
+    value: function onSectionSelected(callback) {
+      if (typeof callback === 'function') {
+        this.selectionCallback = callback;
       }
-
-      return;
     }
+    /**
+     * set a callback function for selection of path section
+     * @param {Function} callback function to invoke when section is selected
+     */
 
-    if (keyCode === 40) {
-      // down
-      var token = text.substring(this.startFrom);
-      var m = dropDownController.move(+1);
-
-      if (m === '') {
-        rs.onArrowDown();
+  }, {
+    key: "onContextMenuItemSelected",
+    value: function onContextMenuItemSelected(callback) {
+      if (typeof callback === 'function') {
+        this.contextMenuCallback = callback;
       }
-
-      this.elementHint.innerText = leftSide + token + m.substring(token.length);
-      this.elementHint.realInnerText = leftSide + m;
-      e.preventDefault();
-      e.stopPropagation();
-      return;
     }
+  }]);
 
-    if (keyCode === 38) {
-      // up
-      var _token = text.substring(this.startFrom);
-
-      var _m = dropDownController.move(-1);
-
-      if (_m === '') {
-        rs.onArrowUp();
-      }
-
-      this.elementHint.innerText = leftSide + _token + _m.substring(_token.length);
-      this.elementHint.realInnerText = leftSide + _m;
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }.bind(rs);
-
-  var onBlurHandler = function onBlurHandler(e) {
-    rs.hideDropDown(); // console.log("Lost focus.");
-  };
-
-  dropDownController.onmouseselection = function (text, rs) {
-    rs.element.innerText = rs.elementHint.innerText = leftSide + text;
-    rs.hideDropDown();
-    window.setTimeout(function () {
-      rs.element.focus();
-      setEndOfContenteditable(rs.element);
-    }, 1);
-  };
-
-  return rs;
-}
-// EXTERNAL MODULE: ./src/js/jmespathQuery.js
-var jmespathQuery = __webpack_require__(4);
+  return TreePath;
+}();
+// EXTERNAL MODULE: ./src/js/vanilla-picker/index.js
+var vanilla_picker = __webpack_require__(14);
+var vanilla_picker_default = /*#__PURE__*/__webpack_require__.n(vanilla_picker);
 
 // CONCATENATED MODULE: ./src/js/treemode.js
 
@@ -49726,6 +49880,7 @@ treemode._setOptions = function (options) {
     autocomplete: null,
     navigationBar: true,
     mainMenuBar: true,
+    limitDragging: false,
     onSelectionChange: null,
     colorPicker: true,
     onColorPicker: function onColorPicker(parent, color, onChange) {
@@ -49735,7 +49890,7 @@ treemode._setOptions = function (options) {
         var pickerHeight = 300; // estimated height of the color picker
 
         var top = parent.getBoundingClientRect().top;
-        var windowHeight = window.innerHeight;
+        var windowHeight = Object(util["getWindow"])(parent).innerHeight;
         var showOnTop = windowHeight - top < pickerHeight && top > pickerHeight;
         new vanilla_picker_default.a({
           parent: parent,
@@ -49765,7 +49920,11 @@ treemode._setOptions = function (options) {
   if (options) {
     Object.keys(options).forEach(function (prop) {
       _this.options[prop] = options[prop];
-    });
+    }); // default limitDragging to true when a JSON schema is defined
+
+    if (options.limitDragging == null && options.schema != null) {
+      this.options.limitDragging = true;
+    }
   } // compile a JSON schema validator if a JSON schema is provided
 
 
@@ -49900,7 +50059,7 @@ treemode.setText = function (jsonText) {
     this.set(Object(util["parse"])(jsonText)); // this can throw an error
   } catch (err) {
     // try to repair json, replace JavaScript notation with JSON notation
-    var repairedJsonText = Object(util["repair"])(jsonText); // try to parse again
+    var repairedJsonText = Object(util["trySimpleJsonRepair"])(jsonText); // try to parse again
 
     this.set(Object(util["parse"])(repairedJsonText)); // this can throw an error
   }
@@ -49917,7 +50076,7 @@ treemode.updateText = function (jsonText) {
     this.update(Object(util["parse"])(jsonText)); // this can throw an error
   } catch (err) {
     // try to repair json, replace JavaScript notation with JSON notation
-    var repairJsonText = Object(util["repair"])(jsonText); // try to parse again
+    var repairJsonText = Object(util["trySimpleJsonRepair"])(jsonText); // try to parse again
 
     this.update(Object(util["parse"])(repairJsonText)); // this can throw an error
   }
@@ -50240,8 +50399,8 @@ treemode._renderValidationErrors = function (errorNodes) {
       node: pair[0],
       child: pair[1],
       error: {
-        message: pair[0].type === 'object' ? 'Contains invalid properties' // object
-        : 'Contains invalid items' // array
+        message: pair[0].type === 'object' ? Object(i18n["c" /* translate */])('containsInvalidProperties') // object
+        : Object(i18n["c" /* translate */])('containsInvalidItems') // array
 
       }
     };
@@ -50908,7 +51067,7 @@ treemode._updateDragDistance = function (event) {
 };
 /**
  * Start multi selection of nodes by dragging the mouse
- * @param event
+ * @param {MouseEvent} event
  * @private
  */
 
@@ -50933,13 +51092,13 @@ treemode._onMultiSelectStart = function (event) {
   var editor = this;
 
   if (!this.mousemove) {
-    this.mousemove = Object(util["addEventListener"])(window, 'mousemove', function (event) {
+    this.mousemove = Object(util["addEventListener"])(event.view, 'mousemove', function (event) {
       editor._onMultiSelect(event);
     });
   }
 
   if (!this.mouseup) {
-    this.mouseup = Object(util["addEventListener"])(window, 'mouseup', function (event) {
+    this.mouseup = Object(util["addEventListener"])(event.view, 'mouseup', function (event) {
       editor._onMultiSelectEnd(event);
     });
   }
@@ -50948,7 +51107,7 @@ treemode._onMultiSelectStart = function (event) {
 };
 /**
  * Multiselect nodes by dragging
- * @param event
+ * @param {MouseEvent} event
  * @private
  */
 
@@ -50997,11 +51156,12 @@ treemode._onMultiSelect = function (event) {
 };
 /**
  * End of multiselect nodes by dragging
+ * @param {MouseEvent} event
  * @private
  */
 
 
-treemode._onMultiSelectEnd = function () {
+treemode._onMultiSelectEnd = function (event) {
   // set focus to the context menu button of the first node
   if (this.multiselection.nodes[0]) {
     this.multiselection.nodes[0].dom.menu.focus();
@@ -51011,12 +51171,12 @@ treemode._onMultiSelectEnd = function () {
   this.multiselection.end = null; // cleanup global event listeners
 
   if (this.mousemove) {
-    Object(util["removeEventListener"])(window, 'mousemove', this.mousemove);
+    Object(util["removeEventListener"])(event.view, 'mousemove', this.mousemove);
     delete this.mousemove;
   }
 
   if (this.mouseup) {
-    Object(util["removeEventListener"])(window, 'mouseup', this.mouseup);
+    Object(util["removeEventListener"])(event.view, 'mouseup', this.mouseup);
     delete this.mouseup;
   }
 };
@@ -51131,6 +51291,12 @@ treemode._showAutoComplete = function (element) {
   var jsonElementType = '';
   if (element.className.indexOf('jsoneditor-value') >= 0) jsonElementType = 'value';
   if (element.className.indexOf('jsoneditor-field') >= 0) jsonElementType = 'field';
+
+  if (jsonElementType === '') {
+    // Unknown element field. Could be a button or something else
+    return;
+  }
+
   var self = this;
   setTimeout(function () {
     if (node && (self.options.autocomplete.trigger === 'focus' || element.innerText.length > 0)) {
@@ -51488,7 +51654,7 @@ var treeModeMixins = [{
 }];
 
 /***/ }),
-/* 81 */
+/* 85 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -51498,32 +51664,18 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, "previewModeMixins", function() { return /* binding */ previewModeMixins; });
 
-// EXTERNAL MODULE: ./src/js/i18n.js
-var i18n = __webpack_require__(1);
-
-// EXTERNAL MODULE: ./src/js/ModeSwitcher.js
-var ModeSwitcher = __webpack_require__(8);
-
-// EXTERNAL MODULE: ./src/js/ErrorTable.js
-var ErrorTable = __webpack_require__(15);
-
-// EXTERNAL MODULE: ./src/js/showSortModal.js
-var showSortModal = __webpack_require__(5);
-
-// EXTERNAL MODULE: ./src/js/showTransformModal.js + 1 modules
-var showTransformModal = __webpack_require__(6);
-
-// EXTERNAL MODULE: ./src/js/textmode.js + 1 modules
-var textmode = __webpack_require__(21);
+// EXTERNAL MODULE: ./node_modules/simple-json-repair/lib/cjs/index-commonjs.js
+var index_commonjs = __webpack_require__(8);
+var index_commonjs_default = /*#__PURE__*/__webpack_require__.n(index_commonjs);
 
 // EXTERNAL MODULE: ./src/js/constants.js
 var constants = __webpack_require__(2);
 
+// EXTERNAL MODULE: ./src/js/ErrorTable.js
+var ErrorTable = __webpack_require__(16);
+
 // EXTERNAL MODULE: ./src/js/FocusTracker.js
 var FocusTracker = __webpack_require__(9);
-
-// EXTERNAL MODULE: ./src/js/util.js
-var util = __webpack_require__(0);
 
 // CONCATENATED MODULE: ./src/js/History.js
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -51623,10 +51775,29 @@ var History = /*#__PURE__*/function () {
 
   return History;
 }();
+// EXTERNAL MODULE: ./src/js/i18n.js
+var i18n = __webpack_require__(1);
+
 // EXTERNAL MODULE: ./src/js/jmespathQuery.js
 var jmespathQuery = __webpack_require__(4);
 
+// EXTERNAL MODULE: ./src/js/ModeSwitcher.js
+var ModeSwitcher = __webpack_require__(10);
+
+// EXTERNAL MODULE: ./src/js/showSortModal.js
+var showSortModal = __webpack_require__(5);
+
+// EXTERNAL MODULE: ./src/js/showTransformModal.js + 1 modules
+var showTransformModal = __webpack_require__(6);
+
+// EXTERNAL MODULE: ./src/js/textmode.js + 1 modules
+var textmode = __webpack_require__(22);
+
+// EXTERNAL MODULE: ./src/js/util.js
+var util = __webpack_require__(0);
+
 // CONCATENATED MODULE: ./src/js/previewmode.js
+
 
 
 
@@ -51706,7 +51877,7 @@ previewmode.create = function (container) {
   this.dom.busy = document.createElement('div');
   this.dom.busy.className = 'jsoneditor-busy';
   this.dom.busyContent = document.createElement('span');
-  this.dom.busyContent.innerHTML = 'busy...';
+  this.dom.busyContent.textContent = 'busy...';
   this.dom.busy.appendChild(this.dom.busyContent);
   this.content.appendChild(this.dom.busy);
   this.dom.previewContent = document.createElement('pre');
@@ -52024,7 +52195,7 @@ previewmode._showTransformModal = function () {
 
 
     Object(showTransformModal["showTransformModal"])({
-      anchor: modalAnchor || constants["a" /* DEFAULT_MODAL_ANCHOR */],
+      container: modalAnchor || constants["a" /* DEFAULT_MODAL_ANCHOR */],
       json: json,
       queryDescription: queryDescription,
       // can be undefined
@@ -52094,9 +52265,13 @@ previewmode.format = function () {
 
 previewmode.repair = function () {
   var text = this.getText();
-  var repairedText = Object(util["repair"])(text);
 
-  this._setTextAndFireOnChange(repairedText);
+  try {
+    var repairedText = index_commonjs_default()(text);
+
+    this._setTextAndFireOnChange(repairedText);
+  } catch (err) {// repair was not successful, do nothing
+  }
 };
 /**
  * Set focus to the editor

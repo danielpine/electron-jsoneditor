@@ -51,6 +51,21 @@
         .jsoneditor-menu a {
             display: none;
         }
+        
+        .jsoneditor-menu>button.jsoneditor-save {
+            background: url("resources/image/save.svg");
+            background-size: cover;
+        }
+        
+        .jsoneditor-menu>button.jsoneditor-load {
+            background: url("resources/image/load.svg");
+            background-size: cover;
+        }
+        
+        .jsoneditor-menu>button.jsoneditor-clear {
+            background: url("resources/image/clear.svg");
+            background-size: cover;
+        }
     </style>
 </head>
 
@@ -61,9 +76,10 @@
     <div id="jsoneditor"></div>
     <script src="resources/jsoneditor/jsoneditor.js"></script>
     <script src="resources/jquery-1.8.3.min.js"></script>
+    <script src="resources/filereader.js"></script>
+    <script src="resources/FileSaver.min.js"></script>
     <script>
         const container = document.getElementById('jsoneditor')
-
         const options = {
             mode: 'code',
             modes: ['code', 'form', 'text', 'tree', 'view', 'preview'], // allowed modes
@@ -72,7 +88,40 @@
             },
             onModeChange: function(newMode, oldMode) {
                 console.log('Mode switched from', oldMode, 'to', newMode)
-            }
+            },
+            buttons: [{
+                title: "Save as text.",
+                className: "jsoneditor-save",
+                target: function(editor) {
+                    const fname = new Date().getTime() + ".json"
+                    const blob = new Blob([editor.getText()], {
+                        type: "application/json;charset=utf-8",
+                    });
+                    saveAs(blob, fname)
+                },
+            }, {
+                title: "Upload a json file.",
+                className: "jsoneditor-load",
+                target: function(editor) {
+                    var loadinput = document.createElement("input")
+                    loadinput.type = "file"
+                    FileReaderJS.setupInput(loadinput, {
+                        readAsDefault: "Text",
+                        on: {
+                            load: function(event, file) {
+                                editor.setText(event.target.result)
+                            },
+                        },
+                    })
+                    loadinput.click()
+                },
+            }, {
+                title: "Clear editor.",
+                className: "jsoneditor-clear",
+                target: function(editor) {
+                    editor.setText('')
+                },
+            }, ]
         }
 
         const json = {
@@ -88,7 +137,8 @@
         }
 
         const editor = new JSONEditor(container, options, json)
-        window.onload = function() {
+
+        function dragFile() {
             var oBox = document.getElementById('box')
             var out = document.getElementById('out')
             var timer = null
@@ -135,6 +185,10 @@
                 reader.readAsText(file, "UTF-8")
                 return false
             }
+        }
+
+        window.onload = function() {
+            dragFile()
         }
     </script>
 </body>
